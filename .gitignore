@@ -1,0 +1,6 @@
+# pycache datafile
+__pycache__
+# vscode specifications
+.vscode
+# trained model (for now)
+model/*.pth
