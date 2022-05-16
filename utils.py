@@ -5,7 +5,10 @@
  # @copyright https://mit-license.org/
  #
 from enum import Enum
+import pygame
+import time
 
+from snake_game_V1 import BLUE1
 class Direction(Enum):
     RIGHT = 1
     LEFT = 2
@@ -23,3 +26,19 @@ def get_opposite_direction(direction):
         return direction.DOWN
     else:
         raise ValueError(f'Unknown direction {direction}')
+
+# RED = (255,0, 0)
+# WHITE = (255,255,255)
+# BLUE1 = (0,0,255)
+# display = pygame.display.set_mode((100, 100))
+# pygame.display.set_caption('Snake')
+# pix_size = 20
+# point = pygame.Rect(0,50, pix_size, pix_size)
+# pygame.draw.rect(display, RED, point)
+# point.move_ip(50,0)
+# pygame.draw.rect(display, RED, point.inflate(1,2*pix_size))
+# pygame.draw.rect(display, WHITE, point)
+# pygame.draw.rect(display, BLUE1, point.move(-20,0))
+# pygame.display.flip()
+# time.sleep(5)
+            

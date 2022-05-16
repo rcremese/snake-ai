@@ -1,3 +1,9 @@
+##
+# @author Robin CREMESE <robin.cremese@gmail.com>
+ # @file Description
+ # @desc Created on 2022-05-16 2:12:02 pm
+ # @copyright https://mit-license.org/
+ #
 import torch
 import torch.nn as nn
 import torch.optim as optim

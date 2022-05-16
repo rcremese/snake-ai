@@ -1,3 +1,9 @@
+##
+# @author Robin CREMESE <robin.cremese@gmail.com>
+ # @file Description
+ # @desc Created on 2022-05-16 11:46:54 am
+ # @copyright https://mit-license.org/
+ #
 import pygame
 import random
 from enum import Enum
@@ -15,6 +21,7 @@ class Direction(Enum):
     DOWN = 4
 
 Point = namedtuple('Point', 'x, y')
+PIXEL_SIZE = 20
 
 # rgb colors
 WHITE = (255, 255, 255)
