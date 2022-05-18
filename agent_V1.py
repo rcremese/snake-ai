@@ -1,22 +1,13 @@
-##
-# @author Robin CREMESE <robin.cremese@gmail.com>
- # @file Description
- # @desc Created on 2022-05-16 12:18:03 pm
- # @copyright https://mit-license.org/
- #
 import torch
 import random
 import numpy as np
 from collections import deque
-from game_V2 import SnakeGameAI, PIXEL_SIZE
-from utils import Direction
+from game_V1 import SnakeGameAI, Direction, Point
 from model import Linear_QNet, QTrainer
 from helper import plot
-from pathlib import Path
 
 MAX_MEMORY = 100_000
 BATCH_SIZE = 1000
-EXPLORATION_THREASHOLD = 100
 LR = 0.001
 
 class Agent:
@@ -31,20 +22,16 @@ class Agent:
 
 
     def get_state(self, game):
-        # head = game.snake.head
-        # point_l = Point(head.x - 20, head.y)
-        # point_r = Point(head.x + 20, head.y)
-        # point_u = Point(head.x, head.y - 20)
-        # point_d = Point(head.x, head.y + 20)
-        point_l = game.snake.head.move(-PIXEL_SIZE, 0)
-        point_r = game.snake.head.move(PIXEL_SIZE, 0)
-        point_u = game.snake.head.move(0, -PIXEL_SIZE)
-        point_d = game.snake.head.move(0, PIXEL_SIZE)
-
-        dir_l = game.snake.direction == Direction.LEFT
-        dir_r = game.snake.direction == Direction.RIGHT
-        dir_u = game.snake.direction == Direction.UP
-        dir_d = game.snake.direction == Direction.DOWN
+        head = game.snake[0]
+        point_l = Point(head.x - 20, head.y)
+        point_r = Point(head.x + 20, head.y)
+        point_u = Point(head.x, head.y - 20)
+        point_d = Point(head.x, head.y + 20)
+        
+        dir_l = game.direction == Direction.LEFT
+        dir_r = game.direction == Direction.RIGHT
+        dir_u = game.direction == Direction.UP
+        dir_d = game.direction == Direction.DOWN
 
         state = [
             # Danger straight
@@ -72,14 +59,12 @@ class Agent:
             dir_d,
             
             # Food location 
-            game.food.x < game.snake.head.x,  # food left
-            game.food.x > game.snake.head.x,  # food right
-            game.food.y < game.snake.head.y,  # food up
-            game.food.y > game.snake.head.y  # food down
+            game.food.x < game.head.x,  # food left
+            game.food.x > game.head.x,  # food right
+            game.food.y < game.head.y,  # food up
+            game.food.y > game.head.y  # food down
             ]
-        # print('obstacles', np.array(state[:3], dtype=int))
-        # print('direction', np.array(state[3:7], dtype=int))
-        # print('food', np.array(state[7:], dtype=int))
+
         return np.array(state, dtype=int)
 
     def remember(self, state, action, reward, next_state, done):
@@ -101,16 +86,14 @@ class Agent:
 
     def get_action(self, state):
         # random moves: tradeoff exploration / exploitation
-        # TODO : Implement exponential decay 
-        self.epsilon = EXPLORATION_THREASHOLD - self.n_games
+        self.epsilon = 80 - self.n_games
         final_move = [0,0,0]
-        if random.randint(0, 2 * EXPLORATION_THREASHOLD) < self.epsilon:
+        if random.randint(0, 200) < self.epsilon:
             move = random.randint(0, 2)
             final_move[move] = 1
         else:
             state0 = torch.tensor(state, dtype=torch.float)
             prediction = self.model(state0)
-            # TODO :  change the way fonctions are computed
             move = torch.argmax(prediction).item()
             final_move[move] = 1
 
@@ -124,10 +107,6 @@ def train():
     record = 0
     agent = Agent()
     game = SnakeGameAI()
-    # Si un model_0 existe, le lire
-    model_path = Path.cwd().joinpath('model','model_1.pth').resolve()
-    if model_path.exists():
-        agent.model.load(model_path.as_posix())
     while True:
         # get old state
         state_old = agent.get_state(game)

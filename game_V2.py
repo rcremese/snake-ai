@@ -27,9 +27,9 @@ BLACK = (0,0,0)
 PIXEL_SIZE = 20
 BODY_PIXEL_SIZE = 12
 OBSTACLE_SIZE_RANGE = (2, 4)
-SPEED = 50
-PERCENTAGE = 0.05
-TIME_LIMIT = 100
+SPEED = 80
+PERCENTAGE = 0.1
+TIME_LIMIT = 10
 
 class SnakeGameAI:
 
@@ -44,8 +44,7 @@ class SnakeGameAI:
 
     def reset(self):
         # init game state
-        self.direction = Direction.RIGHT
-
+        
         self.snake = Snake(self.width/2, self.height/2, pixel_size=PIXEL_SIZE)
         self.score = 0
         self._populate_grid_with_obstacles(percent=PERCENTAGE)
@@ -119,6 +118,8 @@ class SnakeGameAI:
         if self.is_collision() or self.frame_iteration > TIME_LIMIT*len(self.snake):
             game_over = True
             reward = -10
+            if self.frame_iteration > TIME_LIMIT*len(self.snake):
+                reward *=-2
             return reward, game_over, self.score
 
         # 4. place new food or just move
