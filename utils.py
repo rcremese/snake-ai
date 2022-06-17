@@ -9,11 +9,12 @@ import pygame
 import time
 
 from snake_game_V1 import BLUE1
+
 class Direction(Enum):
-    RIGHT = 1
-    LEFT = 2
-    UP = 3
-    DOWN = 4
+    RIGHT = (-1,0)
+    LEFT = (1,0)
+    UP = (0,-1)
+    DOWN = (0,1)
 
 def get_opposite_direction(direction):
     if direction == Direction.RIGHT:
@@ -23,7 +24,7 @@ def get_opposite_direction(direction):
     elif direction == Direction.DOWN:
         return Direction.UP
     elif direction == Direction.UP:
-        return direction.DOWN
+        return Direction.DOWN
     else:
         raise ValueError(f'Unknown direction {direction}')
 

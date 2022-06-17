@@ -8,10 +8,9 @@ import torch
 import random
 import numpy as np
 from collections import deque
-from game_V2 import SnakeGameAI, PIXEL_SIZE
+from game import SnakeGameAI, PIXEL_SIZE
 from utils import Direction
 from model import Linear_QNet, QTrainer
-from helper import plot
 from pathlib import Path
 
 MAX_MEMORY = 100_000
@@ -118,14 +117,11 @@ class Agent:
 
 
 def train():
-    plot_scores = []
-    plot_mean_scores = []
-    total_score = 0
     record = 0
     agent = Agent()
     game = SnakeGameAI()
     # Si un model_0 existe, le lire
-    model_path = Path.cwd().joinpath('model','model_1.pth').resolve()
+    model_path = Path.cwd().joinpath('model','model_0.pth').resolve()
     if model_path.exists():
         agent.model.load(model_path.as_posix())
     while True:
@@ -156,12 +152,6 @@ def train():
                 agent.model.save()
 
             print('Game', agent.n_games, 'Score', score, 'Record:', record)
-
-            plot_scores.append(score)
-            total_score += score
-            mean_score = total_score / agent.n_games
-            plot_mean_scores.append(mean_score)
-            plot(plot_scores, plot_mean_scores)
 
 
 if __name__ == '__main__':
