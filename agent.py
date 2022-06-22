@@ -6,9 +6,8 @@
  #
 import torch
 import random
-import numpy as np
 from collections import deque
-from game import SnakeGameAI, PIXEL_SIZE
+from snake_game_ai import SnakeGameAI, PIXEL_SIZE
 from utils import Direction
 from model import Linear_QNet, QTrainer
 from pathlib import Path
@@ -143,7 +142,7 @@ def train():
 
         if done:
             # train long memory, plot result
-            game.reset()
+            game._reset()
             agent.n_games += 1
             agent.train_long_memory()
 

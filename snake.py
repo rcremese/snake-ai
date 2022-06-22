@@ -5,8 +5,9 @@
  # @copyright https://mit-license.org/
  #
 import pygame
-from typing import List, Tuple
-from utils import Direction, get_opposite_direction
+import logging
+from typing import List
+from utils import Direction, get_opposite_direction, get_direction_from_vector
 
 BODY_PIXEL_SIZE = 12
 
@@ -16,26 +17,52 @@ class Snake:
         self._body_pixel = body_pixel
         self.head = pygame.Rect(x, y, self._pixel_size, self._pixel_size)
         self.body = [self.head.move(-self._pixel_size, 0), self.head.move(-2*self._pixel_size, 0)]
-        self._size = len(self.body)
-        self._direction = Direction.RIGHT
+        self._size = len(self.body) + 1
+        self.direction = Direction.RIGHT
         
     def draw(self, display, head_color = (255, 255, 255), body_color = (0, 100, 255)):
         move = (self._pixel_size - self._body_pixel) / 2
         # draw the head and eye
         pygame.draw.rect(display, head_color, self.head)
         # TODO : dessiner les yeux
-        pygame.draw.rect(display, (0,0,0), self.head)
+        # pygame.draw.rect(display, (0,0,0), self.head)
         # draw the body
         for pt in self.body:
             pygame.draw.rect(display, head_color, pt)
             # draw the body of the snake, in order to count the parts
             pygame.draw.rect(display, body_color, pygame.Rect(pt.x + move, pt.y + move, self._body_pixel, self._body_pixel))
-        
-    def go_back(self):
-        self.body.insert(0, self.head) # insert the head in front of the list
-        self.body.reverse()
-        self.head = self.body.pop()
 
+    def move(self, direction : Direction):
+        # Change direction when going in the opposite 
+        if direction == get_opposite_direction(self.direction):
+            logging.debug(f'Chosen direction {direction} is the opposite of the current direction {self.direction}. The snake turns back !')
+            self.go_back()
+        else:
+            self.direction = direction
+        # move all parts of the snake
+        if self.direction == Direction.RIGHT:
+            new_head = self.head.move(self._pixel_size, 0)
+        elif self.direction == Direction.LEFT:
+            new_head = self.head.move(-self._pixel_size, 0)
+        elif self.direction == Direction.DOWN:
+            new_head = self.head.move(0, self._pixel_size)
+        elif self.direction == Direction.UP:
+            new_head = self.head.move(0, -self._pixel_size)
+        else:
+            raise ValueError(f'Unknown direction {direction}')
+        # Check the intersetion of the new head with the rest of the body
+        self.body.insert(0, self.head)
+        self.head = new_head
+        self.body.pop()
+ 
+    def go_back(self):
+        logging.debug(f'direction before turning back : {self.direction}')
+        self.direction = self.get_direction_from_head_position(invert=True)
+        logging.debug(f'direction after turning back : {self.direction}')
+        self.body.insert(0, self.head) # insert the head in front of the list
+        self.head = self.body.pop()
+        self.body.reverse()
+        
     def grow(self):
         pre_tail = self.body[-2]
         tail = self.body[-1]
@@ -43,13 +70,16 @@ class Snake:
         self.body.append(new_tail)
         self._size += 1
     
-    def get_new_direction(self):
-        disp_vect = ((self.head.centerx - self.body[0].centerx) // self._pixel_size, (self.head.centery - self.body[0].centery) // self._pixel_size) 
-        for direction in Direction:
-            if disp_vect == direction.value:
-                self._direction = direction
-        return self._direction
+    def get_direction(self):
+        return self.direction
 
+    def get_direction_from_head_position(self, invert : bool = False) -> Direction:
+        if invert:
+            disp_vect = ((self.body[-1].x - self.body[-2].x) // self._pixel_size, (self.body[-1].y - self.body[-2].y) // self._pixel_size) 
+        else:    
+            disp_vect = ((self.head.x - self.body[0].x) // self._pixel_size, (self.head.y - self.body[0].y) // self._pixel_size) 
+        return get_direction_from_vector(disp_vect)
+        
     def collide_with_itself(self):
         return self.head.collidelist(self.body) != -1
         
@@ -60,37 +90,12 @@ class Snake:
         return self.head.collidelist(obstacle_list) != -1
 
     def __len__(self):
-        return len(self.body)
+        return self._size
         
     def __iter__(self):
-        return iter(self.body)
+        return iter([self.head , *self.body])
         
     def __next__(self):
-        return next(self.body)
+        return next([self.head , *self.body])
 
-class SnakeHuman(Snake):
-    def move(self, direction : Direction):
-        # Change direction when going in the opposite 
-        if direction == get_opposite_direction(self.direction):
-            self.go_back()
-                
-        self.direction = direction
-        # move all parts of the snake
-        if direction == Direction.RIGHT:
-            new_head = self.head.move(self._pixel_size, 0)
-        elif direction == Direction.LEFT:
-            new_head = self.head.move(-self._pixel_size, 0)
-        elif direction == Direction.DOWN:
-            new_head = self.head.move(0, self._pixel_size)
-        elif direction == Direction.UP:
-            new_head = self.head.move(0, -self._pixel_size)
-        else:
-            raise ValueError(f'Unknown direction {direction}')
-        # Check the intersetion of the new head with the rest of the body
-        if new_head.colliderect(self.body[0]):
-            self.move(get_opposite_direction(direction))
-        else:
-            # Move foreward
-            self.body.insert(0, self.head)
-            self.head = new_head
-            self.body.pop()
+    

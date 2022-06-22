@@ -1,7 +1,6 @@
 from cmath import rect
 import pygame
 
-
 def collision(rect, line):
     clipped_line = rect.clipline(line)
 
@@ -22,3 +21,6 @@ line2 = ((0,0), (3, 3))
 
 collision(rect, line1)
 collision(rect, line2)
+
+def print_integer(i :int):
+    print(i)
