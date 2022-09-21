@@ -10,8 +10,6 @@ import logging
 import pygame
 import numpy as np
 
-from snake_game_V1 import BLUE1
-
 class Line():
     def __init__(self, start : Tuple[int], end : Tuple[int]) -> None:
         self.start = start
@@ -72,7 +70,7 @@ def get_direction_from_vector(vector : Tuple[int]):
     elif vector == (0, 1):
         direction =  Direction.DOWN
     else:
-        raise ValueError(f'Unknown displacement {vector}')    
+        raise ValueError(f'Unknown displacement {vector}')
     logging.debug(f'corresponding direction {direction}')
     return direction
 

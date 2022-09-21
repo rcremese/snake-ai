@@ -11,9 +11,11 @@ import logging
 from typing import Dict, List
 from snake import Snake
 from utils import Direction, Line, get_opposite_direction
+from pathlib import Path
 
 pygame.init()
-font = pygame.font.Font('arial.ttf', 25)
+font_path = Path('./graphics/arial.ttf').resolve(strict=True)
+font = pygame.font.Font(font_path, 25)
 
 # rgb colors
 WHITE = (255, 255, 255)
@@ -27,9 +29,10 @@ GREY = (150, 150, 150)
 PIXEL_SIZE = 20
 BODY_PIXEL_SIZE = 12
 OBSTACLE_SIZE_RANGE = (2, 4)
-SPEED = 10
+SPEED = 50
 PERCENTAGE = 0.2
-class SnakeGame:    
+
+class SnakeGame:
     def __init__(self, width=640, height=480, speed = 10, obstacle_rate=0):
         self.width = width
         self.height = height
@@ -59,7 +62,7 @@ class SnakeGame:
         # Check to not place food inside the snake
         if self.food.collidelist(self.snake.body) != -1:
             self._place_food()
-        # Check to place the food at least 1 pixel away from a wall 
+        # Check to place the food at least 1 pixel away from a wall
         if self.food.inflate(2*PIXEL_SIZE, 2*PIXEL_SIZE).collidelist(self.obstacles) != -1:
             self._place_food()
 
@@ -86,9 +89,9 @@ class SnakeGame:
         y = random.randrange(0, self.height, size)
 
         obstacle = pygame.Rect(x, y, size, size)
-        # check colision with the initial snake bounding box 
-        bounding_box_factor = 2 * (self.snake._size -1) * PIXEL_SIZE 
-    
+        # check colision with the initial snake bounding box
+        bounding_box_factor = 2 * (self.snake._size -1) * PIXEL_SIZE
+
         if obstacle.colliderect(self.snake.head.inflate(bounding_box_factor, bounding_box_factor)):
             obstacle = self._place_obstacle(size)
         # check inclusion inside other obstacles
@@ -102,24 +105,10 @@ class SnakeGame:
     def _is_outside(self, rect : pygame.Rect = None):
         if rect is None:
             rect = self.snake.head
-        return rect.x < 0 or rect.x + rect.width > self.width or rect.y < 0 or rect.y + rect.height > self.height 
+        return rect.x < 0 or rect.x + rect.width > self.width or rect.y < 0 or rect.y + rect.height > self.height
 
     def _is_collision(self):
         return self._is_outside() or self.snake.collide_with_itself() or self.snake.collide_with_obstacles(self.obstacles)
-        
-    # def _update_ui(self):
-    #     self.display.fill(BLACK)
-        
-    #     self.snake.draw(self.display, WHITE, BLUE2)
-            
-    #     pygame.draw.rect(self.display, GREEN, self.food)
-    #     # plot obstacles
-    #     for obstacle in self.obstacles:
-    #         pygame.draw.rect(self.display, RED, obstacle)
-        
-    #     text = font.render("Score: " + str(self.score), True, WHITE)
-    #     self.display.blit(text, [0, 0])
-    #     pygame.display.flip()        
 
     def _update_ui(self):
         self.display.fill(BLACK)
@@ -131,7 +120,7 @@ class SnakeGame:
             if line is not None:
                 logging.debug(f'Drawing line {line} for direction {direction}')
                 line.draw(self.display, GREY, BLUE1)
-        # Draw food 
+        # Draw food
         pygame.draw.rect(self.display, GREEN, self.food)
         # Draw obstacles
         for obstacle in self.obstacles:
@@ -139,7 +128,7 @@ class SnakeGame:
         # Print the score
         text = font.render("Score: " + str(self.score), True, WHITE)
         self.display.blit(text, [0, 0])
-        
+
     def _init_collision_lines(self) -> Dict[Direction, Line]:
         snake_head = self.snake.head
         self.collision_lines[Direction.UP] = Line(snake_head.center, (snake_head.centerx, 0))
@@ -150,7 +139,7 @@ class SnakeGame:
         self.collision_lines[Direction.DOWN_LEFT] = Line(snake_head.center, (snake_head.centerx - (self.height - snake_head.centery), self.height))
         self.collision_lines[Direction.LEFT] = Line(snake_head.center, (0, snake_head.centery))
         self.collision_lines[Direction.UP_LEFT] = Line(snake_head.center, (0, snake_head.centery - snake_head.centerx))
-        
+
     def _get_collision_box(self, direction : Direction):
         snake_head = self.snake.head
         if direction == Direction.UP:
@@ -180,14 +169,14 @@ class SnakeGame:
         collision_list = [self.obstacles[index] for index in collision_box.collidelistall(self.obstacles)]
         intersection_point = None
         if collision_list:
-            # Check all possible collisions within the collision box 
+            # Check all possible collisions within the collision box
             intersection_point = collision_line.intersect_obstacles(collision_list)
             if intersection_point:
                 self.collision_lines[direction] = Line(collision_line.start, intersection_point)
         # Case where no obstacles are found in the bounding box or none of the available obstacle collide with the collision line
         if (not collision_list) or (not intersection_point):
             logging.debug(f'collision list is empty or no intersection point found in bounding box')
-            
+
             collision = collision_line.intersect(collision_box)
             logging.debug(f'collision between line {collision_line} from head {self.snake.head} and bounding box {collision_box} is : {collision}')
             self.collision_lines[direction] = Line(*collision)
@@ -215,7 +204,73 @@ class SnakeGame:
                 self.collision_lines[direction] = Line(self.snake.head.center, self.snake.head.midleft)
             elif (direction == Direction.UP_LEFT) and (self.snake.head.left <= 0 or self.snake.head.top <= 0):
                 self.collision_lines[direction] = Line(self.snake.head.center, self.snake.head.topleft)
-            else:    
+            else:
                 self._update_collision_line(direction)
 
-    
+
+class SnakeGameHuman(SnakeGame):
+    def __init__(self, width=640, height=480, speed=10, obstacle_rate=0):
+        super().__init__(width, height, speed, obstacle_rate)
+        self._direction = Direction.RIGHT
+
+    def play_step(self):
+        # 1. collect user input
+        self._collect_user_inputs()
+        # 2. move
+        self.snake.move(self._direction) # update the head
+        # compute collision lines
+        self._init_collision_lines()
+        self._update_collision_lines()
+        # 3. check if game over
+        game_over = False
+        if self._is_collision():
+            game_over = True
+            return game_over, self.score
+
+        # 4. place new food or just move
+        if self.snake.head.colliderect(self.food):
+            self.score += 1
+            self.snake.grow()
+            self._place_food()
+
+        # 5. update ui and clock
+        self._update_ui()
+        pygame.display.flip()
+        self.clock.tick(self._speed)
+        # 6. return game over and score
+        return game_over, self.score
+
+    def _collect_user_inputs(self):
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                quit()
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_LEFT:
+                    self._direction = Direction.LEFT
+                elif event.key == pygame.K_RIGHT:
+                    self._direction = Direction.RIGHT
+                elif event.key == pygame.K_UP:
+                    self._direction = Direction.UP
+                elif event.key == pygame.K_DOWN:
+                    self._direction = Direction.DOWN
+
+
+def main():
+    format = '%(levelname)s:%(module)s.%(funcName)s : %(message)s'
+    logging.basicConfig(level=logging.INFO, format=format)
+    game = SnakeGameHuman(1000,1000, speed=20, obstacle_rate=0.1)
+
+    # game loop
+    while True:
+        game_over, score = game.play_step()
+
+        if game_over == True:
+            break
+
+    logging.info(f'GAME OVER\nFinal Score = {score}')
+
+    pygame.quit()
+
+if __name__ == '__main__':
+    main()

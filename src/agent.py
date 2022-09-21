@@ -46,30 +46,30 @@ class Agent:
 
         state = [
             # Danger straight
-            (dir_r and game.is_collision(point_r)) or 
-            (dir_l and game.is_collision(point_l)) or 
-            (dir_u and game.is_collision(point_u)) or 
+            (dir_r and game.is_collision(point_r)) or
+            (dir_l and game.is_collision(point_l)) or
+            (dir_u and game.is_collision(point_u)) or
             (dir_d and game.is_collision(point_d)),
 
             # Danger right
-            (dir_u and game.is_collision(point_r)) or 
-            (dir_d and game.is_collision(point_l)) or 
-            (dir_l and game.is_collision(point_u)) or 
+            (dir_u and game.is_collision(point_r)) or
+            (dir_d and game.is_collision(point_l)) or
+            (dir_l and game.is_collision(point_u)) or
             (dir_r and game.is_collision(point_d)),
 
             # Danger left
-            (dir_d and game.is_collision(point_r)) or 
-            (dir_u and game.is_collision(point_l)) or 
-            (dir_r and game.is_collision(point_u)) or 
+            (dir_d and game.is_collision(point_r)) or
+            (dir_u and game.is_collision(point_l)) or
+            (dir_r and game.is_collision(point_u)) or
             (dir_l and game.is_collision(point_d)),
-            
+
             # Move direction
             dir_l,
             dir_r,
             dir_u,
             dir_d,
-            
-            # Food location 
+
+            # Food location
             game.food.x < game.snake.head.x,  # food left
             game.food.x > game.snake.head.x,  # food right
             game.food.y < game.snake.head.y,  # food up
@@ -78,7 +78,7 @@ class Agent:
         # print('obstacles', np.array(state[:3], dtype=int))
         # print('direction', np.array(state[3:7], dtype=int))
         # print('food', np.array(state[7:], dtype=int))
-        return np.array(state, dtype=int)
+        return torch.tensor(state, dtype=int)
 
     def remember(self, state, action, reward, next_state, done):
         self.memory.append((state, action, reward, next_state, done)) # popleft if MAX_MEMORY is reached
@@ -99,7 +99,7 @@ class Agent:
 
     def get_action(self, state):
         # random moves: tradeoff exploration / exploitation
-        # TODO : Implement exponential decay 
+        # TODO : Implement exponential decay
         self.epsilon = EXPLORATION_THREASHOLD - self.n_games
         final_move = [0,0,0]
         if random.randint(0, 2 * EXPLORATION_THREASHOLD) < self.epsilon:
