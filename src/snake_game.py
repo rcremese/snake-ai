@@ -14,7 +14,7 @@ from utils import Direction, Line, get_opposite_direction
 from pathlib import Path
 
 pygame.init()
-font_path = Path('./graphics/arial.ttf').resolve(strict=True)
+font_path = Path(__file__).parent.joinpath('graphics', 'arial.ttf').resolve(strict=True)
 font = pygame.font.Font(font_path, 25)
 
 # rgb colors
