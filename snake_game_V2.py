@@ -7,6 +7,7 @@
 
 import pygame
 import random
+from typing import List
 from snake import Snake
 from utils import Direction
 
@@ -59,7 +60,7 @@ class SnakeGame:
         if self.food.inflate(2*PIXEL_SIZE, 2*PIXEL_SIZE).collidelist(self.obstacles) != -1:
             self._place_food()
 
-    def _populate_grid_with_obstacles(self, percent : float) -> list[pygame.Rect]:
+    def _populate_grid_with_obstacles(self, percent : float) -> List[pygame.Rect]:
         if percent < 0 or percent >= 1:
             raise ValueError(f'Enter a valid percentage for obstacle generation. {percent} is out of range [0,1]')
         total_area = self.width * self.height

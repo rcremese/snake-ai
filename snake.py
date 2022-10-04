@@ -5,8 +5,7 @@
  # @copyright https://mit-license.org/
  #
 import pygame
-from pyparsing import opAssoc
-from traitlets import directional_link
+from typing import List, Tuple
 from utils import Direction, get_opposite_direction
 
 class Snake:
@@ -60,7 +59,7 @@ class Snake:
     def collide_with_obstacle(self, obstacle : pygame.Rect):
         return self.head.colliderect(obstacle)
 
-    def collide_with_obstacles(self, obstacle_list : list[pygame.Rect]):
+    def collide_with_obstacles(self, obstacle_list : List[pygame.Rect]):
         return self.head.collidelist(obstacle_list) != -1
 
     def __len__(self):
@@ -73,14 +72,14 @@ class Snake:
         return next(self.body)
 
 class Snake(Snake):
-    def possible_obstacles_collision(self, obstacles : list[pygame.Rect]) -> list[bool]:
+    def possible_obstacles_collision(self, obstacles : List[pygame.Rect]) -> List[bool]:
         left, front, right = self.__get_bounding_boxes()
         possible_collision_left = left.collidelist(obstacles) != -1
         possible_collision_front = front.collidelist(obstacles) != 1
         possible_collision_right = right.collidelist(obstacles) != 1
         return [possible_collision_left, possible_collision_front, possible_collision_right]
 
-    def possible_self_collision(self) -> list[bool]:
+    def possible_self_collision(self) -> List[bool]:
         if self.size <= 3:
             return [False, False, False]
         left, front, right = self.__get_bounding_boxes()
@@ -89,7 +88,7 @@ class Snake(Snake):
         possible_collision_right = right.collidelist(self.body[3:]) != 1
         return [possible_collision_left, possible_collision_front, possible_collision_right]
 
-    def __get_bounding_boxes(self, size: int = 1) -> tuple[pygame.Rect]:
+    def __get_bounding_boxes(self, size: int = 1) -> Tuple[pygame.Rect]:
         if self.direction == Direction.UP:
             left = self.head.move(-self.pixel_size, 0).inflate(1, 2 * self.pixel_size)
             front = self.head.move(0, -self.pixel_size).inflate(2 * self.pixel_size, 1)
