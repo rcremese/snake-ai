@@ -21,6 +21,9 @@ class Linear_QNet(nn.Module):
         x = self.linear2(x)
         return x
 
+    def load(self, filepath='./model/model_0.pth'):
+        self.load_state_dict(torch.load(filepath))
+
     def save(self, file_name='model.pth'):
         model_folder_path = './model'
         if not os.path.exists(model_folder_path):
