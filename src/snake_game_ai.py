@@ -16,7 +16,6 @@ from snake_ai import SnakeAI
 
 pygame.init()
 font = pygame.font.Font('arial.ttf', 25)
-#font = pygame.font.SysFont('arial', 25)
 
 # rgb colors
 WHITE = (255, 255, 255)
@@ -33,7 +32,7 @@ SPEED = 100
 PERCENTAGE = 0
 TIME_LIMIT = 10
 
-class SnakeGameAI(SnakeGame): 
+class SnakeGameAI(SnakeGame):
     def play_step(self, action : torch.Tensor):
         self.frame_iteration += 1
         # 1. collect user input
@@ -41,10 +40,10 @@ class SnakeGameAI(SnakeGame):
             if event.type == pygame.QUIT:
                 pygame.quit()
                 quit()
-        
+
         # 2. move
         self.snake.move_from_action(action) # update the head
-        
+
         # 3. check if game over
         reward = 0
         game_over = False

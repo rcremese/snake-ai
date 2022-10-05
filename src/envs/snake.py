@@ -8,8 +8,10 @@ import pygame
 import logging
 import torch
 from typing import List
+from snake_game import PIXEL_SIZE
 from utils import Direction, get_opposite_direction, get_direction_from_vector
 
+PIXEL_SIZE = 20
 BODY_PIXEL_SIZE = 12
 
 class Snake:

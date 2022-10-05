@@ -66,7 +66,7 @@ class QTrainer:
                 Q_new = reward[idx] + self.gamma * torch.max(self.model(next_state[idx]))
 
             target[idx][torch.argmax(action[idx]).item()] = Q_new
-    
+
         # 2: Q_new = r + y * max(next_predicted Q value) -> only do this if not done
         # pred.clone()
         # preds[argmax(action)] = Q_new
@@ -76,5 +76,4 @@ class QTrainer:
 
         self.optimizer.step()
 
-
-
+pass
