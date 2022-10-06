@@ -103,25 +103,25 @@ class Snake:
 
 
 class SnakeAI(Snake):
-    def move_from_action(self, action : torch.Tensor) -> None:
+    def move_from_action(self, action : int) -> None:
         """move the snake given the action
 
         Args:
-            action (torch.Tensor): tensor that reprensent move possibilities
-                Tensor([1,0,0]) -> turn left
-                Tensor([0,1,0]) -> continue in the same direction
-                Tensor([0,0,1]) -> turn rigth
+            action (int): int that reprensent move possibilities in snake frame
+                0 -> turn left
+                1 -> continue in the same direction
+                2 -> turn rigth
         """
         # TODO : include possibility to do back turn
         clock_wise = [Direction.UP, Direction.RIGHT, Direction.DOWN, Direction.LEFT]
-        idx = clock_wise.index(self.snake._direction)
+        idx = clock_wise.index(self.direction)
 
-        if action.equal(torch.tensor([1, 0, 0])):
+        if action == 0:
             next_idx = (idx - 1) % 4
             new_dir = clock_wise[next_idx] # left turn r -> u -> l -> d
-        elif action.equal(torch.tensor([0, 1, 0])):
+        elif action == 1:
             new_dir = clock_wise[idx] # no change
-        elif action.equal(torch.tensor([0, 0, 1])):
+        elif action == 2:
             next_idx = (idx + 1) % 4
             new_dir = clock_wise[next_idx] # right turn r -> d -> l -> u
         else:

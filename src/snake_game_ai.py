@@ -11,7 +11,7 @@ from typing import Dict, List
 import torch
 import logging
 from snake_game import SnakeGame
-from utils import Direction, Line, get_opposite_direction
+from envs.utils import Direction, Line, get_opposite_direction
 from snake_ai import SnakeAI
 
 pygame.init()
