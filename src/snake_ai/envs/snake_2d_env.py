@@ -6,12 +6,12 @@
  #
 # Gym specific imports
 import gym
-from gym import spaces
+from gym.utils.play import play
 import pygame
 # project imports
-from snake import SnakeAI
-from line import Line, intersection_with_obstacles
-from utils import Direction, get_opposite_direction
+from snake_ai.envs.snake import SnakeAI
+from snake_ai.envs.line import Line, intersection_with_obstacles
+from snake_ai.envs.utils import Direction, get_opposite_direction
 # IO imports
 import logging
 from typing import List, Dict
@@ -20,12 +20,12 @@ from pathlib import Path
 import numpy as np
 import torch
 
-font_path = Path(__file__).parents[1].joinpath('graphics', 'arial.ttf').resolve(strict=True)
-FONT = pygame.font.Font(font_path, 25)
+FONT_PATH = Path(__file__).parents[1].joinpath('graphics', 'arial.ttf').resolve(strict=True)
 
 PIXEL_SIZE = 20
 BODY_PIXEL_SIZE = 12
-OBSTACLE_SIZE_RANGE = (1, 3)
+MAX_OBSTACLE_SIZE = 3
+NB_OBS = 8 # all the directions that are not None + food position
 # rgb colors
 WHITE = (255, 255, 255)
 RED = (200,0,0)
@@ -39,44 +39,26 @@ REWARD_FOOD = 10
 REWARD_COLISION = -10
 REWARD_COLISION_FREE = -1
 
-class Snake2dEnv(gym.Env):
-    metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 4}
 
-    def __init__(self, render_mode=None, width : int = 20, height : int = 20, size : int =5, nb_obs : int = 7, nb_obstacles : int = 0):
+class Snake2dEnv(gym.Env):
+    metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 5}
+
+    def __init__(self, render_mode=None, width : int = 20, height : int = 20, nb_obstacles : int = 0):
+        super().__init__()
         assert width > 4 and height > 4, "Environment needs at least 5 pixels in each dimension"
         self.width = width
         self.height = height
 
-        self.nb_obs = nb_obs
         assert nb_obstacles >= 0
         self.nb_obstacles = nb_obstacles
-
-        self.size = size  # The size of the square grid
-        self.window_size = (width * PIXEL_SIZE, height * PIXEL_SIZE)  # The size of the PyGame window
+        self.collision_lines = {}
+        self.window_size = (width * PIXEL_SIZE + 1, height * PIXEL_SIZE + 1)  # The size of the PyGame window
         self.max_dist = np.sqrt(self.window_size[0] **2 + self.window_size[1] **2 )
 
         # Observations are dictionaries with the agent's and the target's location.
         # Each location is encoded as an element of {0, ..., `size`}^2, i.e. MultiDiscrete([size, size]).
-        self.observation_space = gym.spaces.Dict(
-            {
-                "snake_obs": spaces.Box(low = np.zeros((self.nb_obs, 2)), high = np.repeat([self.window_size], self.nb_obs, axis=0), shape=(self.nb_obs, 2), dtype=float),
-                "food": spaces.Box(low = np.zeros(2), high = np.array([self.window_size]), dtype=float),
-            }
-        )
-
-        # We have 4 actions, corresponding to "right", "up", "left"
-        self.action_space = spaces.Discrete(3)
-
-        """
-        The following dictionary maps abstract actions from `self.action_space` to
-        the direction we will walk in if that action is taken.
-        I.e. 0 corresponds to "right", 1 to "up" etc.
-        """
-        self._action_to_direction = {
-            0: torch.tensor([1, 0, 0]),
-            1: torch.tensor([0, 1, 0]),
-            2: torch.tensor([0, 0, 1]),
-        }
+        self.observation_space =  gym.spaces.Box(low = np.zeros((NB_OBS, 2)), high = np.repeat([self.window_size], NB_OBS, axis=0), shape=(NB_OBS, 2), dtype=float)
+        self.action_space = gym.spaces.Discrete(3)
 
         assert render_mode is None or render_mode in self.metadata["render_modes"]
         self.render_mode = render_mode
@@ -90,17 +72,29 @@ class Snake2dEnv(gym.Env):
         """
         self.window = None
         self.clock = None
+        self.font = None
 
+    # provide correct observations
     def _get_obs(self):
-        self._agent_location = np.array(self.snake.head.center)
-        self._target_location = np.array(self.food.center)
-        return {"snake_obs": self._agent_location, "food": self._target_location}
+        observables = np.zeros((NB_OBS, 2))
+        i = 0
+        for direction in Direction:
+            # only consider lines in front of the snake
+            if self.collision_lines[direction] is None:
+                continue
+            observables[i, :] = self.collision_lines[direction].end
+            i += 1
+        # add the target to observation
+        observables[-1, :] = self.food.center
+        return observables
 
     def _get_info(self):
         return {
-            "distance": np.linalg.norm(
-                self._agent_location - self._target_location, ord=1
-            )
+            "collision_lines": self.collision_lines,
+            "snake_direction": self.snake.direction,
+            "obstacles" : self.obstacles,
+            "snake_head" : self.snake.head.center,
+            "food" : self.food.center
         }
 
     def reset(self, seed=None, options=None):
@@ -125,18 +119,23 @@ class Snake2dEnv(gym.Env):
         observation = self._get_obs()
         info = self._get_info()
 
-        if self.render_mode == "human":
-            self._render_frame()
-
+        if self.render_mode:
+            self.render()
         return observation, info
-    # TODO : implementer la fonction step
+
+    # TODO : mettre un peu d'ordre dans la fonction step
     def step(self, action):
         # Map the action (element of {0,1,2,3}) to the direction we walk in
         self.snake.move_from_action(action)
+        # Do not compute collision lines when the snake is out of bound
+        if not self._is_outside():
+            self._compute_collision_lines()
+
         # direction = self._action_to_direction[action]
         self._agent_location = self.snake.head.center
         # An episode is done iff the snake has reached the food
         terminated = self.snake.head.colliderect(self.food)
+        troncated = self._is_outside()
         # Give a reward according to the condition
         if terminated:
             reward = REWARD_FOOD
@@ -148,47 +147,46 @@ class Snake2dEnv(gym.Env):
         observation = self._get_obs()
         info = self._get_info()
 
-        if self.render_mode == "human":
-            self._render_frame()
+        if (self.render_mode is not None) and not (terminated or troncated):
+            self.render()
 
-        return observation, reward, terminated, False, info
+        return observation, reward, terminated, troncated, info
 
     def render(self):
-        if self.render_mode == "rgb_array":
-            return self._render_frame()
-
-    def _render_frame(self):
-        if self.window is None and self.render_mode == "human":
+        if self.render_mode == "human":
             pygame.init()
-            pygame.display.init()
-            self.window = pygame.display.set_mode(self.window_size)
-        if self.clock is None and self.render_mode == "human":
-            self.clock = pygame.time.Clock()
+            if self.window is None:
+                self.window = pygame.display.set_mode(self.window_size)
+            if self.font is None:
+                self.font = pygame.font.Font(FONT_PATH, 25)
+            if self.clock is None:
+                self.clock = pygame.time.Clock()
 
         canvas = pygame.Surface(self.window_size)
-        canvas.fill((255, 255, 255))
+        canvas.fill(BLACK)
 
         # Draw snake
         self.snake.draw(canvas)
+        # Draw obstacles
+        for obstacle in self.obstacles:
+            pygame.draw.rect(canvas, RED, obstacle)
+
         # Draw collision lines
         for direction, line in self.collision_lines.items():
             if line is not None:
                 logging.debug(f'Drawing line {line} for direction {direction}')
-                line.draw(self.display, GREY, BLUE1)
+                line.draw(canvas, GREY, BLUE1)
         # Draw food
         pygame.draw.rect(canvas, GREEN, self.food)
-        # Draw obstacles
-        for obstacle in self.obstacles:
-            pygame.draw.rect(self.display, RED, obstacle)
-        # Print the score
-        text = FONT.render(f"Score: {self.score}", True, WHITE)
-        canvas.blit(text, [0, 0])
-
 
         if self.render_mode == "human":
             # The following line copies our drawings from `canvas` to the visible window
             self.window.blit(canvas, canvas.get_rect())
             pygame.event.pump()
+            # Draw the text showing the score
+            text = self.font.render(f"Score: {self.score}", True, WHITE)
+            self.window.blit(text, [0, 0])
+            # update only the snake and the food
             pygame.display.update()
 
             # We need to ensure that human-rendering occurs at the predefined framerate.
@@ -217,16 +215,16 @@ class Snake2dEnv(gym.Env):
     def _populate_grid_with_obstacles(self) -> List[pygame.Rect]:
         obstacles = []
         for _ in range(self.nb_obstacles):
-            size = np.random.randint(*OBSTACLE_SIZE_RANGE) * PIXEL_SIZE
+            size = np.random.randint(1, MAX_OBSTACLE_SIZE)
             obstacle = self._place_obstacle(size)
             obstacles.append(obstacle)
         return obstacles
 
     def _place_obstacle(self, size : int) -> pygame.Rect:
-        x = np.random.randint(0, self.width) * size
-        y = np.random.randint(0, self.height) * size
+        x = np.random.randint(0, self.width) * PIXEL_SIZE
+        y = np.random.randint(0, self.height) * PIXEL_SIZE
 
-        obstacle = pygame.Rect(x, y, size, size)
+        obstacle = pygame.Rect(x, y, size * PIXEL_SIZE, size * PIXEL_SIZE)
         # check colision with the initial snake bounding box
         bounding_box_factor = 2 * (len(self.snake) - 1) * PIXEL_SIZE
 
@@ -243,7 +241,7 @@ class Snake2dEnv(gym.Env):
     def _is_outside(self, rect : pygame.Rect = None):
         if rect is None:
             rect = self.snake.head
-        return rect.x < 0 or rect.x + rect.width > self.width or rect.y < 0 or rect.y + rect.height > self.height
+        return rect.x < 0 or rect.x + rect.width > self.window_size[0] or rect.y < 0 or rect.y + rect.height > self.window_size[1]
 
     def _is_collision(self):
         return self._is_outside() or self.snake.collide_with_itself() or self.snake.collide_with_obstacles(self.obstacles)
@@ -253,20 +251,10 @@ class Snake2dEnv(gym.Env):
         playground = pygame.Rect((0,0), self.window_size)
 
         for direction in Direction:
-            end_line = np.array(self.snake.head.center) + direction.value * self.max_dist
+            end_line = np.array(self.snake.head.center) + np.array(direction.value) * self.max_dist
             line = Line(self.snake.head.center, tuple(end_line))
             start, end = playground.clipline(line.start, line.end)
             self.collision_lines[direction] = Line(start, end)
-
-        # snake_head = self.snake.head
-        # self.collision_lines[Direction.UP] = Line(snake_head.center, (snake_head.centerx, 0))
-        # self.collision_lines[Direction.UP_RIGHT] = Line(snake_head.center, (snake_head.centerx + snake_head.centery, 0))
-        # self.collision_lines[Direction.RIGHT] = Line(snake_head.center, (self.width, snake_head.centery))
-        # self.collision_lines[Direction.DOWN_RIGHT] = Line(snake_head.center, (self.width, (self.width - snake_head.centerx) + snake_head.centery))
-        # self.collision_lines[Direction.DOWN] = Line(snake_head.center, (snake_head.centerx, self.height))
-        # self.collision_lines[Direction.DOWN_LEFT] = Line(snake_head.center, (snake_head.centerx - (self.height - snake_head.centery), self.height))
-        # self.collision_lines[Direction.LEFT] = Line(snake_head.center, (0, snake_head.centery))
-        # self.collision_lines[Direction.UP_LEFT] = Line(snake_head.center, (0, snake_head.centery - snake_head.centerx))
 
     def _get_collision_box(self, direction : Direction) -> pygame.Rect:
         snake_head = self.snake.head
@@ -319,56 +307,8 @@ class Snake2dEnv(gym.Env):
             if collision_list:
                 self.collision_lines[direction] = intersection_with_obstacles(self.collision_lines[direction], collision_list)
 
-    # def _get_collision_line(self, initial_line : Line, collision_list : List[pygame.Rect]) -> Line:
-    #     intersection_point = None
-    #     # Check all possible collisions within the collision box
-    #     intersection_point = initial_line.intersect_obstacles(collision_list)
-    #     if intersection_point:
-    #         return Line(initial_line.start, intersection_point)
-    #     logging.debug(f'No intersection found between line {initial_line} and obstacles')
-    #     return initial_line
+if __name__ == '__main__':
+    env = gym.make('Snake-v0', render_mode='rgb_array', nb_obstacles = 10)
 
-    # def _update_collision_line(self, direction : Direction):
-    #     collision_box = self._get_collision_box(direction)
-    #     collision_line = self.collision_lines[direction]
-    #     collision_list = [self.obstacles[index] for index in collision_box.collidelistall(self.obstacles)]
-    #     intersection_point = None
-    #     if collision_list:
-    #         # Check all possible collisions within the collision box
-    #         intersection_point = collision_line.intersect_obstacles(collision_list)
-    #         if intersection_point:
-    #             self.collision_lines[direction] = Line(collision_line.start, intersection_point)
-    #     # Case where no obstacles are found in the bounding box or none of the available obstacle collide with the collision line
-    #     if (not collision_list) or (not intersection_point):
-    #         logging.debug(f'collision list is empty or no intersection point found in bounding box')
-
-    #         collision = collision_line.intersect(collision_box)
-    #         logging.debug(f'collision between line {collision_line} from head {self.snake.head} and bounding box {collision_box} is : {collision}')
-    #         self.collision_lines[direction] = Line(*collision)
-
-    # def _update_collision_lines(self):
-    #     opposite_direction = get_opposite_direction(self.snake.direction)
-    #     # multithreading for this task do not improve performances !
-    #     for direction in Direction:
-    #         # Check all particular cases before calling the update fonction
-    #         if direction == opposite_direction:
-    #             self.collision_lines[direction] = None
-    #         elif (direction == Direction.UP) and (self.snake.head.top <= 0):
-    #             self.collision_lines[direction] = Line(self.snake.head.center, self.snake.head.midtop)
-    #         elif (direction == Direction.UP_RIGHT) and (self.snake.head.top <= 0 or self.snake.head.right >= self.width):
-    #             self.collision_lines[direction] = Line(self.snake.head.center, self.snake.head.topright)
-    #         elif (direction == Direction.RIGHT) and (self.snake.head.right >= self.width):
-    #             self.collision_lines[direction] = Line(self.snake.head.center, self.snake.head.midright)
-    #         elif (direction == Direction.DOWN_RIGHT) and (self.snake.head.bottom >= self.height or self.snake.head.right >= self.width):
-    #             self.collision_lines[direction] = Line(self.snake.head.center, self.snake.head.bottomright)
-    #         elif (direction == Direction.DOWN) and (self.snake.head.bottom >= self.height):
-    #             self.collision_lines[direction] = Line(self.snake.head.center, self.snake.head.midbottom)
-    #         elif (direction == Direction.DOWN_LEFT) and (self.snake.head.bottom >= self.height or self.snake.head.left <= 0):
-    #             self.collision_lines[direction] = Line(self.snake.head.center, self.snake.head.bottomleft)
-    #         elif (direction == Direction.LEFT) and (self.snake.head.left <= 0):
-    #             self.collision_lines[direction] = Line(self.snake.head.center, self.snake.head.midleft)
-    #         elif (direction == Direction.UP_LEFT) and (self.snake.head.left <= 0 or self.snake.head.top <= 0):
-    #             self.collision_lines[direction] = Line(self.snake.head.center, self.snake.head.topleft)
-    #         else:
-    #             self._update_collision_line(direction)
-
+    logging.basicConfig(level=logging.INFO)
+    game = play(env, keys_to_action={"q" : 0, "z" : 1, "d" : 2}, noop=1)

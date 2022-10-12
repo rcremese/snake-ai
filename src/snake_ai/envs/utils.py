@@ -54,5 +54,5 @@ def get_opposite_direction(direction : Direction) -> Direction:
 
     if direction == Direction.DOWN_RIGHT:
         return Direction.UP_LEFT
-    else:
-        raise ValueError(f'Unknown direction {direction}')
+
+    raise ValueError(f'Unknown direction {direction}')

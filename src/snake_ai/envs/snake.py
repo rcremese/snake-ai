@@ -6,10 +6,8 @@
  #
 import pygame
 import logging
-import torch
 from typing import List
-from snake_game import PIXEL_SIZE
-from utils import Direction, get_opposite_direction, get_direction_from_vector
+from snake_ai.envs.utils import Direction, get_opposite_direction, get_direction_from_vector
 
 PIXEL_SIZE = 20
 BODY_PIXEL_SIZE = 12
@@ -110,12 +108,11 @@ class SnakeAI(Snake):
             action (int): int that reprensent move possibilities in snake frame
                 0 -> turn left
                 1 -> continue in the same direction
-                2 -> turn rigth
+                2 -> turn right
         """
         # TODO : include possibility to do back turn
         clock_wise = [Direction.UP, Direction.RIGHT, Direction.DOWN, Direction.LEFT]
         idx = clock_wise.index(self.direction)
-
         if action == 0:
             next_idx = (idx - 1) % 4
             new_dir = clock_wise[next_idx] # left turn r -> u -> l -> d
@@ -127,4 +124,7 @@ class SnakeAI(Snake):
         else:
             raise ValueError(f'Unknown action {action}')
         # finaly move
+        logging.debug(f"action value: {action}")
+        logging.debug(f"direction value: {new_dir}")
+
         self.move(new_dir)

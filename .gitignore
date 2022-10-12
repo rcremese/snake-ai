@@ -4,3 +4,5 @@ __pycache__
 .vscode
 # trained model (for now)
 model/*.pth
+# pip installs
+*.egg-info
