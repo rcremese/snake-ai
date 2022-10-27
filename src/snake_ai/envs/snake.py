@@ -9,7 +9,6 @@ import logging
 from typing import List
 from snake_ai.envs.utils import Direction, get_opposite_direction, get_direction_from_vector
 
-PIXEL_SIZE = 20
 BODY_PIXEL_SIZE = 12
 
 class Snake:
@@ -25,8 +24,6 @@ class Snake:
         move = (self._pixel_size - self._body_pixel) / 2
         # draw the head and eye
         pygame.draw.rect(display, head_color, self.head)
-        # TODO : dessiner les yeux
-        # pygame.draw.rect(display, (0,0,0), self.head)
         # draw the body
         for pt in self.body:
             pygame.draw.rect(display, head_color, pt)
@@ -110,7 +107,6 @@ class SnakeAI(Snake):
                 1 -> continue in the same direction
                 2 -> turn right
         """
-        # TODO : include possibility to do back turn
         clock_wise = [Direction.UP, Direction.RIGHT, Direction.DOWN, Direction.LEFT]
         idx = clock_wise.index(self.direction)
         if action == 0:

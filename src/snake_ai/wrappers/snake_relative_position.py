@@ -17,35 +17,41 @@ NB_OBS = 8
 
 class SnakeRelativePosition(gym.Wrapper):
     def __init__(self, env: Snake2dEnv):
+        assert isinstance(env, Snake2dEnv), "This wrapper only accept Snake2dEnv environment"
         super().__init__(env)
-        self.observation_space = gym.spaces.Box(low = np.zeros((NB_OBS, 2)), high = np.repeat([env.window_size], NB_OBS, axis=0), shape=(NB_OBS, 2), dtype=float)
+        obs_limits = np.repeat([env.window_size], NB_OBS, axis=0)
+        self.observation_space = gym.spaces.Box(low = -obs_limits, high = obs_limits, shape=(NB_OBS, 2))
         self.action_space = gym.spaces.Discrete(3)
 
-    def reset(self, **kwargs) -> Tuple[np.array, dict]:
-        _, info = super().reset(**kwargs)
+    def reset(self) -> Tuple[np.array, dict]:
+        super().reset()
+        info = self.env.info
         assert isinstance(info, dict) and set(["collision_lines", "snake_direction", "snake_head", "food"]).issubset(info.keys()), info.keys()
         directions = self._get_list_direction(info['snake_direction'])
         rot_matrix = self._get_passing_matrix(info['snake_direction'])
         food = Line(info['snake_head'], info['food'])
         observations = self._get_observables_in_local_frame(directions, rot_matrix, info['collision_lines'], food)
-        return observations, info
+        return observations
 
-    def step(self, action: int) -> Tuple[np.array, float, bool, bool, dict]:
-        _, reward, terminated, truncated, info = self.env.step(action)
+    def step(self, action: int) -> Tuple[np.ndarray, float, bool, bool, dict]:
+        _, reward, terminated, info = self.env.step(action)
         assert isinstance(info, dict) and set(["collision_lines", "snake_direction", "snake_head", "food"]).issubset(info.keys()), info.keys()
         directions = self._get_list_direction(info['snake_direction'])
         rot_matrix = self._get_passing_matrix(info['snake_direction'])
         food = Line(info['snake_head'], info['food'])
         observations = self._get_observables_in_local_frame(directions, rot_matrix, info['collision_lines'], food)
 
-        return observations, reward, terminated, truncated, info
+        return observations, reward, terminated, info
 
-    def _get_observables_in_local_frame(self, direction_list : List[Direction], rot_matrix : np.array, collision_lines_dict : Dict[Direction, Line], food : Line) -> np.array:
+    def _get_observables_in_local_frame(self, direction_list : List[Direction], rot_matrix : np.ndarray, collision_lines_dict : Dict[Direction, Line], food : Line) -> np.array:
         assert rot_matrix.shape == (2, 2)
 
         observations = np.zeros((NB_OBS, 2))
         for i, direction in enumerate(direction_list):
-            observations[i, :] = np.matmul(rot_matrix, collision_lines_dict[direction].to_vector())
+            if collision_lines_dict[direction] is None:
+                observations[i,:] = np.zeros(2)
+            else:
+                observations[i, :] = np.matmul(rot_matrix, collision_lines_dict[direction].to_vector())
         # get the food in the snake local coordinate
         observations[-1, :] = np.matmul(rot_matrix, food.to_vector())
         return observations

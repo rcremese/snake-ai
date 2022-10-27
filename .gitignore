@@ -3,6 +3,10 @@ __pycache__
 # vscode specifications
 .vscode
 # trained model (for now)
-model/*.pth
+models/*
 # pip installs
 *.egg-info
+# logs
+logs/*
+# except gitkeep to keep the architecture
+!.gitkeep

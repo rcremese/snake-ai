@@ -14,7 +14,7 @@ class PlayableSnake(gym.Wrapper):
         assert isinstance(env, Snake2dEnv)
         super().__init__(env)
         self.env.metadata['render_fps'] = fps
-        self.observation_space = gym.spaces.Box(low=0, high=env.max_dist)
+        self.observation_space = gym.spaces.Box(low=0, high=env.max_dist, shape=(1,))
         self.action_space = gym.spaces.Discrete(4)
 
     def reset(self, **kwargs) -> Tuple[float, dict]:
