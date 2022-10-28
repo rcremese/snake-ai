@@ -6,6 +6,7 @@
 #
 # Gym specific imports
 import gym
+import gym.spaces
 from gym.utils.play import play
 from gym.envs.registration import EnvSpec
 import pygame
@@ -13,7 +14,7 @@ from pyparsing import Optional
 # project imports
 from snake_ai.envs.snake import BODY_PIXEL_SIZE, SnakeAI
 from snake_ai.envs.line import Line, intersection_with_obstacles
-from snake_ai.envs.utils import Direction, get_opposite_direction
+from snake_ai.envs.utils import Direction, Reward, get_opposite_direction
 # IO imports
 import logging
 from typing import Iterable, List, Dict, Tuple
@@ -27,7 +28,6 @@ FONT_PATH = Path(__file__).parents[1].joinpath(
 
 BODY_PIXEL_SIZE = 12
 MAX_OBSTACLE_SIZE = 3
-NB_OBS = 8  # all the directions that are not None + food position
 TOLERANCE = 1 # number of pixels accepted for cliped line
 # rgb colors
 WHITE = (255, 255, 255)
@@ -37,11 +37,6 @@ BLUE1 = (0, 0, 255)
 BLUE2 = (0, 100, 255)
 BLACK = (0, 0, 0)
 GREY = (150, 150, 150)
-
-REWARD_FOOD = 10
-REWARD_COLISION = -10
-REWARD_COLISION_FREE = 0
-
 
 class Snake2dEnv(gym.Env):
     metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 25}
@@ -54,6 +49,7 @@ class Snake2dEnv(gym.Env):
         self.height = height
         assert nb_obstacles >= 0
         self.nb_obstacles = nb_obstacles
+        self._nb_obs = len(Direction)
         self.collision_lines = {}
         self._pixel_size = pixel
         # The size of the PyGame window
@@ -63,7 +59,7 @@ class Snake2dEnv(gym.Env):
 
         # Observations are dictionaries with the agent's and the target's location.
         # Each location is encoded as an element of {0, ..., `size`}^2, i.e. MultiDiscrete([size, size]).
-        self.observation_space = gym.spaces.Box(low=np.zeros((NB_OBS, 2)), high=np.repeat([self.window_size], NB_OBS, axis=0), shape=(NB_OBS, 2))
+        self.observation_space = gym.spaces.Box(low=np.zeros((self._nb_obs, 2)), high=np.repeat([self.window_size], self._nb_obs, axis=0), shape=(self._nb_obs, 2))
         self.action_space = gym.spaces.Discrete(3)
 
         assert render_mode is None or render_mode in self.metadata["render_modes"]
@@ -84,7 +80,7 @@ class Snake2dEnv(gym.Env):
 
     # provide correct observations
     def _get_obs(self):
-        observables = np.zeros((NB_OBS, 2))
+        observables = np.zeros((self._nb_obs, 2))
         i = 0
         for direction in Direction:
             # only consider lines in front of the snake
@@ -127,12 +123,11 @@ class Snake2dEnv(gym.Env):
             self.obstacles = self._populate_grid_with_obstacles()
         self._place_food()
         self._compute_collision_lines()
-        self._iteration = 0
 
         observation = self._get_obs()
 
-        if self.render_mode:
-            self.render()
+        # if self.render_mode:
+        #     self.render()
         return observation
 
     # TODO : mettre un peu d'ordre dans la fonction step
@@ -143,32 +138,30 @@ class Snake2dEnv(gym.Env):
         if not self._is_outside():
             self._compute_collision_lines()
 
-        # direction = self._action_to_direction[action]
-        self._agent_location = self.snake.head.center
         # An episode is done iff the snake has reached the food
         truncated = self.snake.head.colliderect(self._food)
         # Give a reward according to the condition
         if truncated:
-            reward = REWARD_FOOD
+            reward = Reward.FOOD.value
             self.snake.grow()
             self.score += 1
             self._place_food()
         elif self._is_collision():
-            reward = REWARD_COLISION
+            reward = Reward.COLLISION.value
         else:
             # TODO: check the best reward
-            # reward = REWARD_COLISION_FREE
-            reward = np.exp(-np.linalg.norm(Line(self.snake.head.center, self._food.center).to_vector() / self.pixel_size))
+            reward = Reward.COLLISION_FREE.value
+            # reward = np.exp(-np.linalg.norm(Line(self.snake.head.center, self._food.center).to_vector() / self.pixel_size))
         terminated = self._is_outside()
         observation = self._get_obs()
 
-        if (self.render_mode is not None) and not terminated:
-            self.render()
+        # if (self.render_mode is not None) and not terminated:
+        #     self.render()
 
         return observation, reward, terminated, self.info
 
-    def render(self):
-        if self.render_mode == "human":
+    def render(self, mode):
+        if mode == "human":
             if self.window is None:
                 self.window = pygame.display.set_mode(self.window_size)
             if self.font is None:
@@ -195,7 +188,7 @@ class Snake2dEnv(gym.Env):
         # Draw line to food
         Line(self.snake.head.center, self._food.center).draw(canvas, GREEN, GREEN)
 
-        if self.render_mode == "human":
+        if mode == "human":
             # The following line copies our drawings from `canvas` to the visible window
             self.window.blit(canvas, canvas.get_rect())
             pygame.event.pump()
@@ -339,4 +332,4 @@ if __name__ == '__main__':
     env = gym.make('Snake-v0', render_mode='rgb_array', nb_obstacles=10)
 
     logging.basicConfig(level=logging.INFO)
-    game = play(env, keys_to_action={"q": 0, "z": 1, "d": 2}, noop=1)
+    game = play(env, keys_to_action={"q": 0, "z": 1, "d": 2})

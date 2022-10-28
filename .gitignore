@@ -8,5 +8,7 @@ models/*
 *.egg-info
 # logs
 logs/*
+# zip files coming from stablebaseline
+*.zip
 # except gitkeep to keep the architecture
 !.gitkeep

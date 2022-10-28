@@ -3,8 +3,8 @@ import pygame
 from snake_ai.envs.snake_2d_env import Snake2dEnv
 from snake_ai.envs.line import Line
 from snake_ai.envs.utils import Direction
-from snake_ai.wrappers.snake_binary import SnakeBinary
-from snake_ai.wrappers.snake_relative_position import SnakeRelativePosition
+from snake_ai.wrappers.binary_wrapper import BinaryWrapper
+from snake_ai.wrappers.relative_position_wrapper import RelativePositionWrapper
 import numpy as np
 
 class TestSnakeEnv():
@@ -28,7 +28,7 @@ class TestSnakeEnv():
 
     def test_observations(self):
         env = Snake2dEnv(width=self.w, height=self.h, pixel=self.pix)
-        wrapped_env = SnakeRelativePosition(env)
+        wrapped_env = RelativePositionWrapper(env)
         observations = wrapped_env.reset()
         info = wrapped_env.info
         directions = wrapped_env._get_list_direction(info['snake_direction'])
@@ -51,7 +51,7 @@ class TestSnakeEnv():
 
     def test_passing_matrix(self):
         env = Snake2dEnv(width=5, height=5)
-        wrapped_env = SnakeRelativePosition(env)
+        wrapped_env = RelativePositionWrapper(env)
         for direction in [Direction.UP, Direction.RIGHT, Direction.DOWN, Direction.LEFT]:
             passing_matrix = wrapped_env._get_passing_matrix(direction)
             if direction == Direction.UP:
@@ -65,7 +65,7 @@ class TestSnakeEnv():
 
     def test_binary_obs(self):
         env = Snake2dEnv(width=self.w, height=self.h, pixel=self.pix)
-        wrapped_env = SnakeBinary(env)
+        wrapped_env = BinaryWrapper(env)
         wrapped_env.seed(0)
         ## obs = [direction (Up-Right-Down-Left), danger (URDL), food (URDL)]
         obs = wrapped_env.reset()

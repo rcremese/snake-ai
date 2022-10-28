@@ -1,23 +1,23 @@
-from stable_baselines3 import HerReplayBuffer, DDPG, DQN, SAC, TD3
-from stable_baselines3.her.goal_selection_strategy import GoalSelectionStrategy
-from stable_baselines3.common.envs import BitFlippingEnv
-from stable_baselines3.common.vec_env import DummyVecEnv
+from stable_baselines3.dqn import DQN
+from stable_baselines3.her.her_replay_buffer import HerReplayBuffer
+from snake_ai.envs import SnakeGoalEnv
+from snake_ai.wrappers import RelativePositionWrapper, DistanceWrapper
 
-model_class = DQN  # works also with SAC, DDPG and TD3
-N_BITS = 15
-
-env = BitFlippingEnv(n_bits=N_BITS, continuous=model_class in [DDPG, SAC, TD3], max_steps=N_BITS)
+train = False
+env = SnakeGoalEnv(render_mode="human", width=20, height=20, nb_obstacles=20)
+env = RelativePositionWrapper(env)
+env = DistanceWrapper(env)
 
 # Available strategies (cf paper): future, final, episode
-goal_selection_strategy = "future" # equivalent to GoalSelectionStrategy.FUTURE
+goal_selection_strategy = "final" # equivalent to GoalSelectionStrategy.FUTURE
 
 # If True the HER transitions will get sampled online
 online_sampling = True
 # Time limit for the episodes
-max_episode_length = N_BITS
+max_episode_length = 500
 
 # Initialize the model
-model = model_class(
+model = DQN(
     "MultiInputPolicy",
     env,
     replay_buffer_class=HerReplayBuffer,
@@ -30,19 +30,19 @@ model = model_class(
     ),
     verbose=1,
 )
+if train:
+    # Train the model
+    model.learn(50_000)
+    model.save("her_dqn_snake_env")
+else:
+    # Because it needs access to `env.compute_reward()`
+    # HER must be loaded with the env
+    model = DQN.load("her_dqn_snake_env", env=env)
 
-# Train the model
-model.learn(1000)
-
-model.save("./her_bit_env")
-# Because it needs access to `env.compute_reward()`
-# HER must be loaded with the env
-model = model_class.load("./her_bit_env", env=env)
-
-obs = env.reset()
-for _ in range(100):
-    action, _ = model.predict(obs, deterministic=True)
-    obs, reward, done, _ = env.step(action)
-
-    if done:
-        obs = env.reset()
+    obs = env.reset()
+    for _ in range(100):
+        action, _ = model.predict(obs)
+        obs, reward, done, _ = env.step(action)
+        env.render(mode="human")
+        if done:
+            obs = env.reset()

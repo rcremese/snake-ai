@@ -11,6 +11,11 @@ import typing
 import pygame
 import numpy as np
 
+class Reward(enum.Enum):
+    FOOD = 10
+    COLLISION = -10
+    COLLISION_FREE = -1
+
 class Direction(enum.Enum):
     UP = (0,-1)
     UP_RIGHT = (np.sqrt(2) / 2, - np.sqrt(2) / 2)

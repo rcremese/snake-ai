@@ -1,3 +1,9 @@
+##
+# @author Robin CREMESE <robin.cremese@gmail.com>
+ # @file Description
+ # @desc Created on 2022-10-28 2:47:09 pm
+ # @copyright https://mit-license.org/
+ #
 import logging
 import pygame
 from snake_ai.envs import Snake2dEnv
@@ -8,7 +14,7 @@ import gym.spaces
 
 from snake_ai.envs.utils import Direction
 
-class SnakeBinary(gym.ObservationWrapper):
+class BinaryWrapper(gym.ObservationWrapper):
     def __init__(self, env):
         assert isinstance(env, Snake2dEnv)
         super().__init__(env)

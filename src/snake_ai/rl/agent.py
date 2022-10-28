@@ -11,11 +11,11 @@ import random
 from pathlib import Path
 
 from snake_ai.envs import Snake2dEnv
-from snake_ai.wrappers.snake_binary import SnakeBinary
+from snake_ai.wrappers.binary_wrapper import BinaryWrapper
 from snake_ai.rl.dqn import QTrainer
 from snake_ai.models.mlp import MLP
-from snake_ai.wrappers.snake_distance import SnakeDistance
-from snake_ai.wrappers.snake_relative_position import SnakeRelativePosition
+from snake_ai.wrappers.distance_wrapper import DistanceWrapper
+from snake_ai.wrappers.relative_position_wrapper import RelativePositionWrapper
 
 MAX_MEMORY = 100_000
 BATCH_SIZE = 1000
@@ -69,8 +69,8 @@ def train():
     agent = Agent()
     env = Snake2dEnv(render_mode='human', width=20, height=20)
     # env = SnakeBinary(env)
-    env = SnakeRelativePosition(env)
-    env = SnakeDistance(env)
+    env = RelativePositionWrapper(env)
+    env = DistanceWrapper(env)
     env.metadata['render_fps'] = 50
     # Si un model_0 existe, le lire
     # model_path = Path.cwd().joinpath('model','model_0.pth').resolve()

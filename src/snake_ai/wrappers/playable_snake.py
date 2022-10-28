@@ -7,7 +7,7 @@ import gym
 import numpy as np
 from typing import Tuple, List
 
-from snake_ai.envs.utils import Direction
+from snake_ai.envs.utils import Direction, Reward
 
 class PlayableSnake(gym.Wrapper):
     def __init__(self, env: Snake2dEnv, fps : int = 10):
@@ -18,10 +18,10 @@ class PlayableSnake(gym.Wrapper):
         self.action_space = gym.spaces.Discrete(4)
 
     def reset(self, **kwargs) -> Tuple[float, dict]:
-        _, info = super().reset(**kwargs)
-        self.env.collision_lines = {}
+        super().reset(**kwargs)
+        info = self.env.info
         obs =  np.linalg.norm(Line(info['snake_head'], info['food']).to_vector())
-        return obs, {'snake_direction' : self.env.snake.direction}
+        return obs
 
     def step(self, action: int) -> Tuple[np.array, float, bool, bool, dict]:
         # Map the action (element of {0,1,2,3}) to the direction we walk in
@@ -29,9 +29,9 @@ class PlayableSnake(gym.Wrapper):
         self.env.snake.move(direction)
         # direction = self._action_to_direction[action]
         agent_location = self.env.snake.head.center
-        target_location = self.env.food.center
+        target_location = self.env._food.center
         # An episode is done iff the snake has reached the food
-        if self.env.snake.head.colliderect(self.env.food):
+        if self.env.snake.head.colliderect(self.env._food):
             self.env.score += 1
             self.env.snake.grow()
             self.env._place_food()
@@ -39,19 +39,19 @@ class PlayableSnake(gym.Wrapper):
         terminated = self.env._is_collision()
         # Give a reward according to the condition
         if terminated:
-            reward = 10
+            reward = Reward.FOOD
         elif self.env._is_collision():
-            reward = -10
+            reward = Reward.COLLISION
         else:
-            reward = -1
+            reward = Reward.COLLISION_FREE
 
         observation = np.linalg.norm(Line(agent_location, target_location).to_vector())
         info = {'snake_direction' : self.env.snake.direction, 'agent_location' : agent_location}
 
-        if (self.env.render_mode is not None) and not terminated:
-            self.env.render()
+        # if (self.env.render_mode is not None) and not terminated:
+        #     self.env.render()
 
-        return observation, reward, terminated, False, info
+        return observation, reward, terminated, info
 
     @staticmethod
     def action_from_direction(direction : Direction) -> int:
@@ -82,7 +82,8 @@ def play(width, height, speed, obstacles):
     wrapped_env = PlayableSnake(env, fps=speed)
 
     pygame.init()
-    _, info = wrapped_env.reset()
+    wrapped_env.reset()
+    info = wrapped_env.info
     while True:
         action = wrapped_env.action_from_direction(info['snake_direction'])
         for event in pygame.event.get():
@@ -98,7 +99,7 @@ def play(width, height, speed, obstacles):
                 action = 2
             if key_pressed and event.key == pygame.K_DOWN:
                 action = 3
-        _, _, terminated, _, info = wrapped_env.step(action)
+        _, _, terminated, info = wrapped_env.step(action)
 
         if terminated :
             # TODO : make possibility for user to replay
@@ -106,7 +107,7 @@ def play(width, height, speed, obstacles):
             # pygame.quit()
             # quit()
             wrapped_env.reset()
-
+        wrapped_env.render('human')
 
 def main():
     parser = argparse.ArgumentParser()

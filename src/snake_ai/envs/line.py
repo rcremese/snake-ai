@@ -20,6 +20,11 @@ class Line():
         pygame.draw.circle(display, point_color, self.end, radius=5)
 
     def to_vector(self) -> np.array:
+        """Convert the line AB into a vector \vect{AB}.
+
+        Returns:
+            np.array: vector representation of the line
+        """
         return np.array(self.end) - np.array(self.start)
 
 def intersection_with_obstacles(initial_line : Line, rect_list : List[pygame.Rect]) -> Line:

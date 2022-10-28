@@ -1,12 +1,9 @@
-import logging
-from symbol import trailer
-from tabnanny import verbose
 import gym
 
 import torch
-from snake_ai.wrappers.snake_distance import SnakeDistance, Snake2dEnv
-from snake_ai.wrappers.snake_binary import SnakeBinary
-from snake_ai.wrappers.snake_relative_position import SnakeRelativePosition
+from snake_ai.wrappers.distance_wrapper import DistanceWrapper, Snake2dEnv
+from snake_ai.wrappers.binary_wrapper import BinaryWrapper
+from snake_ai.wrappers.relative_position_wrapper import RelativePositionWrapper
 
 # class DQN:
 #     def __init__(self, model : torch.nn.Module, lr : float = 1e-3, gamma : float = 0.9, buffer_size : int = 10_000) -> None:
@@ -65,8 +62,8 @@ if __name__ == '__main__':
         rmode='human'
     env = Snake2dEnv(render_mode=rmode, width=20, height=20, nb_obstacles=40)
 
-    env = SnakeRelativePosition(env)
-    env = SnakeDistance(env)
+    env = RelativePositionWrapper(env)
+    env = DistanceWrapper(env)
     if train:
         model = DQN("MlpPolicy", env, verbose=1)
         model.learn(total_timesteps=100_000)
@@ -77,3 +74,4 @@ if __name__ == '__main__':
         while True:
             action, _states = model.predict(obs)
             obs, rewards, dones, info = env.step(action)
+            env.render(rmode)
