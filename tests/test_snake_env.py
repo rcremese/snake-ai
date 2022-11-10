@@ -1,3 +1,9 @@
+##
+# @author Robin CREMESE <robin.cremese@gmail.com>
+ # @file Description
+ # @desc Created on 2022-11-10 2:28:07 pm
+ # @copyright https://mit-license.org/
+ #
 from typing import Dict, List, Tuple
 import pygame
 from snake_ai.envs.snake_2d_env import Snake2dEnv

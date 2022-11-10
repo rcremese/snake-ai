@@ -7,9 +7,19 @@
 import enum
 from typing import Optional, Union, Tuple, List
 import logging
-import typing
-import pygame
+from pathlib import Path
 import numpy as np
+
+FONT_PATH = Path(__file__).parents[1].joinpath('graphics', 'arial.ttf').resolve(strict=True)
+
+class Colors(enum.Enum):
+    WHITE = (255, 255, 255)
+    RED = (200, 0, 0)
+    GREEN = (0, 255, 0)
+    BLUE1 = (0, 0, 255)
+    BLUE2 = (0, 100, 255)
+    BLACK = (0, 0, 0)
+    GREY = (150, 150, 150)
 
 class Reward(enum.Enum):
     FOOD = 10

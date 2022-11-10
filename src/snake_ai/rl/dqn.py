@@ -1,3 +1,4 @@
+from time import sleep
 import gym
 
 import torch
@@ -60,7 +61,8 @@ if __name__ == '__main__':
         rmode = None
     else:
         rmode='human'
-    env = Snake2dEnv(render_mode=rmode, width=20, height=20, nb_obstacles=40)
+    fps = 10
+    env = Snake2dEnv(render_mode=rmode, width=20, height=20, nb_obstacles=20)
 
     env = RelativePositionWrapper(env)
     env = DistanceWrapper(env)
@@ -71,7 +73,13 @@ if __name__ == '__main__':
     else:
         model = DQN.load("dqn_relative_dist")
         obs = env.reset()
+        i=0
         while True:
+            i+=1
             action, _states = model.predict(obs)
             obs, rewards, dones, info = env.step(action)
             env.render(rmode)
+            sleep(1/fps)
+            if i > 200:
+                obs = env.reset()
+                i=0

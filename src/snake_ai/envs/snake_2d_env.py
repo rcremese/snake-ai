@@ -26,6 +26,7 @@ import torch
 FONT_PATH = Path(__file__).parents[1].joinpath(
     'graphics', 'arial.ttf').resolve(strict=True)
 
+#TODO : remplacer ref. couleur par classe Colors !
 BODY_PIXEL_SIZE = 12
 MAX_OBSTACLE_SIZE = 3
 TOLERANCE = 1 # number of pixels accepted for cliped line
@@ -52,6 +53,7 @@ class Snake2dEnv(gym.Env):
         self._nb_obs = len(Direction)
         self.collision_lines = {}
         self._pixel_size = pixel
+        self.truncated = False
         # The size of the PyGame window
         self.window_size = (width * self._pixel_size, height * self._pixel_size)
         self.max_dist = np.sqrt(
@@ -105,7 +107,8 @@ class Snake2dEnv(gym.Env):
             "snake_direction": self.snake.direction,
             "obstacles": self.obstacles,
             "snake_head": self.snake.head.center,
-            "food": self._food.center
+            "food": self._food.center,
+            "truncated": self.truncated,
         }
 
     def reset(self):
@@ -139,9 +142,9 @@ class Snake2dEnv(gym.Env):
             self._compute_collision_lines()
 
         # An episode is done iff the snake has reached the food
-        truncated = self.snake.head.colliderect(self._food)
+        self.truncated = self.snake.head.colliderect(self._food)
         # Give a reward according to the condition
-        if truncated:
+        if self.truncated:
             reward = Reward.FOOD.value
             self.snake.grow()
             self.score += 1
@@ -152,7 +155,7 @@ class Snake2dEnv(gym.Env):
             # TODO: check the best reward
             reward = Reward.COLLISION_FREE.value
             # reward = np.exp(-np.linalg.norm(Line(self.snake.head.center, self._food.center).to_vector() / self.pixel_size))
-        terminated = self._is_outside()
+        terminated = self._is_outside() or self.snake.collide_with_itself()
         observation = self._get_obs()
 
         # if (self.render_mode is not None) and not terminated:
@@ -252,8 +255,20 @@ class Snake2dEnv(gym.Env):
             rect = self.snake.head
         return rect.x < 0 or rect.x + rect.width > self.window_size[0] or rect.y < 0 or rect.y + rect.height > self.window_size[1]
 
-    def _is_collision(self):
-        return self._is_outside() or self.snake.collide_with_itself() or self.snake.collide_with_obstacles(self.obstacles)
+    def _collide_with_obstacles(self, rect: pygame.Rect = None):
+        # if no rectangle is passed, check snake collision with obstacles
+        if rect is None:
+            return self.snake.collide_with_obstacles(self.obstacles)
+        return rect.collidelist(self.obstacles) != -1
+
+    def _collide_with_snake_body(self, rect: pygame.Rect = None):
+        # if no rectangle is passed, check snake collision with obstacles
+        if rect is None:
+            return self.snake.collide_with_itself()
+        return rect.collidelist(self.snake.body) != -1
+
+    def _is_collision(self, rect : pygame.Rect = None):
+        return self._is_outside(rect) or self._collide_with_snake_body(rect) or self._collide_with_obstacles(rect)
 
     def _init_collision_lines(self):
         playground = pygame.Rect((0, 0), self.window_size)

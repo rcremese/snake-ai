@@ -1,6 +1,6 @@
 import argparse
 import pygame
-from snake_ai.envs.snake_2d_env import Snake2dEnv
+from snake_ai.envs.snake_2d_env import Snake2dEnv, BLACK, WHITE, GREEN, RED, FONT_PATH
 from snake_ai.envs.line import Line
 
 import gym
@@ -52,6 +52,40 @@ class PlayableSnake(gym.Wrapper):
         #     self.env.render()
 
         return observation, reward, terminated, info
+
+    def render(self, mode="human", **kwargs):
+        if self.window is None:
+            self.window = pygame.display.set_mode(self.env.window_size)
+        if self.font is None:
+            self.font = pygame.font.Font(FONT_PATH, 25)
+        if self.clock is None:
+            self.clock = pygame.time.Clock()
+
+        canvas = pygame.Surface(self.env.window_size)
+        canvas.fill(BLACK)
+
+        # Draw snake
+        self.env.snake.draw(canvas)
+        # Draw obstacles
+        for obstacle in self.env.obstacles:
+            pygame.draw.rect(canvas, RED, obstacle)
+
+        # Draw food
+        pygame.draw.rect(canvas, GREEN, self.env._food)
+
+        if mode == "human":
+            # The following line copies our drawings from `canvas` to the visible window
+            self.window.blit(canvas, canvas.get_rect())
+            pygame.event.pump()
+            # Draw the text showing the score
+            text = self.font.render(f"Score: {self.score}", True, WHITE)
+            self.window.blit(text, [0, 0])
+            # update only the snake and the food
+            pygame.display.update()
+
+            # We need to ensure that human-rendering occurs at the predefined framerate.
+            # The following line will automatically add a delay to keep the framerate stable.
+            self.clock.tick(self.metadata["render_fps"])
 
     @staticmethod
     def action_from_direction(direction : Direction) -> int:
