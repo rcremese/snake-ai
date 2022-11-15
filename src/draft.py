@@ -1,18 +1,34 @@
-import torch
+from abc import ABCMeta, abstractmethod
 import numpy as np
-import pygame
-import gym
-from collections import OrderedDict
-from gym.spaces import Discrete, Box, Dict
-from snake_ai.envs.utils import Direction, get_opposite_direction
-from snake_ai.envs.line import Line
-from snake_ai.envs.snake_2d_env import Snake2dEnv
-import matplotlib.pyplot as plt
 
-obs = pygame.Rect(0, 0, 10, 10)
-point = np.array([10,20])
-print(obs.collidepoint(*point))
+class foo(metaclass=ABCMeta):
+    def __init__(self, a) -> None:
+        self.a = a
 
-copy = np.copy(point)
-copy[1] = 42
-print(point, copy)
+    @abstractmethod
+    def foo(self):
+        print(self.a)
+
+    def __repr__(self) -> str:
+        return f"{__class__.__name__}"
+
+class bar(foo):
+    def foo(self):
+        super().foo()
+        print('Hello')
+
+    def __repr__(self) -> str:
+        return super().__repr__()
+
+b = bar(2)
+b.foo()
+print(b)
+
+
+pos = (5,10)
+a = np.repeat([pos], 10, axis=0)
+print(a)
+b = np.zeros(10, dtype=bool)
+print(b)
+b[5]=True
+print(a[b, :])

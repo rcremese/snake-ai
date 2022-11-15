@@ -13,8 +13,8 @@ import pygame
 from pyparsing import Optional
 # project imports
 from snake_ai.envs.snake import BODY_PIXEL_SIZE, SnakeAI
-from snake_ai.envs.line import Line, intersection_with_obstacles
-from snake_ai.envs.utils import Direction, Reward, get_opposite_direction
+from snake_ai.utils.line import Line, intersection_with_obstacles
+from snake_ai.utils import Direction, Reward, get_opposite_direction
 # IO imports
 import logging
 from typing import Iterable, List, Dict, Tuple

@@ -8,7 +8,7 @@ from snake_ai.envs import Snake2dEnv
 import gym
 import gym.spaces
 
-from snake_ai.envs.utils import Reward
+from snake_ai.utils import Reward
 import pygame
 from collections import OrderedDict
 import numpy as np

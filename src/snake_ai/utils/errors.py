@@ -1,0 +1,2 @@
+class EnvironmentTooSmall(ValueError):
+    pass

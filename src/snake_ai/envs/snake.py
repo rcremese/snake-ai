@@ -7,7 +7,7 @@
 import pygame
 import logging
 from typing import List
-from snake_ai.envs.utils import Direction, get_opposite_direction, get_direction_from_vector
+from snake_ai.utils.direction import Direction, get_opposite_direction, get_direction_from_vector
 
 BODY_PIXEL_SIZE = 12
 

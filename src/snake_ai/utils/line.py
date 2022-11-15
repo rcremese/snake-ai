@@ -1,3 +1,9 @@
+##
+# @author Robin CREMESE <robin.cremese@gmail.com>
+ # @file Description
+ # @desc Created on 2022-11-11 1:03:17 am
+ # @copyright https://mit-license.org/
+ #
 import pygame
 from typing import Tuple, List, Optional
 import logging

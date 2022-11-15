@@ -1,7 +1,7 @@
 import argparse
 import pygame
 from snake_ai.envs.snake_2d_env import Snake2dEnv, BLACK, WHITE, GREEN, RED, FONT_PATH
-from snake_ai.envs.line import Line
+from snake_ai.utils.line import Line
 
 import gym
 import numpy as np

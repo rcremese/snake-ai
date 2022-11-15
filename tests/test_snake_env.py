@@ -7,7 +7,7 @@
 from typing import Dict, List, Tuple
 import pygame
 from snake_ai.envs.snake_2d_env import Snake2dEnv
-from snake_ai.envs.line import Line
+from snake_ai.utils.line import Line
 from snake_ai.envs.utils import Direction
 from snake_ai.wrappers.binary_wrapper import BinaryWrapper
 from snake_ai.wrappers.relative_position_wrapper import RelativePositionWrapper
