@@ -6,12 +6,13 @@
  #
 import pygame
 import logging
+from abc import abstractmethod, ABCMeta
 from typing import List
 from snake_ai.utils.direction import Direction, get_opposite_direction, get_direction_from_vector
 
 BODY_PIXEL_SIZE = 12
 
-class Snake:
+class Snake(metaclass=ABCMeta):
     def __init__(self, x : float, y : float, pixel_size : int = 20, body_pixel : int = 12) -> None:
         self._pixel_size = pixel_size
         self._body_pixel = body_pixel
@@ -53,10 +54,12 @@ class Snake:
         self.head = new_head
         self.body.pop()
 
+    @abstractmethod
+    def move_from_action(self, action : int):
+        raise NotImplementedError
+
     def go_back(self):
-        logging.debug(f'direction before turning back : {self.direction}')
         self.direction = self.get_direction_from_head_position(invert=True)
-        logging.debug(f'direction after turning back : {self.direction}')
         self.body.insert(0, self.head) # insert the head in front of the list
         self.head = self.body.pop()
         self.body.reverse()
@@ -120,7 +123,18 @@ class SnakeAI(Snake):
         else:
             raise ValueError(f'Unknown action {action}')
         # finaly move
-        logging.debug(f"action value: {action}")
-        logging.debug(f"direction value: {new_dir}")
+        self.move(new_dir)
 
+class SnakeHuman(Snake):
+    def move_from_action(self, action : int):
+        if action == 0:
+            new_dir = Direction.LEFT
+        elif action == 1:
+            new_dir = Direction.LEFT
+        elif action == 0:
+            new_dir = Direction.LEFT
+        elif action == 1:
+            new_dir = Direction.LEFT
+        else:
+            raise ValueError(f'Action need to be in range [0, 4]. Get {action}')
         self.move(new_dir)

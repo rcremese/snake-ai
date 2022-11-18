@@ -8,9 +8,10 @@ from snake_ai.envs.snake_base_env import SnakeBaseEnv
 from snake_ai.utils import Colors, Reward
 from snake_ai.utils.direction import Direction, get_opposite_direction
 from snake_ai.utils.line import Line, intersection_with_obstacles
+from typing import Tuple, Dict, List
 import numpy as np
 import pygame
-import gym
+import gym.spaces
 
 TOLERANCE = 1  # number of pixels accepted for cliped line
 
@@ -22,15 +23,55 @@ class SnakeLinesEnv(SnakeBaseEnv):
         self.observation_space = gym.spaces.Box(low=np.zeros((self._nb_obs, 2)), high=np.repeat([self.window_size], self._nb_obs, axis=0),
                                                 shape=(self._nb_obs, 2))
         self.action_space = gym.spaces.Discrete(3)
+        # Init arguments that will be initialized latter
+        self.collision_lines = None
         self._food_line = None
 
-    def reset(self):
+    ## Abstract methods definition
+    def reset(self) -> np.ndarray:
         super().reset()
         self._compute_collision_lines()
-        self._food_line = Line(self.snake.head.center, self.food.center)
+        self._food_line = Line(self._snake.head.center, self._food.center)
         return self._get_obs()
 
-    def _get_obs(self):
+    def step(self, action) -> Tuple[np.ndarray, Reward, bool, Dict]:
+        # Map the action (element of {0,1,2}) to the direction we walk in
+        self._snake.move_from_action(action)
+        # Do not compute collision lines when the snake is out of bound
+        if not self._is_outside():
+            self._compute_collision_lines()
+        self._food_line = Line(self._snake.head.center, self._food.center)
+
+        # A flag is set if the snake has reached the food
+        self.truncated = self._snake.head.colliderect(self._food)
+        # Give a reward according to the condition
+        if self.truncated:
+            reward = Reward.FOOD.value
+            self._snake.grow()
+            self.score += 1
+            self._place_food()
+        elif self._is_collision():
+            reward = Reward.COLLISION.value
+        else:
+            reward = Reward.COLLISION_FREE.value
+            # reward = np.exp(-np.linalg.norm(Line(self.snake.head.center, self._food.center).to_vector() / self.pixel_size))
+        terminated = self._is_outside() or self._snake.collide_with_itself()
+
+        return self._get_obs(), reward, terminated, self.info
+
+    # Public methods
+    def draw(self, canvas: pygame.Surface) -> pygame.Surface:
+        super().draw(canvas)
+         # Draw collision lines
+        for line in self.collision_lines.values():
+            if line is None:
+                continue
+            line.draw(canvas, Colors.GREY.value, Colors.BLUE1.value)
+        # Draw line to food
+        self._food_line.draw(canvas, Colors.GREEN.value, Colors.GREEN.value)
+
+    ## Private methods
+    def _get_obs(self) -> np.ndarray:
         observables = np.zeros((self._nb_obs, 2))
         i = 0
         for direction in Direction:
@@ -43,73 +84,14 @@ class SnakeLinesEnv(SnakeBaseEnv):
         observables[-1, :] = self._food.center
         return observables
 
-    def step(self, action):
-        # Map the action (element of {0,1,2}) to the direction we walk in
-        self.snake.move_from_action(action)
-        # Do not compute collision lines when the snake is out of bound
-        if not self._is_outside():
-            self._compute_collision_lines()
-        self._food_line = Line(self.snake.head.center, self.food.center)
-
-        # A flag is set if the snake has reached the food
-        self.truncated = self.snake.head.colliderect(self._food)
-        # Give a reward according to the condition
-        if self.truncated:
-            reward = Reward.FOOD.value
-            self.snake.grow()
-            self.score += 1
-            self._place_food()
-        elif self._is_collision():
-            reward = Reward.COLLISION.value
-        else:
-            reward = Reward.COLLISION_FREE.value
-            # reward = np.exp(-np.linalg.norm(Line(self.snake.head.center, self._food.center).to_vector() / self.pixel_size))
-        terminated = self._is_outside() or self.snake.collide_with_itself()
-
-        return self._get_obs(), reward, terminated, self.info
-
-    def render(self, mode="human"):
-        canvas = pygame.Surface(self.window_size)
-        canvas.fill(Colors.BLACK.value)
-
-        # Draw snake
-        self.snake.draw(canvas)
-        # Draw obstacles
-        for obstacle in self.obstacles:
-            pygame.draw.rect(canvas, Colors.RED.value, obstacle)
-
-        # Draw collision lines
-        for direction, line in self.collision_lines.items():
-            if line is not None:
-                line.draw(canvas, Colors.GREY.value, Colors.BLUE1.value)
-        # Draw food
-        pygame.draw.rect(canvas, Colors.GREEN.value, self.food)
-        # Draw line to food
-        self._food_line.draw(canvas, Colors.GREEN.value, Colors.GREEN.value)
-
-        if mode == "human":
-            # The following line copies our drawings from `canvas` to the visible window
-            self.window.blit(canvas, canvas.get_rect())
-            pygame.event.pump()
-            # Draw the text showing the score
-            text = self.font.render(
-                f"Score: {self.score}", True, Colors.WHITE.value)
-            self.window.blit(text, [0, 0])
-            # update the display
-            pygame.display.update()
-            # We need to ensure that human-rendering occurs at the predefined framerate.
-            # The following line will automatically add a delay to keep the framerate stable.
-            self.clock.tick(self.metadata["render_fps"])
-        else:  # rgb_array
-            return np.transpose(np.array(pygame.surfarray.pixels3d(canvas)), axes=(1, 0, 2))
-
     def _init_collision_lines(self):
         playground = pygame.Rect((0, 0), self.window_size)
+        self.collision_lines = {}
 
         for direction in Direction:
-            end_line = np.array(self.snake.head.center) + \
+            end_line = np.array(self._snake.head.center) + \
                 np.array(direction.value) * self.max_dist
-            line = Line(self.snake.head.center, tuple(end_line))
+            line = Line(self._snake.head.center, tuple(end_line))
             start, end = playground.clipline(line.start, line.end)
             # "The rect.bottom and rect.right attributes of a pygame.Rectpygame object for storing rectangular coordinates always lie one pixel outside of its actual border"
             if abs(end[0] - self.window_size[0]) <= TOLERANCE:
@@ -123,7 +105,7 @@ class SnakeLinesEnv(SnakeBaseEnv):
             self.collision_lines[direction] = Line(start, end)
 
     def _get_collision_box(self, direction: Direction) -> pygame.Rect:
-        snake_head = self.snake.head
+        snake_head = self._snake.head
         # define quantities to compute snake position
         right_dist = self.window_size[0] - snake_head.right
         bottom_dist = self.window_size[1] - snake_head.bottom
@@ -150,7 +132,7 @@ class SnakeLinesEnv(SnakeBaseEnv):
     def _compute_collision_lines(self):
         # Initialise collision lines without obstacles
         self._init_collision_lines()
-        snake_opposite_dir = get_opposite_direction(self.snake.direction)
+        snake_opposite_dir = get_opposite_direction(self._snake.direction)
         self.collision_lines[snake_opposite_dir] = None
         # Case where there is no obstacles to consider
         if self.nb_obstacles == 0:
@@ -165,8 +147,8 @@ class SnakeLinesEnv(SnakeBaseEnv):
             if collision_box.width <= 0 or collision_box.height <= 0:
                 continue
             # get all the obstacles that can collide with the collision line
-            collision_list = [self.obstacles[index]
-                              for index in collision_box.collidelistall(self.obstacles)]
+            collision_list = [self._obstacles[index]
+                              for index in collision_box.collidelistall(self._obstacles)]
             if collision_list:
                 self.collision_lines[direction] = intersection_with_obstacles(
                     self.collision_lines[direction], collision_list)

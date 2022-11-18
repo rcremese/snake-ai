@@ -12,7 +12,7 @@ import numpy as np
 import gym
 import gym.spaces
 
-from snake_ai.envs.utils import Direction
+from snake_ai.utils import Direction
 
 class BinaryWrapper(gym.ObservationWrapper):
     def __init__(self, env):

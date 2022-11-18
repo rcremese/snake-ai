@@ -11,7 +11,7 @@ from snake_ai.wrappers.diffusion_process_wrapper import DiffusionProcessWrapper
 import pygame
 import numpy as np
 
-COEF = 100_000
+COEF = 1_000
 W, H = 20, 20
 OBS = 40
 MAX_STEP = 100

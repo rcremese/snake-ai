@@ -1,3 +1,9 @@
+##
+# @author Robin CREMESE <robin.cremese@gmail.com>
+ # @file Description
+ # @desc Created on 2022-11-18 4:58:15 pm
+ # @copyright https://mit-license.org/
+ #
 from stable_baselines3.dqn import DQN
 from stable_baselines3.her.her_replay_buffer import HerReplayBuffer
 from snake_ai.envs import SnakeGoalEnv

@@ -47,8 +47,15 @@ class Particle():
                 return True
         return False
 
+    def is_inside(self, rect : pygame.Rect, center : bool = False) -> bool:
+        if center:
+            return rect.collidepoint(*self._position)
+        lower_pos = self._position - self.radius
+        upper_pos = self._position + self.radius
+        return lower_pos[0] >= rect.left and lower_pos[1] >= rect.top and upper_pos[0] <= rect.right and upper_pos[1] <= rect.bottom
+
     def draw(self, canvas : pygame.Surface):
-        pygame.draw.circle(canvas, Colors.MIDDLE_GREEN.value, *self._position, self.radius)
+        pygame.draw.circle(canvas, Colors.MIDDLE_GREEN.value, self._position, self.radius)
 
     def move(self, dx : Union[float, int], dy : Union[float, int]):
         assert isinstance(dx, (float, int)) and isinstance(dy, (float, int))
@@ -57,8 +64,11 @@ class Particle():
     def update_position(self, x : Union[float, int], y : Union[float, int]):
         self.reset(x, y)
 
-    def __repr__(self) -> str:
-        return f"{__class__.__name__}({self._position[0]!r},{self._position[1]!r}, {self.radius!r})"
-
     def get_grid_position(self) -> List:
         return [round(coord) for coord in self._position]
+
+    def __eq__(self, other: __build_class__) -> bool:
+        return np.array_equal(self._position, other._position) and self.radius == other.radius
+
+    def __repr__(self) -> str:
+        return f"{__class__.__name__}({self._position[0]!r},{self._position[1]!r}, {self.radius!r})"

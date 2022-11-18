@@ -10,7 +10,8 @@ import pygame
 from snake_ai.envs import Snake2dEnv
 import numpy as np
 from typing import List
-from snake_ai.envs.utils import Direction, Colors, FONT_PATH
+from snake_ai.utils import Direction, Colors
+from snake_ai.utils.paths import FONT_PATH
 
 
 class DiffusionProcessWrapper(gym.Wrapper):

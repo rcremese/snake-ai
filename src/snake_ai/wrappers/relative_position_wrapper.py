@@ -16,7 +16,7 @@ from collections import OrderedDict
 from snake_ai.utils.line import Line
 from snake_ai.envs.snake_2d_env import Snake2dEnv
 from snake_ai.envs.snake_goal_env import SnakeGoalEnv
-from snake_ai.envs.utils import Direction
+from snake_ai.utils import Direction
 
 
 class RelativePositionWrapper(gym.Wrapper):

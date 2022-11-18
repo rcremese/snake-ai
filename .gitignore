@@ -10,5 +10,7 @@ models/*
 logs/*
 # zip files coming from stablebaseline
 *.zip
+# remove the file draft.py from the git archive
+**/draft.py
 # except gitkeep to keep the architecture
 !.gitkeep
