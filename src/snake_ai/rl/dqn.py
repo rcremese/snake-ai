@@ -1,58 +1,16 @@
+##
+# @author Robin CREMESE <robin.cremese@gmail.com>
+ # @file Description
+ # @desc Created on 2022-11-29 2:22:46 pm
+ # @copyright https://mit-license.org/
+ #
 from time import sleep
-import gym
 
-import torch
-from snake_ai.wrappers.distance_wrapper import DistanceWrapper, Snake2dEnv
+import pygame
+from snake_ai.wrappers.distance_wrapper import DistanceWrapper
 from snake_ai.wrappers.binary_wrapper import BinaryWrapper
 from snake_ai.wrappers.relative_position_wrapper import RelativePositionWrapper
-
-# class DQN:
-#     def __init__(self, model : torch.nn.Module, lr : float = 1e-3, gamma : float = 0.9, buffer_size : int = 10_000) -> None:
-#         self.lr = lr
-#         self.gamma = gamma
-#         self.model = model
-#         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
-#         self.loss = torch.nn.MSELoss()
-
-class QTrainer:
-    def __init__(self, model : torch.nn.Module, lr : float, gamma : float):
-        self.lr = lr
-        self.gamma = gamma
-        self.model = model
-        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
-        self.loss = torch.nn.MSELoss()
-
-    def train_step(self, state, action, reward, next_state, done):
-        state = torch.tensor(state, dtype=torch.float)
-        next_state = torch.tensor(next_state, dtype=torch.float)
-        action = torch.tensor(action, dtype=torch.long)
-        reward = torch.tensor(reward, dtype=torch.float)
-        # (n, x)
-
-        if len(state.shape) == 1:
-            # (1, x)
-            state = torch.unsqueeze(state, 0)
-            next_state = torch.unsqueeze(next_state, 0)
-            action = torch.unsqueeze(action, 0)
-            reward = torch.unsqueeze(reward, 0)
-            done = (done, )
-
-        # 1: predicted Q values with current state
-        pred : torch.Tensor = self.model(state)
-
-        target = pred.clone()
-        for idx, d in enumerate(done):
-            Q_new = reward[idx] + (1 - d) * self.gamma * torch.max(self.model(next_state[idx]))
-            # if not done[idx]:
-            #     Q_new = reward[idx] + self.gamma * torch.max(self.model(next_state[idx]))
-            target[idx][torch.argmax(action[idx]).item()] = Q_new
-
-        # 2: Q_new = r + y * max(next_predicted Q value) -> only do this if not done
-        self.optimizer.zero_grad()
-        output : torch.Tensor = self.loss(target, pred)
-        output.backward()
-
-        self.optimizer.step()
+from snake_ai.envs import SnakeClassicEnv
 
 if __name__ == '__main__':
     from stable_baselines3.dqn.dqn import DQN
@@ -61,11 +19,9 @@ if __name__ == '__main__':
         rmode = None
     else:
         rmode='human'
-    fps = 10
-    env = Snake2dEnv(render_mode=rmode, width=20, height=20, nb_obstacles=20)
+    fps = 50
+    env = SnakeClassicEnv(render_mode=rmode, width=20, height=20, nb_obstacles=0)
 
-    env = RelativePositionWrapper(env)
-    env = DistanceWrapper(env)
     if train:
         model = DQN("MlpPolicy", env, verbose=1)
         model.learn(total_timesteps=100_000)
@@ -80,6 +36,11 @@ if __name__ == '__main__':
             obs, rewards, dones, info = env.step(action)
             env.render(rmode)
             sleep(1/fps)
-            if i > 200:
+            if i > 1000:
                 obs = env.reset()
                 i=0
+            # Check quit action
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    quit()

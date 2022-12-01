@@ -4,20 +4,22 @@
  # @desc Created on 2022-11-02 2:10:17 pm
  # @copyright https://mit-license.org/
  #
+
+# TODO : Rename and rewrite the class to correspond to new case
 import gym
 import gym.spaces
 import pygame
-from snake_ai.envs import Snake2dEnv
+from snake_ai.envs import SnakeClassicEnv
 import numpy as np
 from typing import List
 from snake_ai.utils import Direction, Colors
 from snake_ai.utils.paths import FONT_PATH
 
 
-class DiffusionProcessWrapper(gym.Wrapper):
-    def __init__(self, env: Snake2dEnv, diffusion_coef : float = 1):
+class DiffusionWrapper(gym.Wrapper):
+    def __init__(self, env: SnakeClassicEnv, diffusion_coef : float = 1):
         super().__init__(env)
-        self.env : Snake2dEnv
+        self.env : SnakeClassicEnv
         self.observation_space = gym.spaces.Box(low=np.zeros(3), high=np.ones(3), shape=(3,))
         self._diffusion_coef = diffusion_coef
         self._diffusive_field = None

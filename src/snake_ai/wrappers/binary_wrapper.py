@@ -4,6 +4,7 @@
  # @desc Created on 2022-10-28 2:47:09 pm
  # @copyright https://mit-license.org/
  #
+# TODO : Remove the file (replaced by SnakeClassicEnv)
 import logging
 import pygame
 from snake_ai.envs import Snake2dEnv

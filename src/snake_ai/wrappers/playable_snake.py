@@ -1,17 +1,18 @@
 import argparse
 import pygame
-from snake_ai.envs.snake_2d_env import Snake2dEnv, BLACK, WHITE, GREEN, RED, FONT_PATH
-from snake_ai.utils.line import Line
+
+from snake_ai.utils import Line
+from snake_ai.envs import SnakeClassicEnv, SnakeHuman
+from snake_ai.utils import Direction
 
 import gym
 import numpy as np
 from typing import Tuple, List
 
-from snake_ai.envs.utils import Direction, Reward
 
 class PlayableSnake(gym.Wrapper):
-    def __init__(self, env: Snake2dEnv, fps : int = 10):
-        assert isinstance(env, Snake2dEnv)
+    def __init__(self, env: SnakeClassicEnv, fps : int = 10):
+        assert isinstance(env, SnakeClassicEnv)
         super().__init__(env)
         self.env.metadata['render_fps'] = fps
         self.observation_space = gym.spaces.Box(low=0, high=env.max_dist, shape=(1,))
@@ -19,73 +20,20 @@ class PlayableSnake(gym.Wrapper):
 
     def reset(self, **kwargs) -> Tuple[float, dict]:
         super().reset(**kwargs)
+        snake_head = self.env.snake.head
+        self.env.snake = SnakeHuman(*snake_head.topleft, self.env._pixel_size)
+
         info = self.env.info
         obs =  np.linalg.norm(Line(info['snake_head'], info['food']).to_vector())
         return obs
 
     def step(self, action: int) -> Tuple[np.array, float, bool, bool, dict]:
         # Map the action (element of {0,1,2,3}) to the direction we walk in
-        direction = self.direction_from_action(action)
-        self.env.snake.move(direction)
-        # direction = self._action_to_direction[action]
-        agent_location = self.env.snake.head.center
-        target_location = self.env._food.center
-        # An episode is done iff the snake has reached the food
-        if self.env.snake.head.colliderect(self.env._food):
-            self.env.score += 1
-            self.env.snake.grow()
-            self.env._place_food()
+        _, reward, terminated, info = super().step(action)
 
-        terminated = self.env._is_collision()
-        # Give a reward according to the condition
-        if terminated:
-            reward = Reward.FOOD
-        elif self.env._is_collision():
-            reward = Reward.COLLISION
-        else:
-            reward = Reward.COLLISION_FREE
-
-        observation = np.linalg.norm(Line(agent_location, target_location).to_vector())
-        info = {'snake_direction' : self.env.snake.direction, 'agent_location' : agent_location}
-
-        # if (self.env.render_mode is not None) and not terminated:
-        #     self.env.render()
-
-        return observation, reward, terminated, info
-
-    def render(self, mode="human", **kwargs):
-        if self.window is None:
-            self.window = pygame.display.set_mode(self.env.window_size)
-        if self.font is None:
-            self.font = pygame.font.Font(FONT_PATH, 25)
-        if self.clock is None:
-            self.clock = pygame.time.Clock()
-
-        canvas = pygame.Surface(self.env.window_size)
-        canvas.fill(BLACK)
-
-        # Draw snake
-        self.env.snake.draw(canvas)
-        # Draw obstacles
-        for obstacle in self.env.obstacles:
-            pygame.draw.rect(canvas, RED, obstacle)
-
-        # Draw food
-        pygame.draw.rect(canvas, GREEN, self.env._food)
-
-        if mode == "human":
-            # The following line copies our drawings from `canvas` to the visible window
-            self.window.blit(canvas, canvas.get_rect())
-            pygame.event.pump()
-            # Draw the text showing the score
-            text = self.font.render(f"Score: {self.score}", True, WHITE)
-            self.window.blit(text, [0, 0])
-            # update only the snake and the food
-            pygame.display.update()
-
-            # We need to ensure that human-rendering occurs at the predefined framerate.
-            # The following line will automatically add a delay to keep the framerate stable.
-            self.clock.tick(self.metadata["render_fps"])
+        info = self.env.info
+        obs =  np.linalg.norm(Line(info['snake_head'], info['food']).to_vector())
+        return obs, reward, terminated, info
 
     @staticmethod
     def action_from_direction(direction : Direction) -> int:
@@ -112,7 +60,7 @@ class PlayableSnake(gym.Wrapper):
         raise ValueError(f"Unknown action {action}. Expected 0, 1, 2 or 3")
 
 def play(width, height, speed, obstacles):
-    env = Snake2dEnv(render_mode='human', width=width, height=height, nb_obstacles=obstacles)
+    env = SnakeClassicEnv(render_mode='human', width=width, height=height, nb_obstacles=obstacles)
     wrapped_env = PlayableSnake(env, fps=speed)
 
     pygame.init()

@@ -25,11 +25,12 @@ class Snake(metaclass=ABCMeta):
         move = (self._pixel_size - self._body_pixel) / 2
         # draw the head and eye
         pygame.draw.rect(display, head_color, self.head)
+        # pygame.draw.rect(display, body_color, pygame.Rect(self.head.x + move, self.head.y + move, self._body_pixel, self._body_pixel))
         # draw the body
         for pt in self.body:
-            pygame.draw.rect(display, head_color, pt)
+            pygame.draw.rect(display, body_color, pt)
             # draw the body of the snake, in order to count the parts
-            pygame.draw.rect(display, body_color, pygame.Rect(pt.x + move, pt.y + move, self._body_pixel, self._body_pixel))
+            pygame.draw.rect(display, head_color, pygame.Rect(pt.x + move, pt.y + move, self._body_pixel, self._body_pixel))
 
     def move(self, direction : Direction):
         # Change direction when going in the opposite
@@ -101,7 +102,7 @@ class Snake(metaclass=ABCMeta):
 
 
 class SnakeAI(Snake):
-    def move_from_action(self, action : int) -> None:
+    def move_from_action(self, action : int):
         """move the snake given the action
 
         Args:
@@ -130,11 +131,11 @@ class SnakeHuman(Snake):
         if action == 0:
             new_dir = Direction.LEFT
         elif action == 1:
-            new_dir = Direction.LEFT
-        elif action == 0:
-            new_dir = Direction.LEFT
-        elif action == 1:
-            new_dir = Direction.LEFT
+            new_dir = Direction.UP
+        elif action == 2:
+            new_dir = Direction.RIGHT
+        elif action == 3:
+            new_dir = Direction.DOWN
         else:
             raise ValueError(f'Action need to be in range [0, 4]. Get {action}')
         self.move(new_dir)

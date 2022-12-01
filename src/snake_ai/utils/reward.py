@@ -1,6 +1,6 @@
 import enum
 
 class Reward(enum.Enum):
-    FOOD = 10
-    COLLISION = -10
+    FOOD = 100
+    COLLISION = -100
     COLLISION_FREE = -1

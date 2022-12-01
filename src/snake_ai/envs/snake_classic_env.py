@@ -1,3 +1,9 @@
+##
+# @author Robin CREMESE <robin.cremese@gmail.com>
+ # @file Description
+ # @desc Created on 2022-11-29 1:25:32 pm
+ # @copyright https://mit-license.org/
+ #
 from snake_ai.envs.snake_base_env import SnakeBaseEnv
 from snake_ai.utils import Direction, Reward, Colors
 from typing import List, Tuple, Dict
@@ -27,7 +33,7 @@ class SnakeClassicEnv(SnakeBaseEnv):
             reward = Reward.FOOD.value
             self._snake.grow()
             self.score += 1
-            self._place_food()
+            self._food = self._place_food()
         elif terminated:
             reward = Reward.COLLISION.value
         else:

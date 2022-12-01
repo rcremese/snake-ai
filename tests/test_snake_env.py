@@ -13,6 +13,35 @@ from snake_ai.wrappers.binary_wrapper import BinaryWrapper
 from snake_ai.wrappers.relative_position_wrapper import RelativePositionWrapper
 import numpy as np
 
+class TestSnakeClassicalEnv():
+    w, h, pix= 5, 5, 10
+    def test_reset(self):
+        pass
+
+    def test_step(self):
+        pass
+
+    def test_properties(self):
+        pass
+
+    def test_place_food(self):
+        pass
+
+    def test_place_obstacel(self):
+        pass
+
+    def test_is_outside(self):
+        pass
+
+    def test_collide_with_obstacles(slef):
+        pass
+
+    def test_collide_with_snake_body(self):
+        pass
+
+    def test_collisions(self):
+        pass
+
 class TestSnakeEnv():
     w, h, pix= 5, 5, 10
 
