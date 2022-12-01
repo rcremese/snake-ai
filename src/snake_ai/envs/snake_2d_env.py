@@ -7,7 +7,6 @@
 # Gym specific imports
 import gym
 import gym.spaces
-from gym.utils.play import play
 from gym.envs.registration import EnvSpec
 import pygame
 from pyparsing import Optional

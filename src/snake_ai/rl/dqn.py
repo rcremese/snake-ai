@@ -20,11 +20,11 @@ if __name__ == '__main__':
     else:
         rmode='human'
     fps = 50
-    env = SnakeClassicEnv(render_mode=rmode, width=20, height=20, nb_obstacles=0)
+    env = SnakeClassicEnv(render_mode=rmode, width=20, height=20, nb_obstacles=20)
 
     if train:
-        model = DQN("MlpPolicy", env, verbose=1)
-        model.learn(total_timesteps=100_000)
+        model = DQN("MlpPolicy", env, verbose=1, tensorboard_log='./logs/classical_snake_dqn')
+        model.learn(total_timesteps=500_000)
         model.save("dqn_relative_dist")
     else:
         model = DQN.load("dqn_relative_dist")
@@ -36,7 +36,7 @@ if __name__ == '__main__':
             obs, rewards, dones, info = env.step(action)
             env.render(rmode)
             sleep(1/fps)
-            if i > 1000:
+            if i > 1000 or dones:
                 obs = env.reset()
                 i=0
             # Check quit action

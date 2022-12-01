@@ -9,6 +9,7 @@ import logging
 from abc import abstractmethod, ABCMeta
 from typing import List
 from snake_ai.utils.direction import Direction, get_opposite_direction, get_direction_from_vector
+from snake_ai.utils import Colors
 
 BODY_PIXEL_SIZE = 12
 
@@ -21,16 +22,16 @@ class Snake(metaclass=ABCMeta):
         self._size = len(self.body) + 1
         self.direction = Direction.RIGHT
 
-    def draw(self, display, head_color = (255, 255, 255), body_color = (0, 100, 255)):
+    def draw(self, display, head_color : Colors = Colors.BLUE2, body_color : Colors = Colors.WHITE):
         move = (self._pixel_size - self._body_pixel) / 2
         # draw the head and eye
-        pygame.draw.rect(display, head_color, self.head)
+        pygame.draw.rect(display, head_color.value, self.head)
         # pygame.draw.rect(display, body_color, pygame.Rect(self.head.x + move, self.head.y + move, self._body_pixel, self._body_pixel))
         # draw the body
         for pt in self.body:
-            pygame.draw.rect(display, body_color, pt)
+            pygame.draw.rect(display, head_color.value, pt)
             # draw the body of the snake, in order to count the parts
-            pygame.draw.rect(display, head_color, pygame.Rect(pt.x + move, pt.y + move, self._body_pixel, self._body_pixel))
+            pygame.draw.rect(display, body_color.value, pygame.Rect(pt.x + move, pt.y + move, self._body_pixel, self._body_pixel))
 
     def move(self, direction : Direction):
         # Change direction when going in the opposite
