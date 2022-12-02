@@ -94,15 +94,15 @@ class TestDiffusionProcess:
     diff_coef = 1
     t_max = 10
     radius = 1
+    seed = 42
 
     def test_reset(self):
         ## Test one particule
-        diff_process = DiffusionProcess(self.obstacle_free_env, nb_particles=1, t_max=self.t_max, diff_coef=self.diff_coef, part_radius=self.radius)
-        diff_process.seed()
+        diff_process = DiffusionProcess(self.obstacle_free_env, nb_particles=1, t_max=self.t_max, diff_coef=self.diff_coef, part_radius=self.radius, seed=self.seed)
         # initialise the particle
         diff_process.reset()
-        assert diff_process.particles == [Particle(45, 5, self.radius)]
-        assert np.array_equal(diff_process._positions, np.array([[45, 5]]))
+        assert diff_process.particles == [Particle(35, 45, self.radius)]
+        assert np.array_equal(diff_process._positions, np.array([[35, 45]]))
         assert diff_process._collisions == [False]
         ## Test several particules
         nb_part = 10
@@ -131,8 +131,8 @@ class TestDiffusionProcess:
         # initialise the particle
         diff_process.reset()
         diff_process.step()
-        assert diff_process.particles == [Particle(45.97873798410574,7.240893199201458, self.radius)]
-        assert diff_process._collisions == [False]
+        assert diff_process.particles == [Particle(45.193077087402344,4.473217010498047, self.radius)]
+        assert diff_process._collisions == np.array([False])
         ## Test several particules
         nb_part = 5
         mult_diff_process = DiffusionProcess(self.obstacle_free_env, nb_particles=nb_part, t_max=self.t_max, diff_coef=self.diff_coef, part_radius=self.radius)
@@ -140,11 +140,11 @@ class TestDiffusionProcess:
         mult_diff_process.reset()
         mult_diff_process.step()
         assert mult_diff_process.particles == [
-            Particle(45.97873798410574,7.240893199201458, self.radius),
-            Particle(46.86755799014997,4.022722120123589, self.radius),
-            Particle(45.95008841752559,4.848642791702302, self.radius),
-            Particle(44.89678114820644,5.410598501938372, self.radius),
-            Particle(45.14404357116088,6.454273506962975, self.radius),
+            Particle(44.611873626708984,4.955128192901611, self.radius),
+            Particle(42.957275390625,5.0793232917785645, self.radius),
+            Particle(45.333499908447266,5.795997619628906, self.radius),
+            Particle(43.55880355834961,3.307002067565918, self.radius),
+            Particle(44.62630844116211,3.459886074066162, self.radius),
             ]
         assert list(mult_diff_process._collisions) == nb_part * [False]
 
@@ -156,10 +156,11 @@ class TestDiffusionProcess:
         # 5 particules make 10 random steps inside the environment
         diff_process.start_simulation()
         assert diff_process.particles == [
-            Particle(45.29126767451755,0.9123978292107418, 1),
-            Particle(49.581175846883006,2.9020307728990913, 1),
-            Particle(46.22222264677815,8.228521029121612, 1),
-            Particle(41.94438988025139,6.7126291641622124, 1),
-            Particle(41.17343567846424,6.997881428096835, 1)
+            Particle(44.296260833740234, 4.973932266235352, 1),
+            Particle(41.42985534667969,9.147778511047363, 1),
+            Particle(42.65422821044922,13.290007591247559, 1),
+            Particle(45.85160446166992,3.1622676849365234, 1),
+            Particle(44.04609680175781,3.6063549518585205, 1)
         ]
-        assert list(diff_process._collisions) == [True, True, False, False, False]
+        assert list(diff_process._collisions) == 5 * [False, ]
+        assert diff_process.time == self.t_max
