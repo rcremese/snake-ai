@@ -7,6 +7,7 @@
 from typing import Dict, List, Tuple
 import pygame
 from snake_ai.envs.snake_2d_env import Snake2dEnv
+from snake_ai.envs import SnakeClassicEnv, SnakeAI
 from snake_ai.utils.line import Line
 from snake_ai.utils import Direction
 from snake_ai.wrappers.binary_wrapper import BinaryWrapper
@@ -14,9 +15,15 @@ from snake_ai.wrappers.relative_position_wrapper import RelativePositionWrapper
 import numpy as np
 
 class TestSnakeClassicalEnv():
-    w, h, pix= 5, 5, 10
+    w, h, pix = 5, 5, 10
+    nb_obs = 10
+
     def test_reset(self):
-        pass
+        env = SnakeClassicEnv(render_mode=None, width=self.w, height=self.h, nb_obstacles=self.nb_obs, pixel=self.pix)
+        env.seed()
+
+        env.reset()
+        assert env.snake == SnakeAI(10, 10, pixel_size=self.pix)
 
     def test_step(self):
         pass

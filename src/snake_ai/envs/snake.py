@@ -6,32 +6,28 @@
  #
 import pygame
 import logging
-from abc import abstractmethod, ABCMeta
 from typing import List
 from snake_ai.utils.direction import Direction, get_opposite_direction, get_direction_from_vector
 from snake_ai.utils import Colors
 
 BODY_PIXEL_SIZE = 12
 
-class Snake(metaclass=ABCMeta):
-    def __init__(self, x : float, y : float, pixel_size : int = 20, body_pixel : int = 12) -> None:
+class Snake():
+    def __init__(self, x : float, y : float, pixel_size : int = 20) -> None:
         self._pixel_size = pixel_size
-        self._body_pixel = body_pixel
         self.head = pygame.Rect(x, y, self._pixel_size, self._pixel_size)
         self.body = [self.head.move(-self._pixel_size, 0), self.head.move(-2*self._pixel_size, 0)]
         self._size = len(self.body) + 1
         self.direction = Direction.RIGHT
 
     def draw(self, display, head_color : Colors = Colors.BLUE2, body_color : Colors = Colors.WHITE):
-        move = (self._pixel_size - self._body_pixel) / 2
         # draw the head and eye
         pygame.draw.rect(display, head_color.value, self.head)
-        # pygame.draw.rect(display, body_color, pygame.Rect(self.head.x + move, self.head.y + move, self._body_pixel, self._body_pixel))
         # draw the body
         for pt in self.body:
             pygame.draw.rect(display, head_color.value, pt)
             # draw the body of the snake, in order to count the parts
-            pygame.draw.rect(display, body_color.value, pygame.Rect(pt.x + move, pt.y + move, self._body_pixel, self._body_pixel))
+            pygame.draw.rect(display, body_color.value, pt.inflate(-0.25 * self._pixel_size, -0.25 * self._pixel_size))
 
     def move(self, direction : Direction):
         # Change direction when going in the opposite
@@ -55,10 +51,6 @@ class Snake(metaclass=ABCMeta):
         self.body.insert(0, self.head)
         self.head = new_head
         self.body.pop()
-
-    @abstractmethod
-    def move_from_action(self, action : int):
-        raise NotImplementedError
 
     def go_back(self):
         self.direction = self.get_direction_from_head_position(invert=True)
@@ -101,6 +93,12 @@ class Snake(metaclass=ABCMeta):
     def __next__(self):
         return next([self.head , *self.body])
 
+    def __eq__(self, __o: object) -> bool:
+        if not isinstance(__o, Snake):
+            raise TypeError(f"Can only make comparision with Snake instances, not {type(__o)} ")
+        if len(__o) != self._size:
+            return False
+        return __o.head == self.head and __o.body == self.body
 
 class SnakeAI(Snake):
     def move_from_action(self, action : int):
