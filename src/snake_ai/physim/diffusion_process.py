@@ -65,7 +65,6 @@ class DiffusionProcess():
             t += 1
 
     def step(self):
-        env_width, env_height = self.env.window_size
         self._key, subkey = jax.random.split(self._key)
 
         # update positions of points that do not collide with obstacles
@@ -74,15 +73,20 @@ class DiffusionProcess():
 
         self._positions = jnp.where(jnp.stack((self._collisions, self._collisions), axis=1), self._positions, diffused_position)
         self._positions.block_until_ready()
-        # Check collisions of a point outside the environmet
-        self._collisions = (self._positions[:, 0] < 0) | (self._positions[:, 0] > env_width) | (self._positions[:, 1] < 0) | (self._positions[:, 1] > env_height)
-        # Check collisions of a point with obstacles ( & : bitwise and, | : bitwise or)
-        for obstacle in self.env.obstacles:
-            self._collisions = self._collisions | ((self._positions[:, 0] >= obstacle.left) & (self._positions[:, 0] <= obstacle.right)) | \
-                ((self._positions[:, 1] >= obstacle.top) & (self._positions[:, 1] <= obstacle.bottom))
-            self._collisions.block_until_ready()
-
+        self._collisions = self.check_collisions(self._positions)
         self.time += 1
+
+    def check_collisions(self, positions : jax.Array) -> jax.Array:
+        env_width, env_height = self.env.window_size
+
+        # Check collisions of a point outside the environment ( & : bitwise AND, | : bitwise OR)
+        collisions = (positions[:, 0] < 0) | (positions[:, 0] > env_width) | (positions[:, 1] < 0) | (positions[:, 1] > env_height)
+        # Check collisions of a point with obstacles 
+        for obstacle in self.env.obstacles:
+            collisions |= (((positions[:, 0] >= obstacle.left) & (positions[:, 0] <= obstacle.right)) & \
+                ((positions[:, 1] >= obstacle.top) & (positions[:, 1] <= obstacle.bottom)))
+            collisions.block_until_ready()
+        return collisions
 
         # for idx, position in enumerate(self._positions):
         #     if self._collisions[idx]:
@@ -133,11 +137,12 @@ class DiffusionProcess():
 
 
 if __name__ == '__main__':
-    env = SnakeClassicEnv(nb_obstacles=1)
+    env = SnakeClassicEnv(nb_obstacles=10)
     diff_process = DiffusionProcess(
         env, nb_particles=1_000, t_max=100, diff_coef=100, part_radius=2)
     diff_process.reset()
     diff_process.draw()
+    time.sleep(5)
     diff_process.start_simulation()
     diff_process.draw()
     print(diff_process.time)

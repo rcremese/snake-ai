@@ -20,7 +20,7 @@ if __name__ == '__main__':
     else:
         rmode='human'
     fps = 50
-    env = SnakeClassicEnv(render_mode=rmode, width=40, height=40, nb_obstacles=100)
+    env = SnakeClassicEnv(render_mode=rmode, width=20, height=20, nb_obstacles=20)
 
     if train:
         model = DQN("MlpPolicy", env, verbose=1, tensorboard_log='./logs/classical_snake_dqn')

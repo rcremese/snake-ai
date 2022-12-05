@@ -91,6 +91,10 @@ class TestDiffusionProcess:
     obstacle_free_env.food = pygame.Rect(0, 0, pixel_size, pixel_size)
     obstacle_free_env.snake = SnakeAI(2 * pixel_size, 2 * pixel_size, pixel_size=pixel_size)
 
+    obstacle_env = SnakeClassicEnv(width=10, height=10, nb_obstacles=5, pixel=pixel_size)
+    obstacle_free_env.food = pygame.Rect(0, 0, pixel_size, pixel_size)
+    obstacle_free_env.snake = SnakeAI(2 * pixel_size, 2 * pixel_size, pixel_size=pixel_size)
+
     diff_coef = 1
     t_max = 10
     radius = 1
@@ -164,3 +168,9 @@ class TestDiffusionProcess:
         ]
         assert list(diff_process._collisions) == 5 * [False, ]
         assert diff_process.time == self.t_max
+
+    def test_collisions(self):
+        diff_process = DiffusionProcess(self.obstacle_env, nb_particles=5, t_max=self.t_max, diff_coef=self.diff_coef, part_radius=self.radius)
+        diff_process.seed()
+        diff_process.reset()
+        print(diff_process.env.obstacles)
