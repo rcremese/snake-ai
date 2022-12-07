@@ -9,7 +9,7 @@ from snake_ai.physim.particle import Particle
 from snake_ai.physim.diffusion_process import DiffusionProcess
 from snake_ai.envs import SnakeClassicEnv, SnakeAI
 import numpy as np
-
+import pytest
 class TestParticle:
     initial_pos = (1, 1)
     radius = 1
@@ -107,7 +107,7 @@ class TestDiffusionProcess:
         diff_process.reset()
         assert diff_process.particles == [Particle(35, 45, self.radius)]
         assert np.array_equal(diff_process._positions, np.array([[35, 45]]))
-        assert diff_process._collisions == [False]
+        assert diff_process._collisions.tolist() == [False]
         ## Test several particules
         nb_part = 10
         mult_diff_process = DiffusionProcess(self.obstacle_free_env, nb_particles=nb_part, t_max=self.t_max, diff_coef=self.diff_coef, part_radius=self.radius)
@@ -126,7 +126,7 @@ class TestDiffusionProcess:
         diff_process.set_source_position(*food_position)
         assert diff_process.particles == [Particle(*particule_position, self.radius)]
         assert np.array_equal(diff_process._positions, np.array([particule_position]))
-        assert diff_process._collisions == [False]
+        assert diff_process._collisions.tolist() == [False]
 
     def test_step(self):
         ## Test one particule
@@ -173,4 +173,32 @@ class TestDiffusionProcess:
         diff_process = DiffusionProcess(self.obstacle_env, nb_particles=5, t_max=self.t_max, diff_coef=self.diff_coef, part_radius=self.radius)
         diff_process.seed()
         diff_process.reset()
-        print(diff_process.env.obstacles)
+        diff_process.env.obstacles = [pygame.Rect(0, 0, self.pixel_size, self.pixel_size), pygame.Rect(self.pixel_size, 3 * self.pixel_size, self.pixel_size, self.pixel_size)]
+        positions = np.array([
+            [0.5, 0.5],
+            [2 * self.pixel_size, self.pixel_size],
+            [1.5 * self.pixel_size, 3.5 * self.pixel_size]
+        ])
+        collisions = [True, False, True]
+        assert diff_process.check_collisions(positions).tolist() == collisions
+
+        with pytest.raises(AssertionError):
+            wrong_pos = np.array([0, 2])
+            diff_process.check_collisions(wrong_pos)
+
+    def test_concentration_map(self):
+        diff_process = DiffusionProcess(self.obstacle_free_env, nb_particles=5, t_max=self.t_max, diff_coef=self.diff_coef, part_radius=self.radius)
+        diff_process.reset()
+        diff_process.positions = np.array([
+            [0.5, 0.5],
+            [10.3, 11.5],
+            [20, 18],
+            [16.8, 4.4],
+            [20.3, 18.6],
+            ])
+
+        assert diff_process.concentration_map[0,0] == 1
+        assert diff_process.concentration_map[10, 11] == 1
+        assert diff_process.concentration_map[20, 18] == 2
+        assert diff_process.concentration_map[16,4] == 1
+        assert diff_process.concentration_map.sum() == 5

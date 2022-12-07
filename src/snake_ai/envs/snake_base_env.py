@@ -7,7 +7,7 @@
 from abc import ABCMeta, abstractmethod
 from snake_ai.utils.paths import FONT_PATH
 from snake_ai.envs.snake import Snake, SnakeAI
-from snake_ai.utils import Colors
+from snake_ai.utils import Colors, CollisionError
 from typing import List
 import numpy as np
 import pygame
@@ -190,6 +190,24 @@ class SnakeBaseEnv(gym.Env, metaclass=ABCMeta):
         # If everything works, return the food
         return food
 
+    def check_overlaps(self):
+        """Check overlaps between the snake, the food and the obstacles.
+
+        Raises:
+            CollisionError: error raised if one of the snake body part or food collide with the obstacles in the environment or with themself
+        """
+        # Check collisions for the snake
+        for snake_part in self._snake:
+            if snake_part.colliderect(self._food):
+                raise CollisionError(f"The snake part {snake_part} collides with the food {self._food}.")
+            collision_idx = snake_part.collidelist(self._obstacles)
+            if collision_idx != -1:
+                raise CollisionError(f"The snake part {snake_part} collides with the obstacle {self._obstacles[collision_idx]}.")
+        # Check collisions for the food
+        food_collision  = self._food.collidelist(self._obstacles)
+        if food_collision != -1:
+            raise CollisionError(f"The food {self._food} collides with the obstacle {self._obstacles[food_collision]}.")
+
     def _populate_grid_with_obstacles(self) -> List[pygame.Rect]:
         obstacles = []
         for _ in range(self.nb_obstacles):
@@ -236,4 +254,4 @@ class SnakeBaseEnv(gym.Env, metaclass=ABCMeta):
         return self._is_outside(rect) or self._collide_with_snake_body(rect) or self._collide_with_obstacles(rect)
 
     def __repr__(self) -> str:
-        return f"{__class__.__name__}({self.render_mode!r}, {self.width!r}, {self.height!r}, {self.nb_obstacles!r}, {self._pixel_size!r}, {self._max_obs_size!r})"
+        return f"{__class__.__name__}(render_mode={self.render_mode!r}, width={self.width!r}, height={self.height!r}, nb_obstacles={self.nb_obstacles!r}, pixel_size={self._pixel_size!r}, max_obs_size={self._max_obs_size!r})"
