@@ -174,6 +174,11 @@ class SnakeBaseEnv(gym.Env, metaclass=ABCMeta):
                 raise ValueError(f"Obstacles positions need to be a factor of pixel size {self._pixel_size}. Obstacle at index {idx} has position ({obstacle.x}, {obstacle.y}) ")
         self._obstacles = obstacles
 
+    @property
+    def pixel_size(self):
+        "Size of a box representing a pixel in the game"
+        return self._pixel_size
+
     ## Private methods definition
     def _place_food(self) -> pygame.Rect:
         # TODO : control the recursivity of the method

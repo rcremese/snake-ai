@@ -8,6 +8,8 @@ import pygame
 from snake_ai.physim.particle import Particle
 from snake_ai.physim.diffusion_process import DiffusionProcess
 from snake_ai.envs import SnakeClassicEnv, SnakeAI
+import jax.numpy as jnp
+import jax.scipy as jsp
 import numpy as np
 import pytest
 class TestParticle:
@@ -86,23 +88,38 @@ class TestParticle:
         assert particle.is_inside(rect_C, center=True)
 
 class TestDiffusionProcess:
-    pixel_size = 10
-    obstacle_free_env = SnakeClassicEnv(width=5, height=5, nb_obstacles=0, pixel=pixel_size)
-    obstacle_free_env.food = pygame.Rect(0, 0, pixel_size, pixel_size)
-    obstacle_free_env.snake = SnakeAI(2 * pixel_size, 2 * pixel_size, pixel_size=pixel_size)
+    """Class to test a diffusion process
 
-    obstacle_env = SnakeClassicEnv(width=10, height=10, nb_obstacles=5, pixel=pixel_size)
-    obstacle_free_env.food = pygame.Rect(0, 0, pixel_size, pixel_size)
-    obstacle_free_env.snake = SnakeAI(2 * pixel_size, 2 * pixel_size, pixel_size=pixel_size)
+    The environment looks like that :
+    O---F
+    -----  O : obstacle
+    SSS--  F : food
+    -O---  S : snake
+    -----  - : empty pixel
+    """
+    pixel_size = 10
+    env = SnakeClassicEnv(width=5, height=5, nb_obstacles=0, pixel=pixel_size)
+    # control environment
+    food = pygame.Rect(4 * pixel_size, 0, pixel_size, pixel_size)
+    snake = SnakeAI(2 * pixel_size, 2 * pixel_size, pixel_size=pixel_size)
+    obstacles = [pygame.Rect(0, 0, pixel_size, pixel_size), pygame.Rect(pixel_size, 3 * pixel_size, pixel_size, pixel_size)]
+    positions= np.array([
+            [0.5, 0.5], # collide
+            [2 * pixel_size, pixel_size],
+            [1.5 * pixel_size, 3.5 * pixel_size], # collide
+            [2 * pixel_size + 0.5, pixel_size + 0.8],
+            [4 * pixel_size + 0.1, 3 * pixel_size + 0.6],
+        ])
 
     diff_coef = 1
     t_max = 10
     radius = 1
+    nb_part = 5
     seed = 42
 
     def test_reset(self):
         ## Test one particule
-        diff_process = DiffusionProcess(self.obstacle_free_env, nb_particles=1, t_max=self.t_max, diff_coef=self.diff_coef, part_radius=self.radius, seed=self.seed)
+        diff_process = DiffusionProcess(self.env, nb_particles=1, t_max=self.t_max, diff_coef=self.diff_coef, part_radius=self.radius, seed=self.seed)
         # initialise the particle
         diff_process.reset()
         assert diff_process.particles == [Particle(35, 45, self.radius)]
@@ -110,15 +127,14 @@ class TestDiffusionProcess:
         assert diff_process._collisions.tolist() == [False]
         ## Test several particules
         nb_part = 10
-        mult_diff_process = DiffusionProcess(self.obstacle_free_env, nb_particles=nb_part, t_max=self.t_max, diff_coef=self.diff_coef, part_radius=self.radius)
-        mult_diff_process.seed()
+        mult_diff_process = DiffusionProcess(self.env, nb_particles=nb_part, t_max=self.t_max, diff_coef=self.diff_coef, part_radius=self.radius)
         mult_diff_process.reset()
         assert mult_diff_process.particles == nb_part * [Particle(45, 5, self.radius)]
         assert np.array_equal(mult_diff_process._positions, np.repeat([[45, 5]], repeats=nb_part, axis=0))
         assert np.all(~mult_diff_process._collisions)
 
     def test_source_positionning(self):
-        diff_process = DiffusionProcess(self.obstacle_free_env, nb_particles=1, t_max=self.t_max, diff_coef=self.diff_coef, part_radius=self.radius)
+        diff_process = DiffusionProcess(self.env, nb_particles=1, t_max=self.t_max, diff_coef=self.diff_coef, part_radius=self.radius)
         diff_process.reset()
         # define new food position
         food_position = (2 * self.pixel_size, 3 * self.pixel_size)
@@ -130,17 +146,14 @@ class TestDiffusionProcess:
 
     def test_step(self):
         ## Test one particule
-        diff_process = DiffusionProcess(self.obstacle_free_env, nb_particles=1, t_max=self.t_max, diff_coef=self.diff_coef, part_radius=self.radius)
-        diff_process.seed()
+        diff_process = DiffusionProcess(self.env, nb_particles=1, t_max=self.t_max, diff_coef=self.diff_coef, part_radius=self.radius)
         # initialise the particle
         diff_process.reset()
         diff_process.step()
         assert diff_process.particles == [Particle(45.193077087402344,4.473217010498047, self.radius)]
         assert diff_process._collisions == np.array([False])
         ## Test several particules
-        nb_part = 5
-        mult_diff_process = DiffusionProcess(self.obstacle_free_env, nb_particles=nb_part, t_max=self.t_max, diff_coef=self.diff_coef, part_radius=self.radius)
-        mult_diff_process.seed()
+        mult_diff_process = DiffusionProcess(self.env, nb_particles=self.nb_part, t_max=self.t_max, diff_coef=self.diff_coef, part_radius=self.radius)
         mult_diff_process.reset()
         mult_diff_process.step()
         assert mult_diff_process.particles == [
@@ -150,11 +163,10 @@ class TestDiffusionProcess:
             Particle(43.55880355834961,3.307002067565918, self.radius),
             Particle(44.62630844116211,3.459886074066162, self.radius),
             ]
-        assert list(mult_diff_process._collisions) == nb_part * [False]
+        assert list(mult_diff_process._collisions) == self.nb_part * [False]
 
     def test_simulation(self):
-        diff_process = DiffusionProcess(self.obstacle_free_env, nb_particles=5, t_max=self.t_max, diff_coef=self.diff_coef, part_radius=self.radius)
-        diff_process.seed()
+        diff_process = DiffusionProcess(self.env, nb_particles=self.nb_part, t_max=self.t_max, diff_coef=self.diff_coef, part_radius=self.radius)
         # initialise the particle
         diff_process.reset()
         # 5 particules make 10 random steps inside the environment
@@ -170,35 +182,52 @@ class TestDiffusionProcess:
         assert diff_process.time == self.t_max
 
     def test_collisions(self):
-        diff_process = DiffusionProcess(self.obstacle_env, nb_particles=5, t_max=self.t_max, diff_coef=self.diff_coef, part_radius=self.radius)
-        diff_process.seed()
+        diff_process = DiffusionProcess(self.env, nb_particles=self.nb_part, t_max=self.t_max, diff_coef=self.diff_coef, part_radius=self.radius)
         diff_process.reset()
-        diff_process.env.obstacles = [pygame.Rect(0, 0, self.pixel_size, self.pixel_size), pygame.Rect(self.pixel_size, 3 * self.pixel_size, self.pixel_size, self.pixel_size)]
-        positions = np.array([
-            [0.5, 0.5],
-            [2 * self.pixel_size, self.pixel_size],
-            [1.5 * self.pixel_size, 3.5 * self.pixel_size]
-        ])
-        collisions = [True, False, True]
-        assert diff_process.check_collisions(positions).tolist() == collisions
-
+        diff_process.env.obstacles = self.obstacles
+        assert diff_process.check_collisions(self.positions).tolist() == [True, False, True, False, False]
+        diff_process.positions = self.positions
+        assert diff_process.check_collisions().tolist() == [True, False, True, False, False]
         with pytest.raises(AssertionError):
             wrong_pos = np.array([0, 2])
             diff_process.check_collisions(wrong_pos)
 
     def test_concentration_map(self):
-        diff_process = DiffusionProcess(self.obstacle_free_env, nb_particles=5, t_max=self.t_max, diff_coef=self.diff_coef, part_radius=self.radius)
+        diff_process = DiffusionProcess(self.env, nb_particles=self.nb_part, t_max=self.t_max, diff_coef=self.diff_coef, part_radius=self.radius)
         diff_process.reset()
-        diff_process.positions = np.array([
-            [0.5, 0.5],
-            [10.3, 11.5],
-            [20, 18],
-            [16.8, 4.4],
-            [20.3, 18.6],
-            ])
+        diff_process.env.obstacles = self.obstacles
+        diff_process.positions = self.positions
 
-        assert diff_process.concentration_map[0,0] == 1
-        assert diff_process.concentration_map[10, 11] == 1
-        assert diff_process.concentration_map[20, 18] == 2
-        assert diff_process.concentration_map[16,4] == 1
-        assert diff_process.concentration_map.sum() == 5
+        concentration_map = diff_process.concentration_map
+        assert concentration_map[0,0] == 0
+        assert concentration_map[2 * self.pixel_size, self.pixel_size] == 2
+        assert concentration_map[int(1.5 * self.pixel_size), int(3.5 * self.pixel_size)] == 0
+        assert concentration_map[4 * self.pixel_size, 3 * self.pixel_size] == 1
+        assert concentration_map.sum() == 3
+
+    def test_convolution_window(self):
+        diff_process = DiffusionProcess(self.env, nb_particles=self.nb_part, t_max=self.t_max, diff_coef=self.diff_coef, part_radius=self.radius)
+        space = jnp.arange(- self.pixel_size / 2, self.pixel_size / 2)
+        conv_window = jsp.stats.norm.pdf(space) * jsp.stats.norm.pdf(space[:, None])
+        assert jnp.isclose(diff_process.conv_window, conv_window).all()
+
+        diff_process.conv_window = (20, 'gaussian')
+        new_space = jnp.arange(- 10, 10)
+        conv_window_1 = jsp.stats.norm.pdf(new_space) * jsp.stats.norm.pdf(new_space[:, None])
+        assert jnp.isclose(diff_process.conv_window, conv_window_1).all()
+
+        diff_process.conv_window = (self.pixel_size, 'gaussian', 3)
+        conv_window_2 = jsp.stats.norm.pdf(space, scale=3) * jsp.stats.norm.pdf(space[:, None], scale=3)
+        assert jnp.isclose(diff_process.conv_window, conv_window_2).all()
+
+        diff_process.conv_window = (25, 'gaussian', 15, 4)
+        last_space = jnp.arange(25)
+        conv_window_3 = jsp.stats.norm.pdf(last_space, loc=15, scale=4) * jsp.stats.norm.pdf(last_space[:, None], loc=15,scale=4)
+        assert jnp.isclose(diff_process.conv_window, conv_window_3).all()
+
+        diff_process.conv_window = (10, 'mean')
+        assert jnp.isclose(diff_process.conv_window, np.ones((10,10)) / 100).all()
+
+    # TODO : find a way to estimate concentration field
+    def test_concentration_field(self):
+        pass
