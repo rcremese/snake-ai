@@ -6,12 +6,14 @@
  #
 import pygame
 from snake_ai.physim.particle import Particle
+from snake_ai.physim.convolution_window import ConvolutionWindow
 from snake_ai.physim.diffusion_process import DiffusionProcess
 from snake_ai.envs import SnakeClassicEnv, SnakeAI
 import jax.numpy as jnp
 import jax.scipy as jsp
 import numpy as np
 import pytest
+
 class TestParticle:
     initial_pos = (1, 1)
     radius = 1
@@ -205,29 +207,29 @@ class TestDiffusionProcess:
         assert concentration_map[4 * self.pixel_size, 3 * self.pixel_size] == 1
         assert concentration_map.sum() == 3
 
-    def test_convolution_window(self):
-        diff_process = DiffusionProcess(self.env, nb_particles=self.nb_part, t_max=self.t_max, diff_coef=self.diff_coef, part_radius=self.radius)
+    
+
+class TestConvolutionWindow:
+    pixel_size = 10
+
+    def test_init(self):
+        conv_window = ConvolutionWindow(self.pixel_size, 'gaussian')
+        
         space = jnp.arange(- self.pixel_size / 2, self.pixel_size / 2)
-        conv_window = jsp.stats.norm.pdf(space) * jsp.stats.norm.pdf(space[:, None])
-        assert jnp.isclose(diff_process.conv_window, conv_window).all()
+        conv_1 = jsp.stats.norm.pdf(space) * jsp.stats.norm.pdf(space[:, None])
+        assert jnp.isclose(conv_window.window, conv_1).all()
 
-        diff_process.conv_window = (20, 'gaussian')
-        new_space = jnp.arange(- 10, 10)
-        conv_window_1 = jsp.stats.norm.pdf(new_space) * jsp.stats.norm.pdf(new_space[:, None])
-        assert jnp.isclose(diff_process.conv_window, conv_window_1).all()
+        std = 5
+        conv_window = ConvolutionWindow(self.pixel_size, 'gaussian', std)
 
-        diff_process.conv_window = (self.pixel_size, 'gaussian', 3)
-        conv_window_2 = jsp.stats.norm.pdf(space, scale=3) * jsp.stats.norm.pdf(space[:, None], scale=3)
-        assert jnp.isclose(diff_process.conv_window, conv_window_2).all()
+        conv_2 = jsp.stats.norm.pdf(space, scale=std) * jsp.stats.norm.pdf(space[:, None], scale=std)
+        assert jnp.isclose(conv_window.window, conv_2).all()
 
-        diff_process.conv_window = (25, 'gaussian', 15, 4)
-        last_space = jnp.arange(25)
-        conv_window_3 = jsp.stats.norm.pdf(last_space, loc=15, scale=4) * jsp.stats.norm.pdf(last_space[:, None], loc=15,scale=4)
-        assert jnp.isclose(diff_process.conv_window, conv_window_3).all()
+        conv_window_mean = ConvolutionWindow(self.pixel_size, 'mean')
+        conv_3 = np.ones((self.pixel_size, self.pixel_size)) / self.pixel_size**2 
+        assert jnp.isclose(conv_window_mean.window, conv_3).all()
 
-        diff_process.conv_window = (10, 'mean')
-        assert jnp.isclose(diff_process.conv_window, np.ones((10,10)) / 100).all()
-
-    # TODO : find a way to estimate concentration field
-    def test_concentration_field(self):
-        pass
+        factory_gauss = ConvolutionWindow.gaussian(self.pixel_size, std)
+        assert jnp.isclose(conv_window.window, factory_gauss).all()
+        factory_mean = ConvolutionWindow.mean(self.pixel_size)
+        assert jnp.isclose(conv_window_mean.window, factory_mean).all()

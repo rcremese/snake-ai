@@ -101,10 +101,10 @@ class DiffusionWrapper(gym.Wrapper):
         Returns:
             _type_: _description_
         """
-        bottom = self.env.snake.head.move(0, self.env.pixel_size)
-        top = self.env.snake.head.move(0, -self.env.pixel_size)
-        left = self.env.snake.head.move(-self.env.pixel_size, 0)
-        right = self.env.snake.head.move(self.env.pixel_size, 0)
+        bottom = self.env.snake.head.move(0, self.env._pixel_size)
+        top = self.env.snake.head.move(0, -self.env._pixel_size)
+        left = self.env.snake.head.move(-self.env._pixel_size, 0)
+        right = self.env.snake.head.move(self.env._pixel_size, 0)
 
         if self.env.snake.direction == Direction.UP:
             return left, top, right

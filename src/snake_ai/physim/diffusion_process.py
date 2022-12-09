@@ -5,7 +5,6 @@
 # @copyright https://mit-license.org/
 #
 from snake_ai.envs import SnakeClassicEnv
-from snake_ai.envs.snake_base_env import SnakeBaseEnv
 from snake_ai.utils import Colors, ShapeError
 from snake_ai.physim import Particle
 from typing import Iterable, Tuple, Union, List, Optional
@@ -21,7 +20,7 @@ import jax
 class DiffusionProcess():
     def __init__(self, env: SnakeClassicEnv, nb_particles: int, t_max: int, diff_coef: float = 1, part_radius: float = 1, conv_window : Optional[Tuple[int]] = None, seed: int = 0) -> None:
         # Check all the types of a class
-        if not isinstance(env, SnakeBaseEnv):
+        if not isinstance(env, SnakeClassicEnv):
             raise TypeError(
                 "Diffusion process expect an environment of type SnakeBaseEnv.")
         self.env = env
@@ -58,7 +57,7 @@ class DiffusionProcess():
         self.time : int = None
         self._positions : jax.Array = None
         self._collisions : jax.Array = None
-        self._concentration_field : jax.Array = None
+        self._concentration_map : jax.Array = None
 
     def reset(self) -> np.ndarray:
         obs = self.env.reset()
@@ -160,50 +159,11 @@ class DiffusionProcess():
         self._collisions = self.check_collisions()
 
     @property
-    def concentration_map(self) -> np.ndarray:
+    def concentration_map(self) -> jax.Array:
         "Particles concentration map as a JAX array"
-        concentration_map = np.zeros(self.env.window_size, dtype=int)
-        for x, y in self._positions[~self._collisions]:
-            concentration_map[int(x), int(y)] += 1
-        return concentration_map
-
-    @property
-    def concentration_field(self) -> jax.Array:
-        "The smoothed field of concentration"
-        if self._concentration_field is None:
-            self._compute_concentration_field()
-        return self._concentration_field
-
-    @property
-    def conv_window(self) -> Tuple:
-        "Convolution window for concentration field estimation"
-        return self._conv_window
-
-    @conv_window.setter
-    def conv_window(self, window_param : Union[Tuple, List]):
-        if not isinstance(window_param, (tuple, list)):
-            raise TypeError(f"Parameters of the convolutional window should be tuple or list. Get {type(window_param)}.")
-        assert len(window_param) < 5, "window_param should have at most 4 parameters : size, conv_type, shift, scale"
-
-        if len(window_param) == 2:
-            size, conv_type = window_param
-            shift = size / 2
-            scale = 1
-        elif len(window_param) == 3:
-            size, conv_type, scale = window_param
-            shift = size / 2
-        else:
-            size, conv_type, shift, scale = window_param
-
-        # apply a convolutional kernel depending on the type needed
-        if conv_type.lower() == 'gaussian':
-            x = jnp.arange(size)
-            # Trick to get a gaussian convolutional array (from https://jax.readthedocs.io/en/latest/notebooks/convolutions.html?highlight=convolution#basic-n-dimensional-convolution)
-            self._conv_window = jsp.stats.norm.pdf(x[:, None], loc=shift, scale=scale) * jsp.stats.norm.pdf(x, loc=shift, scale=scale)
-        elif conv_type.lower() == 'mean':
-            self._conv_window = jnp.ones((size, size)) / size**2
-        else:
-            raise ValueError(f"Unkown convultion type {conv_type.lower()}. Expected 'gaussian' or 'mean'.")
+        if self._concentration_map is None:
+            self._compute_concentration_map()
+        return self._concentration_map
 
     # Private methods
     def _init_particles(self):
@@ -211,44 +171,12 @@ class DiffusionProcess():
             [self.env.food.center], dtype=float), repeats=self._nb_particles, axis=0)
         self._collisions = jnp.zeros(self._nb_particles, dtype=bool)
 
-    def _compute_concentration_field(self):
-        self._concentration_field : jax.Array = jsp.signal.convolve2d(self.concentration_map, self.conv_window, mode='same')
+    def _compute_concentration_map(self):
+        concentration_map = np.zeros(self.env.window_size, dtype=int)
+        for x, y in self._positions[~self._collisions]:
+            concentration_map[int(x), int(y)] += 1
+        self._concentration_map = jnp.array(concentration_map)
 
     def __repr__(self) -> str:
         return f"{__class__.__name__}({self.env!r}, nb_particles={self._nb_particles!r}, t_max={self.t_max!r}, diff_coef={self._diff_coef!r}, \
         part_radius={self._part_radius!r}, conv_window={self.conv_window!r}, seed={self._key!r})"
-
-
-def main(nb_obstacles=10, nb_particles=1_000, t_max=100, diff_coef=10, seed=0):
-    draw = nb_particles <= 1_000
-    env = SnakeClassicEnv(nb_obstacles=nb_obstacles)
-    diff_process = DiffusionProcess(env, nb_particles=int(nb_particles), t_max=t_max, diff_coef=diff_coef, seed=seed)
-    diff_process.reset()
-    logging.info('Start the simultion')
-    diff_process.start_simulation(draw)
-    logging.info(f'Simultion ended at time {diff_process.time}')
-    diff_process.draw()
-
-    import matplotlib.pyplot as plt
-    logging.info('Printing the concentration maps...')
-    fig, ax = plt.subplots(1,2)
-    cax = ax[0].imshow(diff_process.concentration_map.T, cmap='inferno', interpolation='none')
-    ax[0].set(title = "Concentration map")
-    fig.colorbar(cax)
-    cax = ax[1].imshow(diff_process.concentration_field.T, cmap='inferno', interpolation='none')
-    ax[1].set(title = "Concentration field")
-    fig.colorbar(cax)
-    plt.show()
-
-if __name__ == '__main__':
-    import argparse
-
-    parser = argparse.ArgumentParser('Diffusion process simulation')
-    parser.add_argument('-o', '--nb_obstacles', type=int, default=10, help='Number of obstacles in the environment')
-    parser.add_argument('-p', '--nb_particles', type=float, default=1_000, help='Number of particules to simulate')
-    parser.add_argument('-t', '--t_max', type=int, default=100, help='Maximum simulation time')
-    parser.add_argument('-D', '--diff_coef', type=float, default=100, help='Diffusion coefficient of the diffusive process')
-    parser.add_argument('-s', '--seed', type=int, default=0, help='Seed for the simulation PRNG')
-    logging.basicConfig(level=logging.INFO)
-    args = parser.parse_args()
-    main(**vars(args))
