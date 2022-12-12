@@ -13,18 +13,21 @@ def concentration_field(concentration_map : jax.Array, conv_window : jax.Array):
 def main(nb_obstacles=10, nb_particles=1_000, t_max=100, diff_coef=10, seed=0):
     draw = nb_particles <= 1_000
     env = SnakeClassicEnv(nb_obstacles=nb_obstacles)
-    diff_process = DiffusionProcess(env, nb_particles=int(nb_particles), t_max=t_max, diff_coef=diff_coef, seed=seed)
-    diff_process.reset()
+    obstacles = [{'left' : obs.left, 'right' : obs.right, 'top' : obs.top, 'bottom' : obs.bottom} for obs in env.obstacles]
+    diff_process = DiffusionProcess(nb_particles=int(nb_particles), t_max=t_max, window_size=env.window_size, diff_coef=diff_coef, seed=seed)
+    env.reset()
+    diff_process.reset(*env.food.center)
     logging.info('Start the simultion')
-    diff_process.start_simulation(draw)
+    # diff_process.start_simulation(draw)
+    diff_process.accelerated_simulation(obstacles)
     logging.info(f'Simultion ended at time {diff_process.time}')
-    diff_process.draw()
+    #diff_process.draw()
 
     logging.info('Printing the concentration maps...')
     tic = time.perf_counter()
     concentration_map = diff_process.concentration_map.T
     toc = time.perf_counter()
-    logging.info(f"Getting concentration map took {toc - tic:0.4f}s")
+    print(f"Getting concentration map took {toc - tic:0.4f}s")
 
     fig, ax = plt.subplots(1,2)
     cax = ax[0].imshow(concentration_map, cmap='inferno', interpolation='none')
@@ -35,7 +38,7 @@ def main(nb_obstacles=10, nb_particles=1_000, t_max=100, diff_coef=10, seed=0):
     tic = time.perf_counter()
     conc_field = concentration_field(concentration_map, conv_window)
     toc = time.perf_counter()
-    logging.info(f"Getting concentration field took {toc - tic:0.4f}s")
+    print(f"Getting concentration field took {toc - tic:0.4f}s")
 
     cax = ax[1].imshow(conc_field, cmap='inferno', interpolation='none')
     ax[1].set(title = "Concentration field")

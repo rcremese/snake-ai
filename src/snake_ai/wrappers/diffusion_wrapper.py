@@ -9,14 +9,31 @@
 import gym
 import gym.spaces
 import pygame
-from snake_ai.envs import SnakeClassicEnv
 import numpy as np
 from typing import List
+
+from snake_ai.envs import SnakeClassicEnv
+from snake_ai.physim import DiffusionProcess
 from snake_ai.utils import Direction, Colors
 from snake_ai.utils.paths import FONT_PATH
-
+from typing import Tuple, Dict, Any
 
 class DiffusionWrapper(gym.Wrapper):
+    def __init__(self, env: SnakeClassicEnv, diffusion_process : DiffusionProcess):
+        super().__init__(env)
+        self.env : SnakeClassicEnv
+        self.observation_space = gym.spaces.Box(low=np.zeros(3), high=np.ones(3), shape=(3,))
+        self.diffusion_process = diffusion_process
+
+    def step(self, action: int) -> Tuple[np.ndarray, float, bool, Dict[str, Any]]:
+        _, reward, done, info = super().step(action)
+        left, front, right = self.env._get_neighbours()
+
+    def reset(self) -> np.ndarray:
+        super().reset()
+        self.diffusion_process.reset()                                                                           
+
+class DeterministicDiffusionWrapper(gym.Wrapper):
     def __init__(self, env: SnakeClassicEnv, diffusion_coef : float = 1):
         super().__init__(env)
         self.env : SnakeClassicEnv

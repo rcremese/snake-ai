@@ -8,7 +8,6 @@ from time import sleep
 
 import pygame
 from snake_ai.wrappers.distance_wrapper import DistanceWrapper
-from snake_ai.wrappers.binary_wrapper import BinaryWrapper
 from snake_ai.wrappers.relative_position_wrapper import RelativePositionWrapper
 from snake_ai.envs import SnakeClassicEnv
 

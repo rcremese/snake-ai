@@ -7,7 +7,7 @@
 
 from turtle import done
 from snake_ai.envs import Snake2dEnv, SnakeClassicEnv
-from snake_ai.wrappers.diffusion_wrapper import DiffusionWrapper
+from snake_ai.wrappers.diffusion_wrapper import DeterministicDiffusionWrapper
 import pygame
 import numpy as np
 
@@ -18,7 +18,7 @@ MAX_STEP = 100
 
 def main():
     env = SnakeClassicEnv(render_mode='human', width=W, height=H, nb_obstacles=OBS)
-    env = DiffusionWrapper(env, diffusion_coef=COEF)
+    env = DeterministicDiffusionWrapper(env, diffusion_coef=COEF)
     env.metadata['render_fps'] = 20
     obs = env.reset()
     i = 0
