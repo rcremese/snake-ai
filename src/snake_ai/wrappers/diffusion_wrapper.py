@@ -10,52 +10,48 @@ import gym
 import gym.spaces
 import pygame
 import numpy as np
-from typing import List
+import jax.scipy as jsp
+
+from abc import abstractmethod, ABCMeta
+import logging
 
 from snake_ai.envs import SnakeClassicEnv
-from snake_ai.physim import DiffusionProcess
-from snake_ai.utils import Direction, Colors
-from snake_ai.utils.paths import FONT_PATH
-from typing import Tuple, Dict, Any
+from snake_ai.physim import DiffusionProcess, ConvolutionWindow
+class BaseDiffusionWrapper(gym.Wrapper, metaclass=ABCMeta):
+    def __init__(self, env: SnakeClassicEnv, diffusion_coef : float = 1, seed : int = 0):
+        # if not isinstance(env, SnakeClassicEnv):
+        #     raise TypeError(f"Supported environment are SnakeClassicEnv, not {type(env)}")
 
-class DiffusionWrapper(gym.Wrapper):
-    def __init__(self, env: SnakeClassicEnv, diffusion_process : DiffusionProcess):
         super().__init__(env)
         self.env : SnakeClassicEnv
         self.observation_space = gym.spaces.Box(low=np.zeros(3), high=np.ones(3), shape=(3,))
-        self.diffusion_process = diffusion_process
 
-    def step(self, action: int) -> Tuple[np.ndarray, float, bool, Dict[str, Any]]:
-        _, reward, done, info = super().step(action)
-        left, front, right = self.env._get_neighbours()
-
-    def reset(self) -> np.ndarray:
-        super().reset()
-        self.diffusion_process.reset()                                                                           
-
-class DeterministicDiffusionWrapper(gym.Wrapper):
-    def __init__(self, env: SnakeClassicEnv, diffusion_coef : float = 1):
-        super().__init__(env)
-        self.env : SnakeClassicEnv
-        self.observation_space = gym.spaces.Box(low=np.zeros(3), high=np.ones(3), shape=(3,))
+        if diffusion_coef < 0:
+            raise ValueError(f"Diffusion coeffient need to be positive, not {diffusion_coef}")
         self._diffusion_coef = diffusion_coef
+
+        if not isinstance(seed, int):
+            raise TypeError(f"The seed need to be an integer, not {type(seed)}")
+        self._seed = seed
+        self.env.seed(seed)
+
         self._diffusive_field = None
 
     def reset(self):
-        obs = self.env.reset()
+        self.env.reset()
         self._diffusive_field = self._get_diffusion_field()
-        return self.observation(obs)
+        return self._get_obs()
 
     def step(self, action):
-        obs, reward, done, info = super().step(action)
+        _, reward, done, info = super().step(action)
         if info['truncated']:
             self._diffusive_field = self._get_diffusion_field()
-        return self.observation(obs), reward, done, info
+        return self._get_obs(), reward, done, info
 
-    def observation(self, observation):
+    def _get_obs(self):
         assert self._diffusive_field is not None, "No diffusive field computed"
         observation = np.zeros(3)
-        neighbours = self._get_neighbours()
+        neighbours = self.env._get_neighbours()
         for i, neighbour in enumerate(neighbours):
             # observation is 0 if the neighbour bounding box collide with obtacles, snake body or is outside
             if self.env._is_collision(neighbour):
@@ -65,14 +61,6 @@ class DeterministicDiffusionWrapper(gym.Wrapper):
         return observation
 
     def render(self, mode="human", **kwargs):
-        if mode == "human":
-            if self.window is None:
-                self.window = pygame.display.set_mode(self.window_size)
-            if self.clock is None:
-                self.clock = pygame.time.Clock()
-            if self.font is None:
-                self.font = pygame.font.Font(FONT_PATH, 25)
-
         # fill canvas with the normalized diffusion field
         if self._diffusive_field is None:
             self._diffusive_field = self._get_diffusion_field()
@@ -80,28 +68,13 @@ class DeterministicDiffusionWrapper(gym.Wrapper):
         surf[:,:,1] = 255 * self._diffusive_field # fill only the green part
         canvas = pygame.surfarray.make_surface(surf)
 
-        # Draw snake
-        self.env.snake.draw(canvas)
-        # Draw obstacles
-        for obstacle in self.env.obstacles:
-            pygame.draw.rect(canvas, Colors.RED.value, obstacle)
-        # Draw food
-        # pygame.draw.lines(canvas, Colors.BLACK.value, closed=True, points=[self.env._food.topleft, self.env._food.topright, self.env._food.bottomright, self.env._food.bottomleft])
-        pygame.draw.rect(canvas, Colors.BLACK.value, self.env._food, width=1)
+        return self.env.render(mode, canvas)
 
-        if mode == "human":
-            # The following line copies our drawings from `canvas` to the visible window
-            self.window.blit(canvas, canvas.get_rect())
-            pygame.event.pump () # internally process pygame event handlers
-            text = self.font.render(f"Score: {self.score}", True, Colors.WHITE.value)
-            self.window.blit(text, [0, 0])
+    @abstractmethod
+    def _get_diffusion_field(self) -> np.ndarray:
+        raise NotImplementedError
 
-            pygame.display.update()
-            # The following line will automatically add a delay to keep the framerate stable.
-            self.clock.tick(self.metadata["render_fps"])
-        else:  # rgb_array
-            return np.transpose(np.array(pygame.surfarray.pixels3d(canvas)), axes=(1, 0, 2))
-
+class DeterministicDiffusionWrapper(BaseDiffusionWrapper):
     def _get_diffusion_field(self) -> np.ndarray:
         x,y = np.meshgrid(range(self.env.window_size[0]), range(self.env.window_size[0]))
         mu = self.env._food.center
@@ -109,26 +82,20 @@ class DeterministicDiffusionWrapper(gym.Wrapper):
         assert np.max(diffusive_field) != np.min(diffusive_field), "Diffion field is constant"
         return (diffusive_field - np.min(diffusive_field)) / (np.max(diffusive_field) - np.min(diffusive_field))
 
-    def _get_neighbours(self) -> List[pygame.Rect]:
-        """Return left, front and right neighbouring bounding boxes
+class StochasticDiffusionWrapper(BaseDiffusionWrapper):
+    def __init__(self, env: SnakeClassicEnv, diffusion_coef: float = 1, nb_part : float = 1e6, t_max : int = 100, seed : int = 0):
+        super().__init__(env, diffusion_coef, seed)
+        self._diffusion_process = DiffusionProcess(nb_part, t_max=t_max, window_size=self.env.window_size, diff_coef=self._diffusion_coef, obstacles=self.env.obstacles, seed=seed)
 
-        Raises:
-            ValueError: if the snake direction is not in [UP, RIGHT, DOWN, LEFT]
+    def _get_diffusion_field(self) -> np.ndarray:
+        logging.info('Initialisation of the diffusion process.')
+        self._diffusion_process.reset(*self.env.food.center)
+        logging.info('Begining of the simulation...')
+        self._diffusion_process.start_simulation()
+        logging.info('Computing the concentration map...')
+        concentration_map = self._diffusion_process.concentration_map
+        conv_window = ConvolutionWindow.gaussian(self.env.pixel_size)
+        diffusive_field = jsp.signal.convolve(concentration_map, conv_window, mode='same')
 
-        Returns:
-            _type_: _description_
-        """
-        bottom = self.env.snake.head.move(0, self.env._pixel_size)
-        top = self.env.snake.head.move(0, -self.env._pixel_size)
-        left = self.env.snake.head.move(-self.env._pixel_size, 0)
-        right = self.env.snake.head.move(self.env._pixel_size, 0)
-
-        if self.env.snake.direction == Direction.UP:
-            return left, top, right
-        if self.env.snake.direction == Direction.RIGHT:
-            return top, right, bottom
-        if self.env.snake.direction == Direction.DOWN:
-            return right, bottom, left
-        if self.env.snake.direction == Direction.LEFT:
-            return bottom, left, top
-        raise ValueError(f'Unknown direction {self.env.snake.direction}')
+        assert np.max(diffusive_field) != np.min(diffusive_field), "Diffion field is constant"
+        return (diffusive_field - np.min(diffusive_field)) / (np.max(diffusive_field) - np.min(diffusive_field))

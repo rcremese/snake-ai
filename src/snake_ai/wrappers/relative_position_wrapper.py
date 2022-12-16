@@ -12,30 +12,26 @@ import numpy as np
 import logging
 from typing import Dict, List, Tuple
 from collections import OrderedDict
-
+from snake_ai.envs.snake_base_env import SnakeBaseEnv
 from snake_ai.utils.line import Line
-from snake_ai.envs.snake_2d_env import Snake2dEnv
-from snake_ai.envs.snake_goal_env import SnakeGoalEnv
 from snake_ai.utils import Direction
 
 
 class RelativePositionWrapper(gym.Wrapper):
-    def __init__(self, env: Snake2dEnv):
+    def __init__(self, env: SnakeBaseEnv):
         super().__init__(env)
-        self.env : Snake2dEnv # syntaxe to work with linters in VScode
+        self.env : SnakeBaseEnv # syntaxe to work with linters in VScode
         obs_limits = np.repeat([env.window_size], self.env._nb_obs, axis=0)
         self.action_space = gym.spaces.Discrete(3)
 
-        if isinstance(env, SnakeGoalEnv):
+        if isinstance(env.observation_space, gym.spaces.Dict):
             self.observation_space = gym.spaces.Dict({
                 "observation" : gym.spaces.Box(low = -obs_limits, high = obs_limits, shape=(self.env._nb_obs, 2)), # point cloud in local frame                "achieved_goal" : gym.spaces.Box(low=(0,0), high=self.window_size, shape=(2,0), dtype=int), # snake head position
                 "achieved_goal" : gym.spaces.Box(low=np.zeros(2), high=np.array(self.env.window_size), shape=(2,), dtype=int), # snake head position
                 "desired_goal" : gym.spaces.Box(low=np.zeros(2), high=np.array(self.env.window_size), shape=(2,), dtype=int), # food position
             })
-        elif isinstance(env, Snake2dEnv):
-            self.observation_space = gym.spaces.Box(low = -obs_limits, high = obs_limits, shape=(self.env._nb_obs, 2))
         else:
-            raise TypeError("Expected Snake2dEnv or SnakeGoalEnv environment")
+            self.observation_space = gym.spaces.Box(low = -obs_limits, high = obs_limits, shape=(self.env._nb_obs, 2))
 
     def reset(self) -> Tuple[np.array, dict]:
         obs = super().reset()

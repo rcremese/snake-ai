@@ -8,11 +8,11 @@ from collections import OrderedDict
 from typing import Optional, Union
 import gym
 import gym.spaces
-from snake_ai.envs import Snake2dEnv, SnakeGoalEnv
+from snake_ai.envs.snake_base_env import SnakeBaseEnv
 import numpy as np
 
 class DistanceWrapper(gym.ObservationWrapper):
-    def __init__(self, env: Union[Snake2dEnv, SnakeGoalEnv,gym.Wrapper]):
+    def __init__(self, env: Union[SnakeBaseEnv, gym.Wrapper]):
         super().__init__(env)
 
         if isinstance(env.observation_space, gym.spaces.Dict):

@@ -8,13 +8,12 @@ from snake_ai.utils import Direction
 import gym
 import numpy as np
 from typing import Tuple, List
-
+import time
 
 class PlayableSnake(gym.Wrapper):
-    def __init__(self, env: SnakeClassicEnv, fps : int = 10):
+    def __init__(self, env: SnakeClassicEnv):
         assert isinstance(env, SnakeClassicEnv)
         super().__init__(env)
-        self.env.metadata['render_fps'] = fps
         self.observation_space = gym.spaces.Box(low=0, high=env.max_dist, shape=(1,))
         self.action_space = gym.spaces.Discrete(4)
 
@@ -61,13 +60,14 @@ class PlayableSnake(gym.Wrapper):
 
 def play(width, height, speed, obstacles):
     env = SnakeClassicEnv(render_mode='human', width=width, height=height, nb_obstacles=obstacles)
-    wrapped_env = PlayableSnake(env, fps=speed)
+    wrapped_env = PlayableSnake(env)
 
     pygame.init()
     wrapped_env.reset()
     info = wrapped_env.info
     while True:
-        action = wrapped_env.action_from_direction(info['snake_direction'])
+        time.sleep(1/speed)
+        action = PlayableSnake.action_from_direction(wrapped_env.env.snake.direction)
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
@@ -95,7 +95,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-w', '--width', default=20, type=int, help='Width of the canvas in pixels')
     parser.add_argument('-d', '--height', default=20, type=int, help='Height of the canvas in pixels')
-    parser.add_argument('-s', '--speed', default=10, type=int, help='Speen in FPS (the higher, the faster)')
+    parser.add_argument('-s', '--speed', default=10, type=int, help='Speed in FPS (the higher, the faster)')
     parser.add_argument('-o', '--obstacles', default=20, type=int, help='Number of obstacles')
     args = parser.parse_args()
     play(**vars(args))

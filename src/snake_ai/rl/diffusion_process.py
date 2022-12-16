@@ -6,19 +6,23 @@
  #
 
 from turtle import done
-from snake_ai.envs import Snake2dEnv, SnakeClassicEnv
-from snake_ai.wrappers.diffusion_wrapper import DeterministicDiffusionWrapper
+from snake_ai.envs import SnakeClassicEnv
+from snake_ai.wrappers import DeterministicDiffusionWrapper, StochasticDiffusionWrapper
 import pygame
 import numpy as np
 
-COEF = 1_000
+COEF = 100
 W, H = 20, 20
-OBS = 40
+OBS = 10
 MAX_STEP = 100
+NB_PART = 1e5
+T_MAX = 100
+SEED = 0
 
 def main():
     env = SnakeClassicEnv(render_mode='human', width=W, height=H, nb_obstacles=OBS)
-    env = DeterministicDiffusionWrapper(env, diffusion_coef=COEF)
+    # env = DeterministicDiffusionWrapper(env, diffusion_coef=COEF, seed=SEED)
+    env = StochasticDiffusionWrapper(env, diffusion_coef=COEF, nb_part=NB_PART, t_max=T_MAX, seed=SEED)
     env.metadata['render_fps'] = 20
     obs = env.reset()
     i = 0
@@ -38,8 +42,6 @@ def main():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 quit()
-
-
 
 if __name__ == '__main__':
     main()

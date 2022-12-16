@@ -84,9 +84,10 @@ class SnakeBaseEnv(gym.Env, metaclass=ABCMeta):
         raise NotImplementedError
 
     ## Public methods definition
-    def render(self, mode="human"):
-        canvas = pygame.Surface(self.window_size)
-        canvas.fill(Colors.BLACK.value)
+    def render(self, mode="human", canvas = None):
+        if canvas is None:
+            canvas = pygame.Surface(self.window_size)
+            canvas.fill(Colors.BLACK.value)
 
         self.draw(canvas)
 
@@ -106,6 +107,7 @@ class SnakeBaseEnv(gym.Env, metaclass=ABCMeta):
             return np.transpose(np.array(pygame.surfarray.pixels3d(canvas)), axes=(1, 0, 2))
 
     def draw(self, canvas : pygame.Surface):
+        assert isinstance(canvas, pygame.Surface), f"pygame.Surface is expected for canvas, not {type(canvas)}"
         # Draw snake
         self._snake.draw(canvas)
         # Draw obstacles

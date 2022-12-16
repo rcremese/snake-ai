@@ -19,7 +19,7 @@ import jax
 
 
 class DiffusionProcess():
-    def __init__(self, nb_particles: int, t_max: int, window_size : Tuple[int], diff_coef: float = 1, part_radius: float = 1, seed: int = 0) -> None:
+    def __init__(self, nb_particles: float, t_max: int, window_size : Tuple[int], diff_coef: float = 1, part_radius: float = 1, obstacles : List[pygame.Rect] = None, seed: int = 0) -> None:
         if len(window_size) != 2:
             raise ValueError(f"The window size should be a 2-tuple of int representing the limits of the domain, got {window_size}")
         self.window_size = tuple([int(value) for value in window_size])
@@ -27,7 +27,7 @@ class DiffusionProcess():
         if nb_particles < 1:
             raise ValueError(
                 f"Diffusion process expect at least 1 particle, got {nb_particles}")
-        self._nb_particles = nb_particles
+        self._nb_particles = int(nb_particles)
 
         if t_max < 1:
             raise ValueError(
@@ -42,8 +42,12 @@ class DiffusionProcess():
         if part_radius <= 0:
             raise ValueError(
                 f"Diffusion process expect the particles radius to be positive, got {part_radius}")
-        
         self._part_radius = part_radius
+
+        if obstacles is None:
+            obstacles = []
+        self.obstacles = obstacles
+
         # seed everything
         self.seed(seed)
 
@@ -55,47 +59,46 @@ class DiffusionProcess():
         self._concentration_map : jax.Array = None
 
     def reset(self, x_init : int, y_init : int) -> None:
+        self._concentration_map = None
         self._init_particles(x_init, y_init)
         self.time = 0
-        
-    def start_simulation(self, draw=False):
-        if (self._collisions is None) or (self._positions is None):
-            raise AttributeError(f"Collisions and positions not initalised. Call reset method to initialise at a position.")
 
+    ## TODO : remove this chuck of data
+
+    def start_simulation(self, draw=False):
         while self.time < self.t_max and np.sum(self._collisions) < self._nb_particles:
             self.step()
             if draw:
                 self.draw()
 
     def step(self):
-        self._key, subkey = jax.random.split(self._key)
-        # update positions of points that do not collide with obstacles
-        diffused_position = self._positions + jnp.sqrt(self._diff_coef) * jax.random.normal(subkey, shape=(self._nb_particles, 2))
-        diffused_position.block_until_ready()
+        if (self._collisions is None) or (self._positions is None):
+            raise AttributeError(f"Collisions and positions not initalised. Call reset method to initialise at a position.")
 
-        self._positions = jnp.where(self._collisions[:, None].repeat(2, axis=1), self._positions, diffused_position)
-        self._positions.block_until_ready()
-        self._collisions = self.check_collisions(self._positions)
+        self._positions, self._key = self.update_positions(self._positions, self._collisions, self._key, self._diff_coef)
+        self._collisions = self.check_collisions(self._positions, self.window_size, self._obstacles)
+        self._concentration_map = None
         self.time += 1
-    
-    def draw(self, canvas : pygame.Surface, radius : float):
-        # Draw particles in the canvas
-        for position in self._positions:
-            pygame.draw.circle(canvas, Colors.MIDDLE_GREEN.value, position, radius)
+
+    def draw(self):
+        pygame.init()
+        window = pygame.display.set_mode(self.window_size)
+
+        canvas = pygame.Surface(self.window_size)
+        canvas.fill(Colors.BLACK.value)
+        # Draw snake, obstacles and food
+        for obstacle in self.obstacles:
+            pygame.draw.rect(canvas, color=Colors.RED.value, rect=obstacle)
+        # Draw particles in the environment
+        for particle in self.particles:
+            particle.draw(canvas)
+        # draw on the current display
+        window.blit(canvas, canvas.get_rect())
+        pygame.event.pump()
+        pygame.display.update()
 
     def seed(self, seed: int = 0):
         self._key = jax.random.PRNGKey(seed)
-
-    def accelerated_simulation(self, obstacles : List[pygame.Rect]):
-        if (self._collisions is None) or (self._positions is None):
-            raise AttributeError(f"Collisions and positions not initalised. Call reset method to initialise at a position.")
-        t = 0
-
-        while t < self.t_max and np.sum(self._collisions) < self._nb_particles:
-            self._positions, self._key = self.update_positions(self._positions, self._collisions, self._key, self._diff_coef)
-            self._collisions = self.check_collisions(self._positions, self.window_size, obstacles)
-            t += 1
-        self.time = t
 
     ## Static methods
     @staticmethod
@@ -104,7 +107,7 @@ class DiffusionProcess():
         new_key, subkey = jax.random.split(rng_key)
         # update positions of points that do not collide with obstacles
         diffused_position = positions + jnp.sqrt(diff_coef) * jax.random.normal(subkey, shape=positions.shape)
-        
+
         positions = jnp.where(collisions[:, None].repeat(2, axis=1), positions, diffused_position)
         return positions, new_key
 
@@ -112,7 +115,7 @@ class DiffusionProcess():
     @jax.jit
     def check_collisions(positions : Union[jax.Array, np.ndarray], window_size : Tuple, obstacles : List[Dict[str, int]]) -> Union[jax.Array, np.ndarray]:
         assert positions.ndim == 2 and positions.shape[1] ==  2, f"Expected a 2D vector of shape (X, 2) where X is arbitrary. Get {positions.shape} instead."
-        assert isinstance(obstacles, list) and all([obs.keys() == ['top', 'bottom', 'left', 'right'] for obs in obstacles])
+        assert isinstance(obstacles, list) and all([obs.keys() == {'top', 'bottom', 'left', 'right'} for obs in obstacles])
         assert len(window_size) == 2
 
         width, height = window_size
@@ -122,19 +125,12 @@ class DiffusionProcess():
         for obstacle in obstacles:
             collisions |= (((positions[:, 0] >= obstacle['left']) & (positions[:, 0] <= obstacle['right'])) & \
                 ((positions[:, 1] >= obstacle['top']) & (positions[:, 1] <= obstacle['bottom'])))
-            if isinstance(positions, jax.Array):
-                collisions.block_until_ready()
         return collisions
-    
+
     @staticmethod
-    # @partial(jax.jit, static_argnums=2)
-    def compute_concentration_map(positions : jax.Array, collisions : jax.Array, window_size : Tuple[int]) -> jax.Array:
-        assert isinstance(window_size, (list, tuple)) and len(window_size) == 2
-        
-        concentration_map = np.zeros(window_size)
-        for x, y in positions[~collisions]:
-            concentration_map[int(x), int(y)] += 1
-        return jnp.array(concentration_map)
+    @jax.jit
+    def count_occurance(x : int, y : int, positions_int : jax.Array, collisions : jax.Array) -> int:
+        return jnp.sum(~collisions & (positions_int[:,0] == x) & (positions_int[:,1] == y))
 
     # Properties
     @property
@@ -143,17 +139,28 @@ class DiffusionProcess():
         return [Particle(*pos, self._part_radius) for pos in self._positions.tolist()]
 
     @property
+    def obstacles(self) -> List[pygame.Rect]:
+        "List of obstacles as pygame rectangles"
+        return [pygame.Rect(obs['left'], obs['top'], obs['right'] - obs['left'], obs['bottom'] - obs['top']) for obs in self._obstacles]
+
+    @obstacles.setter
+    def obstacles(self, obstacle_list : List[pygame.Rect]):
+        if not isinstance(obstacle_list, list) and all([isinstance(obs, pygame.Rect) for obs in obstacle_list]):
+            raise ValueError(f"Given obstacles are instance of {type(obstacle_list)}. Expected List[pygame.Rect]")
+        self._obstacles = [{'left' : obs.left, 'right' : obs.right, 'top' : obs.top, 'bottom' : obs.bottom} for obs in obstacle_list]
+
+    @property
     def nb_particles(self) -> int:
         "Number of particles in the environment"
         return self._nb_particles
 
     @nb_particles.setter
-    def nb_particles(self, nb_part : int):
+    def nb_particles(self, nb_part : float):
         "Setter method for nb_particles. If used reset positions and collision arrays"
         if nb_part < 1:
             raise ValueError(
                 f"Diffusion process expect at least 1 particle, got {nb_part}")
-        self._nb_particles = nb_part
+        self._nb_particles = int(nb_part)
         self._init_particles(*self._init_position)
 
     @property
@@ -168,13 +175,17 @@ class DiffusionProcess():
         if positions.shape != (self._nb_particles, 2):
             raise ShapeError(f"The expected size is ({self._nb_particles}, 2). Get {positions.shape} instead.")
         self._positions = jnp.array(positions)
-        self._collisions = self.check_collisions()
+        self._collisions = self.check_collisions(self._positions, self.window_size, self._obstacles)
+        self._concentration_map = None
 
     @property
     def concentration_map(self) -> jax.Array:
         "Particles concentration map as a JAX array"
         if self._concentration_map is None:
-            self._concentration_map = self.compute_concentration_map(self._positions, self._collisions, self.window_size)
+            if self.nb_particles < self.window_size[0] * self.window_size[1]:
+                self._concentration_map = self._compute_concentration_map()
+            else:
+                self._concentration_map = self._accelerated_concentration_map()
         return self._concentration_map
 
     # Private methods
@@ -182,7 +193,22 @@ class DiffusionProcess():
         self._init_position = (x, y)
         self._positions = jnp.array([[x, y]]).repeat(self._nb_particles, axis=0)
         self._collisions = jnp.zeros(self._nb_particles, dtype=bool)
-    
+
+    def _compute_concentration_map(self) -> jax.Array:
+        concentration_map = np.zeros(self.window_size)
+        for x, y in self._positions[~self._collisions].astype(int):
+            concentration_map[x, y] += 1
+        return jnp.array(concentration_map)
+
+    def _accelerated_concentration_map(self) -> jax.Array:
+        positions_int = self._positions.astype(int)
+
+        concentration_map = np.zeros(self.window_size, dtype=int)
+        for x in jnp.arange(self.window_size[0]):
+            for y in jnp.arange(self.window_size[1]):
+                concentration_map[x, y] = self.count_occurance(x, y, positions_int, self._collisions)
+        return concentration_map
+
     def __repr__(self) -> str:
         return f"{__class__.__name__}(nb_particles={self._nb_particles!r}, t_max={self.t_max!r}, diff_coef={self._diff_coef!r}, \
         part_radius={self._part_radius!r}, seed={self._key!r})"

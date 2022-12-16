@@ -26,3 +26,6 @@ dependencies = [
 
 [project.urls]
 "Homepage" = "https://github.com/rcremese/snake-ai"
+
+[project.scripts]
+play_snake = "snake_ai.wrappers.playable_snake:main"

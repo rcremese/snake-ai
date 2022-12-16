@@ -1,3 +1,9 @@
+##
+# @author Robin CREMESE <robin.cremese@gmail.com>
+ # @file Description
+ # @desc Created on 2022-12-13 4:35:40 pm
+ # @copyright https://mit-license.org/
+ #
 from snake_ai.physim import ConvolutionWindow, DiffusionProcess
 from snake_ai.envs import SnakeClassicEnv
 import matplotlib.pyplot as plt
@@ -10,18 +16,20 @@ import jax
 def concentration_field(concentration_map : jax.Array, conv_window : jax.Array):
     return jsp.signal.convolve(concentration_map, conv_window, mode='same')
 
+
 def main(nb_obstacles=10, nb_particles=1_000, t_max=100, diff_coef=10, seed=0):
     draw = nb_particles <= 1_000
     env = SnakeClassicEnv(nb_obstacles=nb_obstacles)
-    obstacles = [{'left' : obs.left, 'right' : obs.right, 'top' : obs.top, 'bottom' : obs.bottom} for obs in env.obstacles]
-    diff_process = DiffusionProcess(nb_particles=int(nb_particles), t_max=t_max, window_size=env.window_size, diff_coef=diff_coef, seed=seed)
+    env.seed(seed)
     env.reset()
+    diff_process = DiffusionProcess(nb_particles=int(nb_particles), t_max=t_max, window_size=env.window_size, diff_coef=diff_coef, obstacles=env.obstacles, seed=seed)
     diff_process.reset(*env.food.center)
+
     logging.info('Start the simultion')
-    # diff_process.start_simulation(draw)
-    diff_process.accelerated_simulation(obstacles)
+    diff_process.draw()
+    diff_process.start_simulation(draw)
     logging.info(f'Simultion ended at time {diff_process.time}')
-    #diff_process.draw()
+    diff_process.draw()
 
     logging.info('Printing the concentration maps...')
     tic = time.perf_counter()
@@ -33,7 +41,7 @@ def main(nb_obstacles=10, nb_particles=1_000, t_max=100, diff_coef=10, seed=0):
     cax = ax[0].imshow(concentration_map, cmap='inferno', interpolation='none')
     ax[0].set(title = "Concentration map")
     fig.colorbar(cax)
-    
+
     conv_window = ConvolutionWindow.gaussian(env.pixel_size)
     tic = time.perf_counter()
     conc_field = concentration_field(concentration_map, conv_window)
