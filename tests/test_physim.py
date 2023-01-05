@@ -5,15 +5,13 @@
  # @copyright https://mit-license.org/
  #
 import pygame
-from snake_ai.physim.particle import Particle
-from snake_ai.physim.convolution_window import ConvolutionWindow
-from snake_ai.physim.diffusion_process import DiffusionProcess
 from snake_ai.envs import SnakeClassicEnv, SnakeAI
 import jax.numpy as jnp
 import jax.scipy as jsp
 import numpy as np
 import pytest
 
+from snake_ai.physim.particle import Particle
 class TestParticle:
     initial_pos = (1, 1)
     radius = 1
@@ -89,6 +87,7 @@ class TestParticle:
         assert not particle.is_inside(rect_C, center=False)
         assert particle.is_inside(rect_C, center=True)
 
+from snake_ai.physim.diffusion_process import DiffusionProcess
 class TestDiffusionProcess:
     """Class to test a diffusion process
 
@@ -212,6 +211,8 @@ class TestDiffusionProcess:
         diff_process.step()
         concentration_map = diff_process._accelerated_concentration_map()
         assert concentration_map.sum() == 5_000
+
+from snake_ai.physim.convolution_window import ConvolutionWindow
 class TestConvolutionWindow:
     pixel_size = 10
 
@@ -220,19 +221,61 @@ class TestConvolutionWindow:
 
         space = jnp.arange(- self.pixel_size / 2, self.pixel_size / 2)
         conv_1 = jsp.stats.norm.pdf(space) * jsp.stats.norm.pdf(space[:, None])
-        assert jnp.isclose(conv_window.window, conv_1).all()
+        assert jnp.isclose(conv_window.value, conv_1).all()
 
         std = 5
         conv_window = ConvolutionWindow(self.pixel_size, 'gaussian', std)
 
         conv_2 = jsp.stats.norm.pdf(space, scale=std) * jsp.stats.norm.pdf(space[:, None], scale=std)
-        assert jnp.isclose(conv_window.window, conv_2).all()
+        assert jnp.isclose(conv_window.value, conv_2).all()
 
         conv_window_mean = ConvolutionWindow(self.pixel_size, 'mean')
         conv_3 = np.ones((self.pixel_size, self.pixel_size)) / self.pixel_size**2
-        assert jnp.isclose(conv_window_mean.window, conv_3).all()
+        assert jnp.isclose(conv_window_mean.value, conv_3).all()
 
         factory_gauss = ConvolutionWindow.gaussian(self.pixel_size, std)
-        assert jnp.isclose(conv_window.window, factory_gauss).all()
+        assert jnp.isclose(conv_window.value, factory_gauss).all()
         factory_mean = ConvolutionWindow.mean(self.pixel_size)
-        assert jnp.isclose(conv_window_mean.window, factory_mean).all()
+        assert jnp.isclose(conv_window_mean.value, factory_mean).all()
+
+from snake_ai.physim.gradient_field import GradientField
+class TestGradientMap:
+    concentration_map = np.array([
+        [0, 1, 2, 3, 2],
+        [1, 2, 1, 2, 1],
+        [0, 1, 0, 1, 0],
+        [0, 0, 1, 0, 0],
+        [0, 1, 2, 1, 0],
+    ])
+    mean_field = np.array([
+        [4/9, 7/9, 11/9, 11/9, 8/9],
+        [5/9, 8/9, 13/9, 12/9, 1],
+        [4/9, 6/9, 8/9, 6/9, 4/9],
+        [2/9, 5/9, 7/9, 5/9, 2/9],
+        [1/9, 4/9, 5/9, 4/9, 1/9],
+    ])
+    conv_window = ConvolutionWindow.mean(3)
+    eps = 1e-4
+
+    def test_smoothing(self):
+        smoothed_field = GradientField.smooth_field(self.concentration_map, self.conv_window)
+        assert jnp.isclose(smoothed_field, self.mean_field).all()
+        with pytest.raises(NotImplementedError):
+            GradientField.smooth_field(self.concentration_map, self.conv_window, stride=3)
+
+    def test_log(self):
+        smoothed_field = GradientField.smooth_field(self.concentration_map, self.conv_window)
+        log_map = GradientField.compute_log(smoothed_field)
+        assert jnp.isclose(log_map, jnp.log(self.mean_field)).all()
+
+    def test_gradient(self):
+        exp2d = lambda x, y : np.exp(-0.5 * (x**2 + y**2))
+
+        space = np.linspace(-1, 1, 200)
+        X, Y = np.meshgrid(space, space)
+        field = exp2d(X,Y)
+
+        df = GradientField.compute_gradient(field, step_size=0.01)
+        true_grad = np.stack([field * -X, field * -Y])
+        # Ensure the derivatives match up to the step_size 0.01
+        assert np.isclose(df, true_grad, atol=1e-2).all()
