@@ -6,8 +6,9 @@
  #
 from abc import ABCMeta, abstractmethod
 from snake_ai.utils.paths import FONT_PATH
+from snake_ai.utils.errors import CollisionError
 from snake_ai.envs.snake import Snake, SnakeAI
-from snake_ai.utils import Colors, CollisionError
+from snake_ai.utils import Colors
 from typing import List
 import numpy as np
 import pygame

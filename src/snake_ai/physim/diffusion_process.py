@@ -5,7 +5,8 @@
 # @copyright https://mit-license.org/
 #
 from snake_ai.envs import SnakeClassicEnv
-from snake_ai.utils import Colors, ShapeError
+from snake_ai.utils import Colors
+from snake_ai.utils.errors import ShapeError
 from snake_ai.physim import Particle
 from typing import Iterable, Tuple, Union, List, Optional, Dict
 from functools import partial

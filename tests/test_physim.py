@@ -257,6 +257,13 @@ class TestGradientMap:
     conv_window = ConvolutionWindow.mean(3)
     eps = 1e-4
 
+    def test_init(self):
+        grad_field = GradientField(self.concentration_map, self.conv_window)
+        assert all([np.array_equal(discret_space, np.arange(0, 5, 1)) for discret_space in grad_field._discret_space])
+        assert np.array_equal(grad_field._concentration_map, self.concentration_map)
+        assert grad_field._step == 1
+        assert grad_field.use_log is True
+
     def test_smoothing(self):
         smoothed_field = GradientField.smooth_field(self.concentration_map, self.conv_window)
         assert jnp.isclose(smoothed_field, self.mean_field).all()
@@ -272,10 +279,38 @@ class TestGradientMap:
         exp2d = lambda x, y : np.exp(-0.5 * (x**2 + y**2))
 
         space = np.linspace(-1, 1, 200)
-        X, Y = np.meshgrid(space, space)
+        X, Y = np.meshgrid(space, space, indexing='ij')
         field = exp2d(X,Y)
 
         df = GradientField.compute_gradient(field, step_size=0.01)
         true_grad = np.stack([field * -X, field * -Y])
         # Ensure the derivatives match up to the step_size 0.01
         assert np.isclose(df, true_grad, atol=1e-2).all()
+
+    def test_gradient_map(self):
+        grad_field = GradientField(self.concentration_map, self.conv_window, step=1, use_log=False)
+        true_grad = GradientField.compute_gradient(self.mean_field, step_size=1)
+        true_norm = np.linalg.norm(true_grad, axis=0)
+
+        gradient = grad_field.values
+        assert gradient.shape == (2, 5, 5)
+        assert np.isclose(gradient, true_grad).all()
+
+        norm = grad_field.norm
+        assert norm.shape == (5,5)
+        assert np.isclose(norm, true_norm).all()
+
+    def test_gradient_interpolation(self):
+        pass
+
+from snake_ai.physim.walker import Walker
+class TestWalker:
+    grid_space = np.linspace(-1, 1, 200)
+    X, Y = np.meshgrid(grid_space, grid_space)
+    gradient_field = np.stack([-X, -Y])
+    init_pos = [-1, -1]
+
+    def test_step(self):
+        walker = Walker(self.init_pos, self.gradient_field)
+        walker.step()
+        assert walker.position == [0,1]

@@ -29,7 +29,9 @@ class ConvolutionWindow:
             return jsp.stats.norm.pdf(x[:, jnp.newaxis], loc=shift, scale=self.scale) * jsp.stats.norm.pdf(x, loc=shift, scale=self.scale)
 
     @classmethod
-    def gaussian(cls, size, scale=1):
+    def gaussian(cls, size):
+        # set the scale for the window to be centered and with border at +/- 3\sigma
+        scale = size / 6
         return cls(size, 'gaussian', scale)
 
     @classmethod
