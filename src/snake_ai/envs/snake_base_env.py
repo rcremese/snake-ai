@@ -74,7 +74,6 @@ class SnakeBaseEnv(gym.Env, metaclass=ABCMeta):
             self._obstacles = self._populate_grid_with_obstacles()
         self._food = self._place_food()
         self.truncated = False
-        return None
 
     @abstractmethod
     def step(self, action):

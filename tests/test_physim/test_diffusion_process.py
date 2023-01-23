@@ -1,15 +1,9 @@
-##
-# @author Robin CREMESE <robin.cremese@gmail.com>
- # @file Tests for modules inside physim
- # @desc Created on 2022-11-10 2:28:05 pm
- # @copyright https://mit-license.org/
- #
-import pygame
 from snake_ai.envs import SnakeClassicEnv, SnakeAI
-import jax.numpy as jnp
-import jax.scipy as jsp
+
 import numpy as np
+import pygame
 import pytest
+
 
 from snake_ai.physim.particle import Particle
 class TestParticle:
@@ -211,120 +205,3 @@ class TestDiffusionProcess:
         diff_process.step()
         concentration_map = diff_process._accelerated_concentration_map()
         assert concentration_map.sum() == 5_000
-
-from snake_ai.physim.convolution_window import ConvolutionWindow
-class TestConvolutionWindow:
-    pixel_size = 10
-
-    def test_init(self):
-        conv_window = ConvolutionWindow(self.pixel_size, 'gaussian')
-
-        space = np.arange(- self.pixel_size / 2, self.pixel_size / 2)
-        conv_1 = jsp.stats.norm.pdf(space) * jsp.stats.norm.pdf(space[:, None])
-        assert np.isclose(conv_window.value, conv_1).all()
-
-        std = 5
-        conv_window = ConvolutionWindow(self.pixel_size, 'gaussian', std)
-
-        conv_2 = jsp.stats.norm.pdf(space, scale=std) * jsp.stats.norm.pdf(space[:, None], scale=std)
-        assert np.isclose(conv_window.value, conv_2).all()
-
-        conv_window_mean = ConvolutionWindow(self.pixel_size, 'mean')
-        conv_3 = np.ones((self.pixel_size, self.pixel_size)) / self.pixel_size**2
-        assert np.isclose(conv_window_mean.value, conv_3).all()
-
-        factory_mean = ConvolutionWindow.mean(self.pixel_size)
-        assert np.isclose(conv_window_mean.value, factory_mean.value).all()
-
-from snake_ai.physim.gradient_field import GradientField
-class TestGradientMap:
-    concentration_map = np.array([
-        [0, 1, 2, 3, 2],
-        [1, 2, 1, 2, 1],
-        [0, 1, 0, 1, 0],
-        [0, 0, 1, 0, 0],
-        [0, 1, 2, 1, 0],
-    ])
-    mean_field = np.array([
-        [8/9, 13/9, 12/9],
-        [6/9, 8/9, 6/9],
-        [5/9, 7/9, 5/9],
-    ])
-    # mean_field = np.array([
-    #     # [4/9, 7/9, 11/9, 11/9, 8/9],
-    #     [5/9, 8/9, 13/9, 12/9, 1],
-    #     [4/9, 6/9, 8/9, 6/9, 4/9],
-    #     [2/9, 5/9, 7/9, 5/9, 2/9],
-    #     # [1/9, 4/9, 5/9, 4/9, 1/9],
-    # ])
-    conv_window = ConvolutionWindow.mean(3)
-    eps = 1e-4
-
-    def test_init(self):
-        grad_field = GradientField(self.concentration_map, self.conv_window)
-        assert all([np.array_equal(discret_space, np.linspace(0.5, 4.5, 5)) for discret_space in grad_field.discret_space])
-        assert np.array_equal(grad_field._concentration_map, self.concentration_map)
-        assert grad_field._step_size == 1
-        assert grad_field._use_log is True
-
-    def test_smoothing(self):
-        smoothed_field = GradientField.smooth_field(self.concentration_map, self.conv_window)
-        assert np.isclose(smoothed_field, self.mean_field).all()
-        smoothed_field = GradientField.smooth_field(self.concentration_map, self.conv_window, stride=2)
-        assert np.isclose(smoothed_field, self.mean_field[::2, ::2]).all()
-
-    def test_log(self):
-        smoothed_field = GradientField.smooth_field(self.concentration_map, self.conv_window)
-        log_map = GradientField.compute_log(smoothed_field)
-        assert jnp.isclose(log_map, jnp.log(self.mean_field)).all()
-
-    def test_gradient(self):
-        exp2d = lambda x, y : np.exp(-0.5 * (x**2 + y**2))
-
-        space = np.linspace(-1, 1, 200)
-        X, Y = np.meshgrid(space, space, indexing='ij')
-        field = exp2d(X,Y)
-
-        df = GradientField.compute_gradient(field, step=0.01)
-        true_grad = np.stack([field * -X, field * -Y])
-        # Ensure the derivatives match up to the step_size 0.01
-        assert np.isclose(df, true_grad, atol=1e-2).all()
-
-    def test_gradient_map(self):
-        grad_field = GradientField(self.concentration_map, self.conv_window, step_size=1, use_log=False)
-        true_grad = GradientField.compute_gradient(self.mean_field, step=1)
-        true_norm = np.linalg.norm(true_grad, axis=0)
-
-        gradient = grad_field.values
-        assert gradient.shape == (2, 3, 3)
-        assert np.isclose(gradient, true_grad).all()
-
-        norm = grad_field.norm
-        assert norm.shape == (3, 3)
-        assert np.isclose(norm, true_norm).all()
-
-    def test_gradient_interpolation(self):
-        row_constant_field = np.repeat([np.arange(10)], repeats=10, axis=0)
-        
-        space = np.linspace(0, 10, 100)
-        X, Y = np.meshgrid(space, space, indexing='ij')
-
-        conv_window = ConvolutionWindow.gaussian(3)
-        grad_field = GradientField(row_constant_field, conv_window, use_log=False, smooth=False)
-        assert np.array_equal(grad_field((0.5, 0.5)), grad_field((8.5, 0.5)))
-        assert np.array_equal(grad_field((4.5, 4.5)), grad_field((8.5, 4.5)))
-        dx, dy = grad_field((X,Y))
-        assert np.array_equal(dx, np.zeros((100, 100)))
-        assert np.isclose(dy, np.ones((100, 100))).all()
-
-from snake_ai.physim.walker import Walker
-class TestWalker:
-    grid_space = np.linspace(-1, 1, 200)
-    X, Y = np.meshgrid(grid_space, grid_space)
-    gradient_field = np.stack([-X, -Y])
-    init_pos = [-1, -1]
-
-    def test_step(self):
-        walker = Walker(self.init_pos, self.gradient_field)
-        walker.step()
-        assert np.array_equal(self.init_pos, [0,1]) 

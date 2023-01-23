@@ -95,7 +95,7 @@ class StochasticDiffusionWrapper(BaseDiffusionWrapper):
         logging.info('Computing the concentration map...')
         concentration_map = self._diffusion_process.concentration_map
         conv_window = ConvolutionWindow.gaussian(self.env.pixel_size)
-        diffusive_field = jsp.signal.convolve(concentration_map, conv_window, mode='same')
+        diffusive_field = jsp.signal.convolve(concentration_map, conv_window.value, mode='same')
 
         assert np.max(diffusive_field) != np.min(diffusive_field), "Diffion field is constant"
         return (diffusive_field - np.min(diffusive_field)) / (np.max(diffusive_field) - np.min(diffusive_field))

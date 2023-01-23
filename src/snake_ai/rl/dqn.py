@@ -29,21 +29,21 @@ class LearningAgent:
 
 if __name__ == '__main__':
     from stable_baselines3.dqn.dqn import DQN
-    train = True
+    train = False
     if train:
         rmode = None
     else:
         rmode='human'
     fps = 50
-    env = SnakeClassicEnv(render_mode=rmode, width=20, height=20, nb_obstacles=0)
-    env = DeterministicDiffusionWrapper(env, diffusion_coef=COEF, seed=SEED)
+    env = SnakeClassicEnv(render_mode=rmode, width=40, height=40, nb_obstacles=50)
+    # env = DeterministicDiffusionWrapper(env, diffusion_coef=COEF, seed=SEED)
 
     if train:
         model = DQN("MlpPolicy", env, verbose=1, tensorboard_log='./logs/diffusion_snake_dqn')
-        model.learn(total_timesteps=100_000)
-        model.save("dqn_diffusion")
+        model.learn(total_timesteps=300_000)
+        model.save("dqn_snake_env")
     else:
-        model = DQN.load("dqn_diffusion")
+        model = DQN.load("dqn_snake_env")
         obs = env.reset()
         i=0
         while True:

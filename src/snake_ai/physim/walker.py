@@ -13,8 +13,11 @@ from snake_ai.utils import Colors
 
 import pygame
 class Walker:
-    def __init__(self, init_pos : ArrayLike) -> None:
+    def __init__(self, init_pos : ArrayLike, dt : float = 1, sigma : float = 1) -> None:
         self._init_pos = jnp.array(init_pos)
+        assert dt > 0
+        self._dt = dt
+        self._sigma = sigma
         self.reset()
 
     def reset(self):
@@ -24,8 +27,10 @@ class Walker:
     def step(self, gradient_field : GradientField):
         if not isinstance(gradient_field, GradientField):
             raise TypeError(f"Expected instance of GradientField, get {type(gradient_field)}")
-        self.position += gradient_field(self.position)
+        grad = gradient_field(self.position)
+        print(grad)
+        self.position += self._dt * grad + self._sigma * np.sqrt(self._dt) * np.random.normal(size=2)
         self.time += 1
 
     def draw(self, canvas : pygame.Surface):
-        pygame.draw.circle(canvas, Colors.BLUE1.value, self.position, 1)
+        pygame.draw.circle(canvas, Colors.BLUE1.value, self.position.tolist(), 10)
