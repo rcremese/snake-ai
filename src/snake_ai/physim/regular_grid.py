@@ -26,9 +26,15 @@ class RegularGrid2D:
         self.x = np.arange(self.x_init, self.x_end, self.x_step)
         self.y = np.arange(self.y_init, self.y_end, self.y_step)
 
-    def convolution_dowgrade(self, conv_window : ConvolutionWindow, stride : int):
+    def convolution_dowgrade(self, conv_window : ConvolutionWindow, stride : int, mode : str = 'same'):
         assert isinstance(stride, int) and stride > 0, f"Expected stride should be an int > 0, not {stride}"
-        start = conv_window.size // 2
+        assert mode.lower() in ['same', 'valid'], f"Accepted modes are 'same' and 'valid', not {mode}"
+        # Starting point differs depending on the selected mode
+        if mode.lower() == 'same':
+            start = 0
+        else:
+            start = conv_window.size // 2
+
         assert stride + start < len(self.x) and stride + start < len(self.y), \
             f"Stride + starting position should be lower than the grid dimensions ({len(self.x)}, {len(self.y)}). Get {stride + start}."
 

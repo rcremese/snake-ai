@@ -28,9 +28,9 @@ class TestRegularGrid:
         assert np.array_equal(reg_grid_3.x, [-3.5, -0.5, 2.5, 5.5, 8.5, 11.5])
         # Test errors
         with pytest.raises(LookupError):
-            reg_grid_error = RegularGrid2D.regular_square(1, 2, 3, 4)
+            RegularGrid2D.regular_square(1, 2, 3, 4)
         with pytest.raises(AssertionError):
-            reg_grid_error = RegularGrid2D.regular_square(-1.)
+            RegularGrid2D.regular_square(-1.)
 
     def test_grid(self):
         reg_grid = RegularGrid2D(self.x_init, self.x_end, self.x_step, self.y_init, self.y_end, self.y_step)
@@ -41,13 +41,17 @@ class TestRegularGrid:
     def test_convolution_downgrade(self):
         reg_grid = RegularGrid2D(self.x_init, self.x_end, self.x_step, self.y_init, self.y_end, self.y_step)
         conv_window = ConvolutionWindow.gaussian(3)
-        reg_grid.convolution_dowgrade(conv_window, stride = 1)
+        reg_grid.convolution_dowgrade(conv_window, stride = 1, mode='valid')
         assert np.array_equal(reg_grid.x, [2, 4, 6, 8])
         assert np.array_equal(reg_grid.y, [-0.5, 2.5, 5.5, 8.5, 11.5])
         assert (reg_grid.x_step == 2) and (reg_grid.y_step == 3)
-        reg_grid.convolution_dowgrade(conv_window, stride=2)
+        reg_grid.convolution_dowgrade(conv_window, stride=2, mode='valid')
         assert np.array_equal(reg_grid.x, [4, 8])
         assert np.array_equal(reg_grid.y, [2.5, 8.5])
+        reg_grid.convolution_dowgrade(conv_window, stride=1, mode='same')
+        assert np.array_equal(reg_grid.x, [4, 8])
+        assert np.array_equal(reg_grid.y, [2.5, 8.5])
+
 
 
 
@@ -74,11 +78,11 @@ class TestConvolutionWindow:
 
         # Errors
         with pytest.raises(ValueError):
-            error_window = ConvolutionWindow(-12, 'mean')
+            ConvolutionWindow(-12, 'mean')
         with pytest.raises(ValueError):
-            error_window = ConvolutionWindow(self.size, 'test')
+            ConvolutionWindow(self.size, 'test')
         with pytest.raises(ValueError):
-            error_window = ConvolutionWindow(self.size, 'gaussian', -5)
+            ConvolutionWindow(self.size, 'gaussian', -5)
 
 
     def test_factories(self):
@@ -115,23 +119,6 @@ class TestConvolutionWindow:
         gauss_dy = ConvolutionWindow.gaussian_dy(self.size)
         gaussian_3sigma = exp_2d(X, Y, std=gauss_dy.std)
         assert np.array_equal(gauss_dy.value, -Y * gaussian_3sigma / gauss_dy.std**2)
-
-        # conv_1 = gaussian(space, 1) * gaussian(space[:, None], 1)
-        # assert np.isclose(conv_window.value, conv_1).all()
-
-        # std = 5
-        # conv_window = ConvolutionWindow(self.size, 'gaussian', std)
-
-        # # conv_2 = jsp.stats.norm.pdf(space, scale=std) * jsp.stats.norm.pdf(space[:, None], scale=std)
-        # # assert np.isclose(conv_window.value, conv_2).all()
-
-        # conv_window_mean = ConvolutionWindow(self.size, 'mean')
-        # conv_3 = np.ones((self.size, self.size)) / self.size**2
-        # assert np.isclose(conv_window_mean.value, conv_3).all()
-
-        # factory_mean = ConvolutionWindow.mean(self.size)
-        # assert np.isclose(conv_window_mean.value, factory_mean.value).all()
-        # pass
 
 from snake_ai.physim.gradient_field import GradientField
 from snake_ai.physim.walker import Walker
