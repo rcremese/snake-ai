@@ -26,9 +26,10 @@ class RegularGrid2D:
         self.x = np.arange(self.x_init, self.x_end, self.x_step)
         self.y = np.arange(self.y_init, self.y_end, self.y_step)
 
-    def convolution_dowgrade(self, conv_window : ConvolutionWindow, stride : int, mode : str = 'same'):
+    def convolution_dowgrade(self, conv_window : ConvolutionWindow, stride : int, mode : str = 'same', axis : str = 'both'):
         assert isinstance(stride, int) and stride > 0, f"Expected stride should be an int > 0, not {stride}"
         assert mode.lower() in ['same', 'valid'], f"Accepted modes are 'same' and 'valid', not {mode}"
+        assert axis.lower() in ['x', 'y', 'both'], f"Accepted axis are 'x', 'y' and 'both', not {axis}"
         # Starting point differs depending on the selected mode
         if mode.lower() == 'same':
             start = 0
@@ -38,11 +39,12 @@ class RegularGrid2D:
         assert stride + start < len(self.x) and stride + start < len(self.y), \
             f"Stride + starting position should be lower than the grid dimensions ({len(self.x)}, {len(self.y)}). Get {stride + start}."
 
-        self.x = self.x[start::stride]
-        self.y = self.y[start::stride]
-
-        self.x_init, self.x_end, self.x_step = self.x[0], self.x[-1], self.x[1] - self.x[0]
-        self.y_init, self.y_end, self.y_step = self.y[0], self.y[-1], self.y[1] - self.y[0]
+        if axis.lower() in ['x', 'both']:
+            self.x = self.x[start::stride]
+            self.x_init, self.x_end, self.x_step = self.x[0], self.x[-1], self.x[1] - self.x[0]
+        if axis.lower() in ['y', 'both']:
+            self.y = self.y[start::stride]
+            self.y_init, self.y_end, self.y_step = self.y[0], self.y[-1], self.y[1] - self.y[0]
 
     @classmethod
     def regular_square(cls, *args : List[Numerical]):

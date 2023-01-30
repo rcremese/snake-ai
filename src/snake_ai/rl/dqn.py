@@ -35,7 +35,7 @@ if __name__ == '__main__':
     else:
         rmode='human'
     fps = 50
-    env = SnakeClassicEnv(render_mode=rmode, width=40, height=40, nb_obstacles=50)
+    env = SnakeClassicEnv(render_mode=rmode, width=20, height=20, nb_obstacles=20)
     # env = DeterministicDiffusionWrapper(env, diffusion_coef=COEF, seed=SEED)
 
     if train:
