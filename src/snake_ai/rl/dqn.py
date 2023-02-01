@@ -40,7 +40,7 @@ if __name__ == '__main__':
 
     if train:
         model = DQN("MlpPolicy", env, verbose=1, tensorboard_log='./logs/diffusion_snake_dqn')
-        model.learn(total_timesteps=300_000)
+        model.learn(total_timesteps=100_000)
         model.save("dqn_snake_env")
     else:
         model = DQN.load("dqn_snake_env")
