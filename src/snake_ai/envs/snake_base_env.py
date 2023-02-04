@@ -8,6 +8,7 @@ from abc import ABCMeta, abstractmethod
 from snake_ai.utils.paths import FONT_PATH
 from snake_ai.utils.errors import CollisionError
 from snake_ai.envs.snake import Snake, SnakeAI
+from snake_ai.envs.geometry import Rectangle
 from snake_ai.utils import Colors
 from typing import List
 import numpy as np
@@ -155,7 +156,7 @@ class SnakeBaseEnv(gym.Env, metaclass=ABCMeta):
         return self._food
 
     @food.setter
-    def food(self, food : pygame.Rect):
+    def food(self, food : Rectangle):
         if not (isinstance(food, pygame.Rect) or food is None):
             raise TypeError(f"The food argument need to be an instance of pygame.Rect, not {type(food)}")
         if (food.x % self._pixel_size != 0) or (food.y % self._pixel_size != 0):
@@ -163,7 +164,7 @@ class SnakeBaseEnv(gym.Env, metaclass=ABCMeta):
         self._food = food
 
     @property
-    def obstacles(self):
+    def obstacles(self) -> List[Rectangle]:
         "Obstacles in the environment represented by a list of pygame.Rect"
         return self._obstacles
 
@@ -187,7 +188,7 @@ class SnakeBaseEnv(gym.Env, metaclass=ABCMeta):
         # Define the central coordinates of the food to be placed
         x = np.random.randint(0, self.width) * self._pixel_size
         y = np.random.randint(0, self.height) * self._pixel_size
-        food = pygame.Rect(x, y, self._pixel_size, self._pixel_size)
+        food = Rectangle(x, y, self._pixel_size, self._pixel_size)
         # Check to not place food inside the snake
         if (food.collidelist(self._snake.body) != -1) or food.colliderect(self._snake.head):
             return self._place_food()
@@ -215,7 +216,7 @@ class SnakeBaseEnv(gym.Env, metaclass=ABCMeta):
         if food_collision != -1:
             raise CollisionError(f"The food {self._food} collides with the obstacle {self._obstacles[food_collision]}.")
 
-    def _populate_grid_with_obstacles(self) -> List[pygame.Rect]:
+    def _populate_grid_with_obstacles(self) -> List[Rectangle]:
         obstacles = []
         for _ in range(self.nb_obstacles):
             size = np.random.randint(1, self._max_obs_size)
@@ -223,12 +224,12 @@ class SnakeBaseEnv(gym.Env, metaclass=ABCMeta):
             obstacles.append(obstacle)
         return obstacles
 
-    def _place_obstacle(self, size: int) -> pygame.Rect:
+    def _place_obstacle(self, size: int) -> Rectangle:
         # TODO : control the recursivity of the method
         x = np.random.randint(0, self.width) * self._pixel_size
         y = np.random.randint(0, self.height) * self._pixel_size
 
-        obstacle = pygame.Rect(x, y, size * self._pixel_size, size * self._pixel_size)
+        obstacle = Rectangle(x, y, size * self._pixel_size, size * self._pixel_size)
         # check colision with the initial snake bounding box
         bounding_box_factor = 2 * (len(self._snake) - 1) * self._pixel_size
 

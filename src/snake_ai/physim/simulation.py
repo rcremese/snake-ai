@@ -38,7 +38,7 @@ def diffusion_process_simulation(width=20, height=20, nb_obstacles=10, nb_partic
     # Mean time to exit a box of dimension d for a brownian motion with diffusion D : T_max = L_max ^2 / 2dD
     mean_dist = np.sqrt(width**2 + height**2) * pixel
     if t_max is None:
-        t_max = int(0.25 * mean_dist**2 / diff_coef)
+        t_max = int(mean_dist**2 / (diff_coef * 8))
 
     env = SnakeClassicEnv(render_mode="human", width=width, height=height, pixel=pixel, nb_obstacles=nb_obstacles)
     env.seed(seed)
@@ -99,10 +99,10 @@ def diffusion_process_simulation(width=20, height=20, nb_obstacles=10, nb_partic
     # ax2[1,1].imshow(log_grad[1], cmap='inferno')
     # # ax2[1, 1].set(title = "$$\nabla(log(c))_y$$")
 
-    walker = Walker([200, 40], dt=1, sigma=1)
-    for i in range(200):
-        draw_walker(env, walker, np.array(smoothed_field))
-        walker.step(smoothed_grad)
+    # walker = Walker([200, 40], dt=1, sigma=1)
+    # for i in range(200):
+    #     draw_walker(env, walker, np.array(smoothed_field))
+    #     walker.step(smoothed_grad)
     plt.show()
 
 def draw_walker(snake_env : SnakeClassicEnv, walker : Walker, smoothed_field : np.array):
