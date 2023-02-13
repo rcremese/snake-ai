@@ -6,7 +6,7 @@
  #
 import pygame
 import logging
-from typing import List
+from typing import List, Dict
 from snake_ai.utils.direction import Direction, get_opposite_direction, get_direction_from_vector
 from snake_ai.utils import Colors
 
@@ -74,6 +74,16 @@ class Snake():
         else:
             disp_vect = ((self.head.x - self.body[0].x) // self._pixel_size, (self.head.y - self.body[0].y) // self._pixel_size)
         return get_direction_from_vector(disp_vect)
+
+    def to_dict(self) -> Dict[str, int]:
+        return {'x': self.head.x, 'y': self.head.y, 'pixel': self._pixel_size}
+
+    @classmethod
+    def from_dict(cls, dictionary : Dict[str, int]):
+        keys = ['x', 'y', 'pixel']
+        if any([key not in dictionary.keys() for key in keys]):
+            raise ValueError(f"Input dictonary need to contain the following keys : 'x', 'y', 'pixel'. Get {dictionary.keys()}")
+        return cls(dictionary['x'], dictionary['y'], dictionary['pixel'])
 
     def collide_with_itself(self):
         return self.head.collidelist(self.body) != -1

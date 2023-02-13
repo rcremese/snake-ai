@@ -4,19 +4,70 @@
  # @desc Created on 2022-12-13 4:35:40 pm
  # @copyright https://mit-license.org/
  #
-from snake_ai.physim import ConvolutionWindow, DiffusionProcess, Walker, RegularGrid2D
+from snake_ai.physim import ConvolutionWindow, DiffusionProcess, Walker, RegularGrid2D, DiffusionSolver2D
 from snake_ai.physim.gradient_field import SmoothGradientField, smooth_field, compute_log
-from snake_ai.utils import Colors
 from snake_ai.envs import SnakeClassicEnv
 import matplotlib.pyplot as plt
-import jax.numpy as jnp
-import jax.scipy as jsp
+from phi.jax import flow
+from pathlib import Path
 import numpy as np
 import argparse
 import logging
 import time
-import jax
 import pygame
+
+class Simulation:
+    env : SnakeClassicEnv
+    diffusion_solver : DiffusionSolver2D
+    diff : float
+    t_max : float
+    _seed : int
+    _name : str
+
+    def __init__(self, width, height, pixel, nb_obs, diff, seed, t_max) -> None:
+        # Initialise the environment and seed it
+        # TODO : replace numpy random with jax random to control the seed
+        self.env = SnakeClassicEnv(render_mode=None, width=width, height=height, nb_obstacles=nb_obs, pixel=pixel)
+        if not isinstance(seed, int):
+            raise TypeError(f"Seed need to be an int. Get {type(seed)}")
+        self._seed = seed
+        self.env.seed(self._seed)
+
+        if t_max <= 0 or diff <= 0:
+            raise ValueError(f"The diffusion coefficient and the maximum simulation time need to be > 0. Get {diff} and {t_max} instead")
+        self.t_max = t_max
+        self.diff = diff
+        # Arguments to be instanciated
+        self.diffusion_solver = None
+
+    def reset(self):
+        self.env.reset()
+        x_max, y_max = self.env.window_size
+        self.diffusion_solver = DiffusionSolver2D(x_max, y_max, self.t_max, source=self.env.food, obstacles=self.env.obstacles, diff_coef=self.diff)
+
+    def load(self, dirpath : str or Path):
+        dirpath = Path(dirpath).resolve(strict=True)
+
+    def write(self, dirpath : str or Path):
+        pass
+
+    def get_gradient(self, field : flow.Grid) -> flow.Grid:
+        flow.math.spatial_gradient()
+
+    def start_simulation(self):
+        if self.diffusion_solver is None:
+            self.reset()
+        self.diffusion_solver.start()
+
+    @property
+    def concentration(self):
+        "Concentration field at time Tmax in the given environment"
+        if self.diffusion_solver is None:
+            self.reset()
+        return self.diffusion_solver.concentration
+
+    def __repr__(self) -> str:
+        return f"{__class__.__name__}(env={self.env!r}, solver={self.diffusion_solver!r})"
 
 def main():
     parser = argparse.ArgumentParser('Diffusion process simulation')
@@ -87,22 +138,6 @@ def diffusion_process_simulation(width=20, height=20, nb_obstacles=10, nb_partic
     fig.colorbar(cax)
 
     fig.tight_layout()
-    # grad = GradientField.compute_gradient(smoothed_field)
-
-    # fig2, ax2 = plt.subplots(2, 2)
-    # ax2[0,0].imshow(grad[0], cmap='inferno')
-    # # ax2[0, 0].set(title = "$$\nabla(c)_x$$")
-    # ax2[0,1].imshow(grad[1], cmap='inferno')
-    # # ax2[0, 1].set(title = "$$\nabla(c)_y$$")
-    # ax2[1,0].imshow(log_grad[0], cmap='inferno')
-    # # ax2[1, 0].set(title = "$$\nabla(log(c))_x$$")
-    # ax2[1,1].imshow(log_grad[1], cmap='inferno')
-    # # ax2[1, 1].set(title = "$$\nabla(log(c))_y$$")
-
-    # walker = Walker([200, 40], dt=1, sigma=1)
-    # for i in range(200):
-    #     draw_walker(env, walker, np.array(smoothed_field))
-    #     walker.step(smoothed_grad)
     plt.show()
 
 def draw_walker(snake_env : SnakeClassicEnv, walker : Walker, smoothed_field : np.array):

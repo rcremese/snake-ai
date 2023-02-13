@@ -1,0 +1,40 @@
+{
+    "width": 10,
+    "height": 10,
+    "pixel": 10,
+    "seed": 0,
+    "max_obs_size": 2,
+    "nb_obstacles": 2,
+    "render_mode": "None",
+
+    "food": {"circle": {
+        "x_center": 5,
+        "y_center": 5,
+        "radius": 5
+        }},
+
+    "snake": {
+        "x": 50,
+        "y": 50,
+        "pixel": 10
+    },
+
+    "obstacles": [
+        {
+            "rectangle": {
+                "left": 10,
+                "right": 20,
+                "top": 10,
+                "bottom": 20
+            }
+        },
+        {
+            "rectangle": {
+                "left": 40,
+                "right": 50,
+                "top": 40,
+                "bottom": 50
+            }
+        }
+    ]
+}

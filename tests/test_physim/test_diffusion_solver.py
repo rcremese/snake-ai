@@ -18,11 +18,16 @@ class TestDiffusionSolver:
         solver_without_obs = DiffusionSolver2D(self.x_max, self.y_max, self.t_max, source=self.env.food)
         assert solver_without_obs.obstacles == []
 
-    def test_rest(self):
+    def test_reset(self):
         pass
 
     def test_solver(self):
         pass
 
     def test_step(self):
+        pass
+
+from snake_ai.physim.simulation import Simulation
+class TestSimulation:
+    def test_reset(self):
         pass

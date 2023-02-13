@@ -5,6 +5,7 @@
  # @copyright https://mit-license.org/
  #
 from snake_ai.envs.snake_base_env import SnakeBaseEnv
+from snake_ai.envs.geometry import Circle, Rectangle
 from snake_ai.utils import Direction, Reward, Colors
 from typing import List, Tuple, Dict
 import numpy as np
@@ -12,8 +13,8 @@ import pygame
 import gym
 
 class SnakeClassicEnv(SnakeBaseEnv):
-    def __init__(self, render_mode=None, width: int = 20, height: int = 20, nb_obstacles: int = 0, pixel: int = 20, max_obs_size: int = 3):
-        super().__init__(render_mode, width, height, nb_obstacles, pixel, max_obs_size)
+    def __init__(self, render_mode=None, width: int = 20, height: int = 20, nb_obstacles: int = 0, pixel: int = 20, max_obs_size: int = 1, seed: int = 0):
+        super().__init__(render_mode, width, height, nb_obstacles, pixel, max_obs_size, seed)
         self.observation_space = gym.spaces.MultiBinary(11)
         self.action_space = gym.spaces.Discrete(3)
 
@@ -24,8 +25,9 @@ class SnakeClassicEnv(SnakeBaseEnv):
 
     def step(self, action : int) -> Tuple[np.ndarray, Reward, bool, Dict]:
         self._snake.move_from_action(action)
+        food = self._food.to_rectangle() if isinstance(self._food, Circle) else self._food
+        self.truncated = self._snake.head.colliderect(food)
         # A flag is set if the snake has reached the food
-        self.truncated = self._snake.head.colliderect(self._food)
         # An other one if the snake is outside or collide with obstacles
         terminated = self._is_collision()
         # Give a reward according to the condition

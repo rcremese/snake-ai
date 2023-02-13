@@ -5,11 +5,12 @@
  # @copyright https://mit-license.org/
  #
 import matplotlib.pyplot as plt
-from snake_ai.envs.geometry import Geometry, Rectangle
+from snake_ai.envs.geometry import Geometry, Geometry
 from phi.jax import flow
 import numpy as np
 from typing import List, Tuple, Optional
 from snake_ai.utils.types import Numerical
+from pathlib import Path
 
 @flow.math.jit_compile
 def explicit_diffusion(concentration : flow.field.Field, diffusion : Numerical, dt : Numerical) -> flow.field.Field:
@@ -28,7 +29,7 @@ def crank_nicolson_diffusion_with_obstacles(concentration : flow.field.Field, ob
     return (1-obstacle_mask) * flow.diffuse.implicit(concentration, diffusivity=diffusion, dt=dt, order=2)
 
 class DiffusionSolver2D:
-    def __init__(self, x_max : Numerical, y_max : Numerical, t_max : Numerical, source: Rectangle, init_value : float = 1, diff_coef : float = 1,
+    def __init__(self, x_max : Numerical, y_max : Numerical, t_max : Numerical, source: Geometry, init_value : float = 1, diff_coef : float = 1,
                  obstacles: List[Geometry] = None, grid_res : int or Tuple[int] = None) -> None:
         # Bounds
         if not (isinstance(x_max, (float, int)) or isinstance(y_max, (float, int))):
@@ -45,7 +46,7 @@ class DiffusionSolver2D:
         assert all([isinstance(obs, Geometry) for obs in obstacles]), "Only instances of Obstacle are allowed."
         self.obstacles = [obstacle.to_phiflow() for obstacle in obstacles] # Creates a phiflow mask array from a list of obstacles
         # Initial distrib
-        if not isinstance(source, Rectangle):
+        if not isinstance(source, Geometry):
             raise TypeError(f"Initial distribution need be an instance of Rectangle, not {type(source)}")
         if source.center[0] > self._x_max or source.center[1] > self._y_max:
             raise ValueError(f"Source center can not be out of bounds ([0,{self._x_max}], [0,{self._y_max}]). Get {source.center}")
@@ -123,43 +124,29 @@ class DiffusionSolver2D:
             return flow.field.stack(history, flow.batch('time'))
         return self.concentration
 
+    def write(self, output_path : Path or str):
+        dirpath = Path(output_path).resolve(strict=True)
+        filename = f"diffusion_Tmax={self.t_max}_D={self._diff_coef}"
+
+    def __repr__(self) -> str:
+        return f"{__class__.__name__}(x_max={self._x_max}, y_max={self._y_max}, t_max={self.t_max}, diff_coef={self._diff_coef},\
+            source={self._source!r}, init_value={self._init_value}, obstacles={self.obstacles!r}, grid_res={self._grid_res!r})"
+
 def main():
     from snake_ai.envs import SnakeClassicEnv
-    env = SnakeClassicEnv(width=10, height=10,nb_obstacles=20, pixel=10)
+    env = SnakeClassicEnv(width=10, height=10,nb_obstacles=5, pixel=10)
     env.reset()
     x_max, y_max = env.window_size
-    t_max = 20
+    t_max = 100
     diff = 1
     init = 1_000
     diff_solver = DiffusionSolver2D(x_max, y_max, t_max, source=env.food, init_value=init,diff_coef=diff, obstacles=env.obstacles)
-    solutions = diff_solver.start(nb_samples=5)
-    flow.vis.plot(solutions, show_color_bar=False)
+    solutions = diff_solver.start(nb_samples=1)
+
+    logs = flow.math.log(flow.math.where(solutions.values < 1e-4, 1e-4, solutions.values))
+    grads = flow.math.spatial_gradient(logs, padding=flow.extrapolation.ONE * np.log(1e-4))
+    flow.vis.plot([solutions, logs, grads], show_color_bar=False, cmap='inferno')
     plt.show()
 
 if __name__ == '__main__':
     main()
-# bounds = flow.Box(x=10, y=10)
-# obstacle = flow.union(flow.Box(x=(0, 4), y=(0, 4)), flow.Box(x=(5, 6), y=(5, 6)))
-
-# initial_distrib = flow.Sphere(x=5, y=5, radius=2)
-# concentration = 100 * flow.CenteredGrid(initial_distrib, bounds=bounds, x=100, y=50)
-
-# obs_mask = flow.HardGeometryMask(obstacle) @ concentration
-# concentration = (1-obs_mask) * concentration
-# print(concentration.dx)
-# D = 2
-# dt = min(concentration.dx)
-# print(dt)
-# # 0.5 * concentration.dx ** 2 / D
-
-# T_max = 50
-# i_print = T_max // 5
-
-# trajectory = [concentration]
-# for i in range(T_max):
-#     concentration = crank_nicolson_diffusion_with_obstacles(concentration, obs_mask, D, dt)
-#     if i % i_print == 0:
-#         trajectory.append(concentration)
-# # trajectory = flow.field.stack(trajectory, flow.batch('time'))
-# fig = flow.vis.plot(trajectory, show_color_bar=False)
-# plt.show()

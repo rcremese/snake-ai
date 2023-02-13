@@ -11,17 +11,53 @@ from snake_ai.utils.line import Line
 from snake_ai.utils import Direction
 from snake_ai.wrappers.relative_position_wrapper import RelativePositionWrapper
 import numpy as np
-import phi
+from pathlib import Path
+from phi import flow
+import json
 class TestSnakeClassicalEnv():
     w, h, pix = 5, 5, 10
-    nb_obs = 10
+    nb_obs = 2
 
     def test_reset(self):
         env = SnakeClassicEnv(render_mode=None, width=self.w, height=self.h, nb_obstacles=self.nb_obs, pixel=self.pix)
-        env.seed()
 
         env.reset()
         assert env.snake == SnakeAI(10, 10, pixel_size=self.pix)
+
+    def test_write(self, tmp_path):
+        env = SnakeClassicEnv(width=self.w, height=self.h, nb_obstacles=self.nb_obs, pixel=self.pix)
+        # Test simple environment write
+        output_path : Path = tmp_path.joinpath('env_write.json')
+        env.write(output_path)
+        with open(output_path, 'r') as file:
+            env_dict = json.load(file)
+        assert env_dict == {"width": self.w, "height": self.h, "pixel": self.pix, "seed": 0, "nb_obstacles": self.nb_obs,"max_obs_size": 3, "render_mode": "None"}
+        env.write(output_path, detailed=True)
+        with open(output_path, 'r') as file:
+            env_dict = json.load(file)
+        assert env_dict == {
+            "width": self.w,
+            "height": self.h,
+            "pixel": self.pix,
+            "seed": 0,
+            "nb_obstacles": self.nb_obs,
+            "max_obs_size": 3,
+            "render_mode": "None",
+
+            }
+
+    def test_load(self):
+        outputpath = Path(__file__).parent.joinpath('data', 'environment.json').resolve(strict=True)
+        env = SnakeClassicEnv.load(outputpath)
+        assert env.height == 10
+        assert env.width == 10
+        assert env._pixel_size == 10
+        assert env._max_obs_size == 2
+        assert env.nb_obstacles == 2
+        assert env.render_mode is None
+        assert env.food == Circle(5, 5, 5)
+        assert env.snake == SnakeAI(50, 50, 10)
+        assert env.obstacles == [Rectangle(10,10,10,10), Rectangle(40, 40, 10, 10)]
 
     def test_step(self):
         pass
@@ -47,7 +83,7 @@ class TestSnakeClassicalEnv():
     def test_collisions(self):
         pass
 
-from snake_ai.envs.geometry import Rectangle
+from snake_ai.envs.geometry import Rectangle, Circle
 class TestRectangle:
     x_0, y_0, w_0, h_0 = 0, 0, 1, 1
     x_1, y_1, w_1, h_1 = -5, -4, -1, 2
@@ -60,9 +96,24 @@ class TestRectangle:
     def test_phiflow_conversion(self):
         rect = Rectangle(self.x_0, self.y_0, self.w_0, self.h_0)
         phiflow_rect = rect.to_phiflow()
-        assert phiflow_rect == phi.geom.Box(x=(self.x_0, self.x_0 + self.w_0), y=(self.y_0, self.y_0 + self.h_0))
+        assert phiflow_rect == flow.Box(x=(self.x_0, self.x_0 + self.w_0), y=(self.y_0, self.y_0 + self.h_0))
 
     def test_dict_conversion(self):
         rect = Rectangle(self.x_0, self.y_0, self.w_0, self.h_0)
+        dictionary = {'left' : self.x_0, 'right' : self.x_0 + self.w_0, 'top' : self.y_0, 'bottom' : self.y_0 + self.h_0}
         rect_dict = rect.to_dict()
-        assert rect_dict ==  {'left' : self.x_0, 'right' : self.x_0 + self.w_0, 'top' : self.y_0, 'bottom' : self.y_0 + self.h_0}
+        assert rect_dict == dictionary
+
+        new_rect = Rectangle.from_dict(dictionary)
+        assert new_rect == rect
+
+class TestSphere:
+    x, y = 0, 1
+    radius = 1
+    sphere = Circle(x, y, radius)
+
+    def test_dict_conversion(self):
+        dictionary = self.sphere.to_dict()
+        assert dictionary == {'center' : [self.x, self.y], 'radius': self.radius}
+        new_sphere = Circle.from_dict(dictionary)
+        assert new_sphere == self.sphere

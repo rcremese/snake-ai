@@ -15,7 +15,11 @@ class Geometry(metaclass=ABCMeta):
         raise NotImplementedError()
 
     @abstractmethod
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> Dict[str, int]:
+        raise NotImplementedError()
+
+    @abstractmethod
+    def from_dict(cls, dictionary : Dict[str, int]):
         raise NotImplementedError()
 
     def _check_is_numerical(self, value : Any, name : str):
@@ -29,15 +33,31 @@ class Rectangle(pygame.Rect, Geometry):
     def to_dict(self) -> Dict:
         return {'left' : self.left, 'right' : self.right, 'top' : self.top, 'bottom' : self.bottom}
 
+    def to_circle(self):
+        return Circle(self.centerx, self.centery, min(self.height, self.width) / 2)
+
     def draw(self, canvas : pygame.Surface, color : Colors = Colors.RED):
         pygame.draw.rect(canvas, color.value, self)
 
-class Sphere(Geometry):
+    @classmethod
+    def from_dict(cls, dictionary : Dict[str, int]):
+        keys = ["left", "right", "top", "bottom"]
+        if any([key not in dictionary.keys() for key in keys]):
+            raise ValueError(f"Input dictonary need to contain the following keys : 'left', 'right', 'top', 'bottom'. Get {dictionary.keys()}")
+        width = dictionary['right'] - dictionary['left']
+        height = dictionary['bottom'] - dictionary['top']
+        return cls(dictionary['left'], dictionary['top'], width, height)
+
+class Circle(Geometry):
     def __init__(self, x_init : Numerical, y_init : Numerical, radius : Numerical) -> None:
         self._center = np.array([x_init, y_init], dtype=float)
+
         if radius <= 0:
             raise ValueError(f"Radius should be > 0, get {radius}")
         self.radius = radius
+
+        self.x, self.y = self._center - self.radius
+        self.diameter = 2 * self.radius
 
     def _collide_rect(self, rect : Rectangle) -> bool:
         assert isinstance(rect, Rectangle), 'Use colideall if you want to test collision against a list'
@@ -60,13 +80,13 @@ class Sphere(Geometry):
         return (np.linalg.norm(self._center - projection) <= self.radius)
 
     def _collide_sphere(self, sphere) -> bool:
-        assert isinstance(sphere, Sphere), f"Expected to check collision with a sphere, not {type(sphere)}"
+        assert isinstance(sphere, Circle), f"Expected to check collision with a sphere, not {type(sphere)}"
         return np.linalg.norm(self._center - sphere._center) < self.radius + sphere.radius
 
     def collide(self, obstacle : Geometry):
-        if isinstance(obstacle, Rectangle):
+        if isinstance(obstacle, Geometry):
             return self._collide_rect(obstacle)
-        elif isinstance(obstacle, Sphere):
+        elif isinstance(obstacle, Circle):
             return self._collide_sphere(obstacle)
         else:
             raise TypeError(f"Can not check collisions for instance of {type(obstacle)}")
@@ -87,7 +107,19 @@ class Sphere(Geometry):
         return flow.Sphere(x=self._center[0], y=self._center[1], radius=self.radius)
 
     def to_dict(self) -> Dict:
-        return {'center' : self._center.tolist(), 'radius' : self.radius}
+        return {'x_center' : self._center[0], 'y_center' : self._center[1], 'radius' : self.radius}
+
+    def to_rectangle(self) -> Rectangle:
+        return Rectangle(self.x, self.y, self.diameter, self.diameter)
 
     def __repr__(self) -> str:
         return f"{__class__.__name__}({self._center[0]!r},{self._center[1]!r}, {self.radius!r})"
+
+    def __eq__(self, other: object) -> bool:
+        assert isinstance(other, Circle), f"Can not compare circle with {type(other)}."
+        return np.array_equal(self._center, other._center) and self.radius == other.radius
+    @classmethod
+    def from_dict(cls, dictionary : Dict[str, int]) -> object:
+        if not {'x_center', 'y_center', 'radius'}.issubset(dictionary.keys()):
+            raise KeyError(f"Input dictonary need to contain the following keys : 'x_center', 'y_center','radius'. Get {dictionary.keys()}")
+        return cls(dictionary['x_center'], dictionary['y_center'], dictionary['radius'])

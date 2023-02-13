@@ -17,8 +17,8 @@ TOLERANCE = 1  # number of pixels accepted for cliped line
 
 
 class SnakeLinesEnv(SnakeBaseEnv):
-    def __init__(self, render_mode=None, width: int = 20, height: int = 20, nb_obstacles: int = 0, pixel: int = 20, max_obs_size: int = 3):
-        super().__init__(render_mode, width, height, nb_obstacles, pixel, max_obs_size)
+    def __init__(self, render_mode=None, width: int = 20, height: int = 20, nb_obstacles: int = 0, pixel: int = 20, max_obs_size: int = 1, seed: int = 0):
+        super().__init__(render_mode, width, height, nb_obstacles, pixel, max_obs_size, seed)
         self._nb_obs = len(Direction)
         self.observation_space = gym.spaces.Box(low=np.zeros((self._nb_obs, 2)), high=np.repeat([self.window_size], self._nb_obs, axis=0),
                                                 shape=(self._nb_obs, 2))
