@@ -50,38 +50,38 @@ class Rectangle(pygame.Rect, Geometry):
 
 class Circle(Geometry):
     def __init__(self, x_init : Numerical, y_init : Numerical, radius : Numerical) -> None:
-        self._center = np.array([x_init, y_init], dtype=float)
+        self.center = np.array([x_init, y_init], dtype=float)
 
         if radius <= 0:
             raise ValueError(f"Radius should be > 0, get {radius}")
         self.radius = radius
 
-        self.x, self.y = self._center - self.radius
+        self.x, self.y = self.center - self.radius
         self.diameter = 2 * self.radius
 
     def _collide_rect(self, rect : Rectangle) -> bool:
         assert isinstance(rect, Rectangle), 'Use colideall if you want to test collision against a list'
         ## obvious case where the particle center is inside the obstacle
-        if rect.collidepoint(*self._center):
+        if rect.collidepoint(*self.center):
             return True
         ## case where the sphere might be outside of the obstacle but collide with it
-        projection = np.copy(self._center)
+        projection = np.copy(self.center)
         # projection along the x-axis
-        if self._center[0] < rect.left:
+        if self.center[0] < rect.left:
             projection[0] = rect.left
-        elif self._center[0] > rect.right:
+        elif self.center[0] > rect.right:
             projection[0] = rect.right
         # projection along the y-axis
-        if self._center[1] < rect.top:
+        if self.center[1] < rect.top:
             projection[1] = rect.top
-        elif self._center[1] > rect.bottom:
+        elif self.center[1] > rect.bottom:
             projection[1] = rect.bottom
         # distance check between the projection and the center of the particle
-        return (np.linalg.norm(self._center - projection) <= self.radius)
+        return (np.linalg.norm(self.center - projection) <= self.radius)
 
     def _collide_sphere(self, sphere) -> bool:
         assert isinstance(sphere, Circle), f"Expected to check collision with a sphere, not {type(sphere)}"
-        return np.linalg.norm(self._center - sphere._center) < self.radius + sphere.radius
+        return np.linalg.norm(self.center - sphere.center) < self.radius + sphere.radius
 
     def collide(self, obstacle : Geometry):
         if isinstance(obstacle, Geometry):
@@ -101,23 +101,23 @@ class Circle(Geometry):
         return False
 
     def draw(self, canvas : pygame.Surface, color : Colors = Colors.MIDDLE_GREEN):
-        pygame.draw.circle(canvas, color.value, self._center, self.radius)
+        pygame.draw.circle(canvas, color.value, self.center, self.radius)
 
     def to_phiflow(self) -> flow.Box:
-        return flow.Sphere(x=self._center[0], y=self._center[1], radius=self.radius)
+        return flow.Sphere(x=self.center[0], y=self.center[1], radius=self.radius)
 
     def to_dict(self) -> Dict:
-        return {'x_center' : self._center[0], 'y_center' : self._center[1], 'radius' : self.radius}
+        return {'x_center' : self.center[0], 'y_center' : self.center[1], 'radius' : self.radius}
 
     def to_rectangle(self) -> Rectangle:
         return Rectangle(self.x, self.y, self.diameter, self.diameter)
 
     def __repr__(self) -> str:
-        return f"{__class__.__name__}({self._center[0]!r},{self._center[1]!r}, {self.radius!r})"
+        return f"{__class__.__name__}({self.center[0]!r},{self.center[1]!r}, {self.radius!r})"
 
     def __eq__(self, other: object) -> bool:
         assert isinstance(other, Circle), f"Can not compare circle with {type(other)}."
-        return np.array_equal(self._center, other._center) and self.radius == other.radius
+        return np.array_equal(self.center, other.center) and self.radius == other.radius
     @classmethod
     def from_dict(cls, dictionary : Dict[str, int]) -> object:
         if not {'x_center', 'y_center', 'radius'}.issubset(dictionary.keys()):

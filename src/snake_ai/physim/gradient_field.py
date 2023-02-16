@@ -11,6 +11,7 @@ import numpy as np
 
 from snake_ai.physim.convolution_window import ConvolutionWindow
 from snake_ai.physim.regular_grid import RegularGrid2D
+from phi.jax import flow
 from snake_ai.utils.types import ArrayLike
 
 from typing import List, Optional, Union
@@ -25,8 +26,14 @@ def smooth_field(field : ArrayLike, conv_window : ConvolutionWindow, stride = 1,
 
     return smoothed_field[::stride, ::stride]
 
-def compute_log(field : ArrayLike, eps : float = 1e-6) -> jax.Array:
-    return jnp.log(jnp.where(field < eps, eps, field))
+def compute_log(field : Union[ArrayLike, flow.Grid] , eps : float = 1e-6) -> Union[flow.CenteredGrid, jax.Array]:
+    if isinstance(field, flow.Grid):
+        threashold = flow.math.where(field.values < eps, eps, field.values)
+        return flow.CenteredGrid(flow.math.log(threashold), extrapolation=np.log(eps), bounds=field.bounds, resolution=field.resolution)
+    elif isinstance(field, (np.ndarray, jax.Array)):
+        return jnp.log(jnp.where(field < eps, eps, field))
+    else:
+        raise TypeError(f"Unexpected type {type(field)}. Use phi.flow.Grid or jax.Array instead.")
 
 def compute_gradient(field : ArrayLike, step : Union[float, List[ArrayLike]] = 1.):
     assert field.ndim == 2, "Computation allowed only for field of dim 2"

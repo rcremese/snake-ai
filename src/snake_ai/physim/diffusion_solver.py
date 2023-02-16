@@ -11,6 +11,7 @@ import numpy as np
 from typing import List, Tuple, Optional
 from snake_ai.utils.types import Numerical
 from pathlib import Path
+import warnings
 
 @flow.math.jit_compile
 def explicit_diffusion(concentration : flow.field.Field, diffusion : Numerical, dt : Numerical) -> flow.field.Field:
@@ -27,7 +28,6 @@ def crank_nicolson_diffusion(concentration : flow.field.Field, diffusion : Numer
 @flow.math.jit_compile
 def crank_nicolson_diffusion_with_obstacles(concentration : flow.field.Field, obstacle_mask : flow.field.Field, diffusion : Numerical, dt : Numerical) -> flow.field.Field:
     return (1-obstacle_mask) * flow.diffuse.implicit(concentration, diffusivity=diffusion, dt=dt, order=2)
-
 class DiffusionSolver2D:
     def __init__(self, x_max : Numerical, y_max : Numerical, t_max : Numerical, source: Geometry, init_value : float = 1, diff_coef : float = 1,
                  obstacles: List[Geometry] = None, grid_res : int or Tuple[int] = None) -> None:
@@ -76,6 +76,7 @@ class DiffusionSolver2D:
         self.reset()
 
     def reset(self):
+        self.time = 0
         bounds = flow.Box(x=self._x_max, y=self._y_max)
         # Define the initial concentration as a square with init_value in a grid which bounds are x_max and y_max.
         # Absorbing boundary conditions are set on the frontier and the obstacles
@@ -95,9 +96,13 @@ class DiffusionSolver2D:
             return crank_nicolson_diffusion_with_obstacles(concentration, self.obstacle_mask, self._diff_coef, self.dt)
 
     def start(self, nb_samples : int = 0) -> flow.CenteredGrid:
+        if self.time > self.t_max:
+            warnings.warn(f"The time {self.time} is already greater than the maximum time {self.t_max}. Reset the simulation or set time to 0 in order to start a new simulation.")
+            return self.concentration
+
         assert (nb_samples >= 0), f"The value for which we want to save the solution must be positive. Get {nb_samples}"
         return_history = nb_samples > 1
-        t = 0
+
         if return_history:
             time_samples_iter = iter(np.linspace(0, self.t_max, nb_samples))
             time_sample = next(time_samples_iter)
@@ -106,27 +111,21 @@ class DiffusionSolver2D:
             nb_samples -= 1
             time_sample = next(time_samples_iter)
 
-        while t < self.t_max:
+        while self.time < self.t_max:
             self.concentration = self.step(self.concentration)
-            t += self.dt
-            print(t)
+            self.time += self.dt
             # Save the history of the diffusion equation
-            if return_history and (t >= time_sample):
+            if return_history and (self.time >= time_sample):
                 history.append(self.concentration)
                 nb_samples -= 1
                 try:
                     time_sample = next(time_samples_iter)
                 except StopIteration:
                     break
-
         # In case we store an history, that's what is returned
         if return_history:
             return flow.field.stack(history, flow.batch('time'))
         return self.concentration
-
-    def write(self, output_path : Path or str):
-        dirpath = Path(output_path).resolve(strict=True)
-        filename = f"diffusion_Tmax={self.t_max}_D={self._diff_coef}"
 
     def __repr__(self) -> str:
         return f"{__class__.__name__}(x_max={self._x_max}, y_max={self._y_max}, t_max={self.t_max}, diff_coef={self._diff_coef},\
@@ -134,10 +133,10 @@ class DiffusionSolver2D:
 
 def main():
     from snake_ai.envs import SnakeClassicEnv
-    env = SnakeClassicEnv(width=10, height=10,nb_obstacles=5, pixel=10)
+    env = SnakeClassicEnv(width=20, height=20,nb_obstacles=20, pixel=10, max_obs_size=2)
     env.reset()
     x_max, y_max = env.window_size
-    t_max = 100
+    t_max = 1000
     diff = 1
     init = 1_000
     diff_solver = DiffusionSolver2D(x_max, y_max, t_max, source=env.food, init_value=init,diff_coef=diff, obstacles=env.obstacles)
@@ -145,7 +144,14 @@ def main():
 
     logs = flow.math.log(flow.math.where(solutions.values < 1e-4, 1e-4, solutions.values))
     grads = flow.math.spatial_gradient(logs, padding=flow.extrapolation.ONE * np.log(1e-4))
-    flow.vis.plot([solutions, logs, grads], show_color_bar=False, cmap='inferno')
+    concentration = solutions.values.numpy("y,x")
+    gradient = grads.numpy("gradient,y,x")
+    env.render('human')
+    fig, ax = plt.subplots(1,1)
+    ax.imshow(concentration)
+    ax.quiver(gradient[0], gradient[1], angles='xy', scale_units='xy', scale=1)
+    ax.set(title="Concentration and gradient field", xlabel='x', ylabel='y')
+    # flow.vis.plot([solutions, logs, grads], show_color_bar=False, cmap='inferno')
     plt.show()
 
 if __name__ == '__main__':

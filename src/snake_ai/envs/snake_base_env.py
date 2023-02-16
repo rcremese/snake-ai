@@ -64,13 +64,6 @@ class SnakeBaseEnv(gym.Env, metaclass=ABCMeta):
         self._seed = seed
         self.seed()
 
-        if render_mode == "human":
-            pygame.init()
-            # instanciation of arguments that will be used by pygame when drawing
-            self.window = pygame.display.set_mode(self.window_size)
-            self.font = pygame.font.Font(FONT_PATH, 25)
-            self.clock = pygame.time.Clock()
-
         # Set all existing attibutes to None
         self.observation_space = None
         self.action_space = None
@@ -80,11 +73,19 @@ class SnakeBaseEnv(gym.Env, metaclass=ABCMeta):
         self.truncated = None
         self._free_positions = None
         self._obstacles = None
+        self._window = None
+        self._font = None
+        self._clock = None
 
-    def _init_free_position(self):
-        grid = np.stack(np.meshgrid(range(self.width), range(self.height)))
-        mask = np.zeros_like(grid, dtype=bool)
-        self._free_positions = np.ma.array(grid, mask=mask)
+        if render_mode == "human":
+            self._init_human_renderer()
+
+    def _init_human_renderer(self):
+        pygame.init()
+        # instanciation of arguments that will be used by pygame when drawing
+        self._window = pygame.display.set_mode(self.window_size)
+        self._font = pygame.font.Font(FONT_PATH, 25)
+        self._clock = pygame.time.Clock()
 
     # Abstract methods definition
     @abstractmethod
@@ -173,7 +174,7 @@ class SnakeBaseEnv(gym.Env, metaclass=ABCMeta):
             env_dict['render_mode'] = None
         env = cls(env_dict['render_mode'], env_dict["width"], env_dict["height"],
                   env_dict["nb_obstacles"], env_dict["pixel"], env_dict["max_obs_size"], env_dict["seed"])
-        # TODO : add the possibility to incorporate the obstacles, snake and food position
+        # Check for additional informations in the dictionnary
         if 'snake' in env_dict:
             env.snake = SnakeAI.from_dict(env_dict['snake'])
         if 'food' in env_dict:
@@ -198,6 +199,8 @@ class SnakeBaseEnv(gym.Env, metaclass=ABCMeta):
     # Public methods definition:
 
     def render(self, mode="human", canvas=None):
+        if (mode == "human") and (self._window is None):
+            self._init_human_renderer()
         if canvas is None:
             canvas = pygame.Surface(self.window_size)
             canvas.fill(Colors.BLACK.value)
@@ -206,17 +209,17 @@ class SnakeBaseEnv(gym.Env, metaclass=ABCMeta):
 
         if mode == "human":
             # The following line copies our drawings from `canvas` to the visible window
-            self.window.blit(canvas, canvas.get_rect())
+            self._window.blit(canvas, canvas.get_rect())
             pygame.event.pump()
             # Draw the text showing the score
-            text = self.font.render(
+            text = self._font.render(
                 f"Score: {self.score}", True, Colors.WHITE.value)
-            self.window.blit(text, [0, 0])
+            self._window.blit(text, [0, 0])
             # update the display
             pygame.display.update()
             # We need to ensure that human-rendering occurs at the predefined framerate.
             # The following line will automatically add a delay to keep the framerate stable.
-            self.clock.tick(self.metadata["render_fps"])
+            self._clock.tick(self.metadata["render_fps"])
         else:  # rgb_array
             return np.transpose(np.array(pygame.surfarray.pixels3d(canvas)), axes=(1, 0, 2))
 
@@ -388,6 +391,14 @@ class SnakeBaseEnv(gym.Env, metaclass=ABCMeta):
 
     def _is_collision(self, rect: pygame.Rect = None) -> bool:
         return self._is_outside(rect) or self._collide_with_snake_body(rect) or self._collide_with_obstacles(rect)
+
+    def __eq__(self, other: object) -> bool:
+        assert isinstance(other, SnakeBaseEnv), f"Can not compare equality with an instance of {type(other)}. Expected type is SnakeBaseEnv"
+        size_check = (self.height == other.height) and (self.width == other.width) and (self.pixel_size == other.pixel_size)
+        snake_check = self.snake == other.snake
+        food_check = self.food == other.food
+        obstacles_check = self.obstacles == other.obstacles
+        return size_check and snake_check and food_check and obstacles_check
 
     def __repr__(self) -> str:
         return f"{__class__.__name__}(render_mode={self.render_mode!r}, width={self.width!r}, height={self.height!r}, nb_obstacles={self.nb_obstacles!r}, pixel_size={self._pixel_size!r}, max_obs_size={self._max_obs_size!r})"

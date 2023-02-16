@@ -8,30 +8,25 @@ from snake_ai.physim import ConvolutionWindow, DiffusionProcess, Walker, Regular
 from snake_ai.physim.gradient_field import SmoothGradientField, smooth_field, compute_log
 from snake_ai.envs import SnakeClassicEnv
 import matplotlib.pyplot as plt
+from snake_ai.utils.types import Numerical
+from typing import Union
 from phi.jax import flow
 from pathlib import Path
 import numpy as np
 import argparse
 import logging
+import json
 import time
 import pygame
 
+INIT_VALUE = 1e6
 class Simulation:
-    env : SnakeClassicEnv
-    diffusion_solver : DiffusionSolver2D
-    diff : float
-    t_max : float
-    _seed : int
-    _name : str
-
-    def __init__(self, width, height, pixel, nb_obs, diff, seed, t_max) -> None:
+    def __init__(self, width : int, height : int, nb_obs : int, max_size : int, pixel : int, seed : int, diff: Numerical, t_max : Numerical) -> None:
         # Initialise the environment and seed it
-        # TODO : replace numpy random with jax random to control the seed
-        self.env = SnakeClassicEnv(render_mode=None, width=width, height=height, nb_obstacles=nb_obs, pixel=pixel)
+        self.env = SnakeClassicEnv(render_mode=None, width=width, height=height, nb_obstacles=nb_obs, pixel=pixel, max_obs_size=max_size, seed=seed)
         if not isinstance(seed, int):
             raise TypeError(f"Seed need to be an int. Get {type(seed)}")
         self._seed = seed
-        self.env.seed(self._seed)
 
         if t_max <= 0 or diff <= 0:
             raise ValueError(f"The diffusion coefficient and the maximum simulation time need to be > 0. Get {diff} and {t_max} instead")
@@ -43,28 +38,58 @@ class Simulation:
     def reset(self):
         self.env.reset()
         x_max, y_max = self.env.window_size
-        self.diffusion_solver = DiffusionSolver2D(x_max, y_max, self.t_max, source=self.env.food, obstacles=self.env.obstacles, diff_coef=self.diff)
+        self.diffusion_solver = DiffusionSolver2D(x_max, y_max, self.t_max, source=self.env.food, init_value=INIT_VALUE, obstacles=self.env.obstacles, diff_coef=self.diff)
 
-    def load(self, dirpath : str or Path):
+    def write(self, dirpath : Union[str, Path]):
         dirpath = Path(dirpath).resolve(strict=True)
+        dirpath = dirpath.joinpath(self.name)
+        dirpath.mkdir()
 
-    def write(self, dirpath : str or Path):
-        pass
+        self.env.write(dirpath.joinpath("environment.json"), detailed=True)
+        flow.field.write(self.concentration, str(dirpath.joinpath("concentration_field")))
+        # Write the physical param in a specific file
+        phi_param = {"tmax" : self.t_max, "diffusion" : self.diff, "time" : self.diffusion_solver.time, "dt" : float(self.diffusion_solver.dt)}
+        with open(dirpath.joinpath("physical_params.json"), "w") as file:
+            json.dump(phi_param, file)
 
-    def get_gradient(self, field : flow.Grid) -> flow.Grid:
-        flow.math.spatial_gradient()
+    @classmethod
+    def load(cls, dirpath : Union[str, Path]):
+        dirpath = Path(dirpath).resolve(strict=True)
+        for filename in ["environment.json", "physical_params.json", "concentration_field.npz"]:
+            assert dirpath.joinpath(filename).exists(), f"Directory {dirpath.name} does not contain the file {filename} needed to load the simulation"
+        # Load the environment and physical param
+        env = SnakeClassicEnv.load(dirpath.joinpath("environment.json"))
+        with open(dirpath.joinpath("physical_params.json"), 'r') as file:
+            phy_param = json.load(file)
+        # Instanciate the simulation
+        simulation = cls(env.width, env.height, env.nb_obstacles, env._max_obs_size, env.pixel_size, env._seed, phy_param['diffusion'], phy_param['tmax'])
+        simulation.reset()
+        simulation.env = env
+        # Set the parameter of the diffusion solver
+        simulation.diffusion_solver.time = phy_param["time"]
+        simulation.diffusion_solver.concentration = flow.field.read(str(dirpath.joinpath("concentration_field.npz")))
+        return simulation
 
-    def start_simulation(self):
+    def get_gradient(self, field : flow.Grid) -> flow.CenteredGrid:
+        flow.math.spatial_gradient(field)
+
+    def start(self):
         if self.diffusion_solver is None:
             self.reset()
         self.diffusion_solver.start()
 
     @property
-    def concentration(self):
+    def concentration(self) -> flow.CenteredGrid:
         "Concentration field at time Tmax in the given environment"
         if self.diffusion_solver is None:
             self.reset()
         return self.diffusion_solver.concentration
+
+    @property
+    def name(self) -> str:
+        "Name used to identify the simulation"
+        x_max, y_max = self.env.window_size
+        return f"diffusion_Tmax={self.t_max}_D={self.diff}_Nobs={len(self.env.obstacles)}_size={self.env._max_obs_size}_Box({x_max},{y_max})_seed={self._seed}"
 
     def __repr__(self) -> str:
         return f"{__class__.__name__}(env={self.env!r}, solver={self.diffusion_solver!r})"
@@ -74,15 +99,44 @@ def main():
     parser.add_argument('-w', '--width', type=int, default=20, help='Width of the environment')
     parser.add_argument('-he', '--height', type=int, default=20, help='Height of the environment')
     parser.add_argument('-o', '--nb_obstacles', type=int, default=10, help='Number of obstacles in the environment')
-    parser.add_argument('-p', '--nb_particles', type=float, default=1_000, help='Number of particules to simulate')
-    parser.add_argument('-D', '--diff_coef', type=float, default=10, help='Diffusion coefficient of the diffusive process')
+    parser.add_argument('--max_size', type=int, default=2, help='Maximum size of the obstacles in terms of the pixel size')
+    # parser.add_argument('-p', '--nb_particles', type=float, default=1_000, help='Number of particules to simulate')
+    parser.add_argument('-D', '--diff_coef', type=float, default=1, help='Diffusion coefficient of the diffusive process')
     parser.add_argument('-s', '--seed', type=int, default=0, help='Seed for the simulation PRNG')
-    parser.add_argument('-t', '--t_max', type=int, default=None, help='Time for the end of the simulation')
-    parser.add_argument('-c ', '--conv_factor', type=float, default=1, help='Size of the convolution window in terms of the pixel size')
+    parser.add_argument('-t', '--t_max', type=int, default=100, help='Time for the end of the simulation')
+    # parser.add_argument('-c ', '--conv_factor', type=float, default=1, help='Size of the convolution window in terms of the pixel size')
+    parser.add_argument('--eps', type=float, default=1e-6, help='Threshold for the estimation of the log')
     parser.add_argument('--use_log', action="store_true", help='Flag to indicate whether to use log(concentration) or not')
-    parser.add_argument('--pixel', type=int, default=20, help='Size of a game pixel in pixel unit')
+    parser.add_argument('--pixel', type=int, default=10, help='Size of a game pixel in pixel unit')
     args = parser.parse_args()
-    diffusion_process_simulation(**vars(args))
+    # diffusion_process_simulation(**vars(args))
+    diffusion_equation_solver(**vars(args))
+
+def diffusion_equation_solver(width=20, height=20, nb_obstacles=10, max_size = 2, diff_coef=10, seed=0, pixel=10, t_max=None, use_log=False, eps=1e-6):
+    save_path = Path(__file__).parents[3].joinpath("datas").resolve(strict=True)
+    simu_name = f"diffusion_Tmax={t_max}_D={diff_coef}_Nobs={nb_obstacles}_size={max_size}_Box({width * pixel},{height * pixel})_seed={seed}"
+    if save_path.joinpath(simu_name).exists():
+        simu = Simulation.load(save_path.joinpath(simu_name))
+    else:
+        simu = Simulation(width, height, nb_obstacles, max_size, pixel, seed, diff=diff_coef, t_max=t_max)
+        simu.start()
+        simu.write(save_path)
+
+    if use_log:
+        log_concentration = compute_log(simu.concentration, eps=eps)
+        gradient = flow.field.spatial_gradient(log_concentration)
+    else:
+        gradient = flow.field.spatial_gradient(simu.concentration)
+    ## Visualisation
+    # simu.env.render("human")
+    _, ax = plt.subplots(1,2)
+    ax[0].imshow(simu.concentration.values.numpy('y,x'), cmap='viridis')
+    ax[0].set(title='Concentration + gradients', xlabel='x', ylabel='y')
+    np_grad = gradient.values.numpy('vector,y,x')
+    ax[0].quiver(np_grad[0], np_grad[1], angles='xy', scale_units='xy', scale=1)
+    ax[1].imshow(np.linalg.norm(np_grad, axis=0))
+    ax[1].set(title='Gradient norm', xlabel='x', ylabel='y')
+    plt.show()
 
 def diffusion_process_simulation(width=20, height=20, nb_obstacles=10, nb_particles=1_000, diff_coef=10, seed=0, pixel=20, conv_factor=1, t_max=None, use_log=False):
     draw = nb_particles <= 1_000

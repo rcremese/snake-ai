@@ -4,6 +4,8 @@ __pycache__
 .vscode
 # trained model (for now)
 models/*
+# the saved simulations in data
+datas/*
 # pip installs
 *.egg-info
 # logs
