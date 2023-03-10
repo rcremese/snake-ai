@@ -60,3 +60,18 @@ class TestSimulation:
         new_simu = Simulation.load(dirpath)
         assert new_simu.concentration == simu.concentration
         assert new_simu.env == simu.env
+
+from snake_ai.physim.converter import DiffusionConverter
+class TestConverter:
+    pixel_converter = DiffusionConverter("pixel")
+    meta_pixel_converter = DiffusionConverter("meta")
+
+    env = SnakeClassicEnv(nb_obstacles=10)
+    env.reset()
+
+    no_obs_env = SnakeClassicEnv()
+    env.reset()
+
+    def test_pixel_converter(self):
+        init_diff, obstacles = self.pixel_converter.convert(self.env)
+        assert init_diff == 2

@@ -4,21 +4,28 @@
  # @desc Created on 2022-05-13 6:21:04 pm
  # @copyright https://mit-license.org/
  #
-import pygame
 import logging
-from typing import List, Dict
+import pygame
+from typing import List, Dict, Tuple
+from snake_ai.envs.geometry import Rectangle
 from snake_ai.utils.direction import Direction, get_opposite_direction, get_direction_from_vector
 from snake_ai.utils import Colors
-
-BODY_PIXEL_SIZE = 12
-
 class Snake():
-    def __init__(self, x : float, y : float, pixel_size : int = 20) -> None:
-        self._pixel_size = pixel_size
-        self.head = pygame.Rect(x, y, self._pixel_size, self._pixel_size)
-        self.body = [self.head.move(-self._pixel_size, 0), self.head.move(-2*self._pixel_size, 0)]
+    def __init__(self, positions : List[Tuple[int]], pixel : int = 20) -> None:
+        assert pixel > 0, f"Pixel need to be a positive integer. Get {pixel}"
+        self.pixel = pixel
+
+        if not isinstance(positions, list):
+            raise TypeError(f"Positions of the snake parts need to be a list of tuples containing x and y positions. Get {type(positions)}")
+        assert len(positions) > 1, "Can not initialize a snake with only 1 position"
+        assert all(isinstance(pos, tuple) and len(pos)==2 for pos in positions), f"Positions should be tuple of 2 integers representing x and y positions. Get {positions}"
+        self.head = Rectangle(positions[0][0] * pixel, positions[0][1] * pixel, pixel, pixel)
+        self.body = []
+        for x, y in positions[1:]:
+            self.body.append(Rectangle(x * pixel, y * pixel, pixel, pixel))
+            # = [self.head.move(-self.pixel, 0), self.head.move(-2*self.pixel, 0)]
         self._size = len(self.body) + 1
-        self.direction = Direction.RIGHT
+        self.direction = self.get_direction_from_head_position()
 
     def draw(self, display, head_color : Colors = Colors.BLUE2, body_color : Colors = Colors.WHITE):
         # draw the head and eye
@@ -27,7 +34,7 @@ class Snake():
         for pt in self.body:
             pygame.draw.rect(display, head_color.value, pt)
             # draw the body of the snake, in order to count the parts
-            pygame.draw.rect(display, body_color.value, pt.inflate(-0.25 * self._pixel_size, -0.25 * self._pixel_size))
+            pygame.draw.rect(display, body_color.value, pt.inflate(-0.25 * self.pixel, -0.25 * self.pixel))
 
     def move(self, direction : Direction):
         # Change direction when going in the opposite
@@ -38,13 +45,13 @@ class Snake():
             self.direction = direction
         # move all parts of the snake
         if self.direction == Direction.RIGHT:
-            new_head = self.head.move(self._pixel_size, 0)
+            new_head = self.head.move(self.pixel, 0)
         elif self.direction == Direction.LEFT:
-            new_head = self.head.move(-self._pixel_size, 0)
+            new_head = self.head.move(-self.pixel, 0)
         elif self.direction == Direction.DOWN:
-            new_head = self.head.move(0, self._pixel_size)
+            new_head = self.head.move(0, self.pixel)
         elif self.direction == Direction.UP:
-            new_head = self.head.move(0, -self._pixel_size)
+            new_head = self.head.move(0, -self.pixel)
         else:
             raise ValueError(f'Unknown direction {direction}')
         # Check the intersetion of the new head with the rest of the body
@@ -70,13 +77,13 @@ class Snake():
 
     def get_direction_from_head_position(self, invert : bool = False) -> Direction:
         if invert:
-            disp_vect = ((self.body[-1].x - self.body[-2].x) // self._pixel_size, (self.body[-1].y - self.body[-2].y) // self._pixel_size)
+            disp_vect = ((self.body[-1].x - self.body[-2].x) // self.pixel, (self.body[-1].y - self.body[-2].y) // self.pixel)
         else:
-            disp_vect = ((self.head.x - self.body[0].x) // self._pixel_size, (self.head.y - self.body[0].y) // self._pixel_size)
+            disp_vect = ((self.head.x - self.body[0].x) // self.pixel, (self.head.y - self.body[0].y) // self.pixel)
         return get_direction_from_vector(disp_vect)
 
     def to_dict(self) -> Dict[str, int]:
-        return {'x': self.head.x, 'y': self.head.y, 'pixel': self._pixel_size}
+        return {'x': self.head.x, 'y': self.head.y, 'pixel': self.pixel}
 
     @classmethod
     def from_dict(cls, dictionary : Dict[str, int]):

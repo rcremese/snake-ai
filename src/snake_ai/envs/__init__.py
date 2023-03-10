@@ -1,6 +1,7 @@
 from .snake_classic_env import SnakeClassicEnv
 from .snake_lines_env import SnakeLinesEnv
 from .snake import SnakeAI, SnakeHuman
+from .geometry import Rectangle, Circle
 
 from gym.envs.registration import register
 

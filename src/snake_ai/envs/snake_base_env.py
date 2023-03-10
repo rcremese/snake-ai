@@ -5,7 +5,6 @@
 # @copyright https://mit-license.org/
 #
 from abc import ABCMeta, abstractmethod
-import json
 from snake_ai.utils.paths import FONT_PATH
 from snake_ai.utils.errors import CollisionError
 from snake_ai.envs.snake import Snake, SnakeAI
@@ -15,11 +14,12 @@ from pathlib import Path
 from typing import List, Union, Tuple, Optional
 import numpy as np
 import pygame
+import json
 import gym
 
 
 class SnakeBaseEnv(gym.Env, metaclass=ABCMeta):
-    metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 25}
+    metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 10}
 
     def __init__(self, render_mode=None, width: int = 20, height: int = 20, nb_obstacles: int = 0, pixel: int = 20, max_obs_size: int = 1, seed: int = 0):
         super().__init__()
@@ -286,6 +286,22 @@ class SnakeBaseEnv(gym.Env, metaclass=ABCMeta):
                 f"Food position need to be a factor of pixel size {self._pixel_size}, not ({food.x}, {food.y}) ")
         self._food = food
 
+    def _get_free_position_mask(self) -> np.ndarray:
+        free_positions = np.ones((self.width, self.height), dtype=bool)
+        for obstacle in self._obstacles:
+            x_obs , y_obs = obstacle.x // self.pixel_size, obstacle.y // self.pixel_size
+            obs_size = obstacle.width // self.pixel_size
+            free_positions[x_obs:x_obs+obs_size, y_obs:y_obs+obs_size] = False
+        x_food, y_food = self._food.x // self.pixel_size, self._food.y // self.pixel_size
+        free_positions[x_food, y_food] = False
+        return free_positions
+
+    @property
+    def free_positions(self) -> List[Tuple[int]]:
+        "The x and y coordinates of all the free positions in pixel values. Exclude the snake, the obstacles and the food."
+        free_position_mask = self._get_free_position_mask()
+        return [(x, y) for x in range(self.width) for y in range(self.height) if free_position_mask[x, y]]
+
     @property
     def obstacles(self) -> List[Geometry]:
         "Obstacles in the environment represented by a list of pygame.Rect"
@@ -313,7 +329,7 @@ class SnakeBaseEnv(gym.Env, metaclass=ABCMeta):
         available_positions = [(x, y) for x in range(2, self.width) for y in range(self.height) if all(self._free_positions[x-2:x+1, y])]
         assert len(available_positions) > 0, "There is no available positions for the snake in the current environment"
         x, y = self.rng.choice(available_positions)
-        snake = SnakeAI(x * self._pixel_size, y * self._pixel_size, pixel_size=self._pixel_size)
+        snake = SnakeAI(x * self._pixel_size, y * self._pixel_size, pixel=self._pixel_size)
         self._free_positions[x-2:x+1] = False
         return snake
 

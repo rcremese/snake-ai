@@ -14,6 +14,19 @@ import numpy as np
 from pathlib import Path
 from phi import flow
 import json
+
+class TestSnakeEnv():
+    w, h, pix = 5, 5, 10
+    nb_obs = 2
+
+    def test_reset(self):
+        pass
+    def test_step(self):
+        pass
+    def test_render(self):
+        pass
+    def test_close(self):
+        pass
 class TestSnakeClassicalEnv():
     w, h, pix = 5, 5, 10
     nb_obs = 2
@@ -22,7 +35,7 @@ class TestSnakeClassicalEnv():
         env = SnakeClassicEnv(render_mode=None, width=self.w, height=self.h, nb_obstacles=self.nb_obs, pixel=self.pix)
 
         env.reset()
-        assert env.snake == SnakeAI(10, 10, pixel_size=self.pix)
+        assert env.snake == SnakeAI(10, 10, pixel=self.pix)
 
     def test_write(self, tmp_path):
         env = SnakeClassicEnv(width=self.w, height=self.h, nb_obstacles=self.nb_obs, pixel=self.pix)

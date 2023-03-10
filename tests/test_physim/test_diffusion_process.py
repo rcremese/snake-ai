@@ -98,7 +98,7 @@ class TestDiffusionProcess:
     env.reset()
     # control environment
     food = pygame.Rect(4 * pixel_size, 0, pixel_size, pixel_size)
-    snake = SnakeAI(2 * pixel_size, 2 * pixel_size, pixel_size=pixel_size)
+    snake = SnakeAI(2 * pixel_size, 2 * pixel_size, pixel=pixel_size)
     obstacles = [pygame.Rect(0, 0, pixel_size, pixel_size), pygame.Rect(pixel_size, 3 * pixel_size, pixel_size, pixel_size)]
     positions= np.array([
             [0.5, 0.5], # collide
