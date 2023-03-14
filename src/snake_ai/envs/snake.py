@@ -6,6 +6,7 @@
  #
 import logging
 import pygame
+from abc import abstractmethod
 from typing import List, Dict, Tuple
 from snake_ai.envs.geometry import Rectangle
 from snake_ai.utils.direction import Direction, get_opposite_direction, get_direction_from_vector
@@ -84,6 +85,9 @@ class Snake():
 
     def to_dict(self) -> Dict[str, int]:
         return {'x': self.head.x, 'y': self.head.y, 'pixel': self.pixel}
+
+    def move_from_action(self, action : int):
+        raise NotImplementedError()
 
     @classmethod
     def from_dict(cls, dictionary : Dict[str, int]):
