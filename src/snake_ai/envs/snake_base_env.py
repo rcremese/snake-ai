@@ -329,7 +329,7 @@ class SnakeBaseEnv(gym.Env, metaclass=ABCMeta):
         available_positions = [(x, y) for x in range(2, self.width) for y in range(self.height) if all(self._free_positions[x-2:x+1, y])]
         assert len(available_positions) > 0, "There is no available positions for the snake in the current environment"
         x, y = self.rng.choice(available_positions)
-        snake = SnakeAI(x * self._pixel_size, y * self._pixel_size, pixel=self._pixel_size)
+        snake = SnakeAI([(x, y), (x-1, y), (x-2, y)], pixel=self._pixel_size)
         self._free_positions[x-2:x+1] = False
         return snake
 

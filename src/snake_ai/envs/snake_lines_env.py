@@ -110,21 +110,21 @@ class SnakeLinesEnv(SnakeBaseEnv):
         right_dist = self.window_size[0] - snake_head.right
         bottom_dist = self.window_size[1] - snake_head.bottom
 
-        if direction == Direction.UP:
+        if direction == Direction.NORTH:
             return pygame.Rect(snake_head.left, 0, snake_head.width, snake_head.top)
-        if direction == Direction.UP_RIGHT:
+        if direction == Direction.NORTH_EAST:
             return pygame.Rect(snake_head.right, 0, right_dist, snake_head.centery)
-        if direction == Direction.RIGHT:
+        if direction == Direction.EAST:
             return pygame.Rect(snake_head.topright, (right_dist, snake_head.height))
-        if direction == Direction.DOWN_RIGHT:
+        if direction == Direction.SOUTH_EAST:
             return pygame.Rect(snake_head.bottomright, (right_dist, bottom_dist))
-        if direction == Direction.DOWN:
+        if direction == Direction.SOUTH:
             return pygame.Rect(snake_head.bottomleft, (snake_head.width, bottom_dist))
-        if direction == Direction.DOWN_LEFT:
+        if direction == Direction.SOUTH_WEST:
             return pygame.Rect(0, snake_head.bottom, snake_head.left, bottom_dist)
-        if direction == Direction.LEFT:
+        if direction == Direction.WEST:
             return pygame.Rect(0, snake_head.top, snake_head.left, snake_head.height)
-        if direction == Direction.UP_LEFT:
+        if direction == Direction.NORTH_WEST:
             return pygame.Rect(0, 0, snake_head.left, snake_head.top)
         else:
             raise ValueError(f'Unknown direction {direction}')

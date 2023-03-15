@@ -6,7 +6,7 @@
  #
 from typing import Dict, List, Tuple
 import pygame
-from snake_ai.envs import SnakeClassicEnv, SnakeAI
+from snake_ai.envs import SnakeClassicEnv, SnakeAI, GridWorld
 from snake_ai.utils.line import Line
 from snake_ai.utils import Direction
 from snake_ai.wrappers.relative_position_wrapper import RelativePositionWrapper
@@ -15,17 +15,35 @@ from pathlib import Path
 from phi import flow
 import json
 
-class TestSnakeEnv():
+class TestGridWorld():
     w, h, pix = 5, 5, 10
-    nb_obs = 2
+    nb_obs, max_obs_size = 5, 2
+
+    grid_world = GridWorld(w, h, pix, nb_obs, max_obs_size)
+
+    def test_init(self):
+        grid_world = GridWorld(self.w, self.h, self.pix, self.nb_obs, self.max_obs_size)
+        assert grid_world.width == self.w
+        assert grid_world.height == self.h
+        assert grid_world.nb_obs == self.nb_obs
+        assert grid_world._max_obs_size == self.max_obs_size
 
     def test_reset(self):
-        pass
+        obs, info = self.grid_world.reset()
+
     def test_step(self):
         pass
+    
     def test_render(self):
         pass
+    
     def test_close(self):
+        pass
+
+    def test_observation(self):
+        pass
+
+    def test_free_position(self):
         pass
 class TestSnakeClassicalEnv():
     w, h, pix = 5, 5, 10

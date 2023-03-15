@@ -9,14 +9,14 @@ import numpy as np
 from typing import Tuple
 
 class Direction(enum.Enum):
-    UP = (0,-1)
-    UP_RIGHT = (np.sqrt(2) / 2, - np.sqrt(2) / 2)
-    RIGHT = (1,0)
-    DOWN_RIGHT = (np.sqrt(2) / 2, np.sqrt(2) / 2)
-    DOWN = (0,1)
-    DOWN_LEFT = (-np.sqrt(2) / 2, np.sqrt(2) / 2)
-    LEFT = (-1, 0)
-    UP_LEFT = (-np.sqrt(2) / 2, -np.sqrt(2) / 2)
+    NORTH = (0,-1)
+    NORTH_EAST = (np.sqrt(2) / 2, - np.sqrt(2) / 2)
+    EAST = (1,0)
+    SOUTH_EAST = (np.sqrt(2) / 2, np.sqrt(2) / 2)
+    SOUTH = (0,1)
+    SOUTH_WEST = (-np.sqrt(2) / 2, np.sqrt(2) / 2)
+    WEST = (-1, 0)
+    NORTH_WEST = (-np.sqrt(2) / 2, -np.sqrt(2) / 2)
 
 def get_direction_from_vector(vector : Tuple[int]) -> Direction:
     assert len(vector) == 2
@@ -26,28 +26,28 @@ def get_direction_from_vector(vector : Tuple[int]) -> Direction:
     raise ValueError(f'Unknown displacement {vector}')
 
 def get_opposite_direction(direction : Direction) -> Direction:
-    if direction == Direction.RIGHT:
-        return Direction.LEFT
+    if direction == Direction.EAST:
+        return Direction.WEST
 
-    if direction == Direction.LEFT:
-        return Direction.RIGHT
+    if direction == Direction.WEST:
+        return Direction.EAST
 
-    if direction == Direction.DOWN:
-        return Direction.UP
+    if direction == Direction.SOUTH:
+        return Direction.NORTH
 
-    if direction == Direction.UP:
-        return Direction.DOWN
+    if direction == Direction.NORTH:
+        return Direction.SOUTH
 
-    if direction == Direction.UP_RIGHT:
-        return Direction.DOWN_LEFT
+    if direction == Direction.NORTH_EAST:
+        return Direction.SOUTH_WEST
 
-    if direction == Direction.DOWN_LEFT:
-        return Direction.UP_RIGHT
+    if direction == Direction.SOUTH_WEST:
+        return Direction.NORTH_EAST
 
-    if direction == Direction.UP_LEFT:
-        return Direction.DOWN_RIGHT
+    if direction == Direction.NORTH_WEST:
+        return Direction.SOUTH_EAST
 
-    if direction == Direction.DOWN_RIGHT:
-        return Direction.UP_LEFT
+    if direction == Direction.SOUTH_EAST:
+        return Direction.NORTH_WEST
 
     raise ValueError(f'Unknown direction {direction}')

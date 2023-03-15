@@ -36,26 +36,26 @@ class PlayableSnake(gym.Wrapper):
 
     @staticmethod
     def action_from_direction(direction : Direction) -> int:
-        if direction == Direction.LEFT:
+        if direction == Direction.WEST:
             return 0
-        if direction == Direction.RIGHT:
+        if direction == Direction.EAST:
             return 1
-        if direction == Direction.UP:
+        if direction == Direction.NORTH:
             return 2
-        if direction == Direction.DOWN:
+        if direction == Direction.SOUTH:
             return 3
         raise ValueError(f"Unknown direction {direction}. Expected LEFT, RIGHT, UP or LEFT")
 
     @staticmethod
     def direction_from_action(action : int) -> Direction:
         if action == 0:
-            return Direction.LEFT
+            return Direction.WEST
         if action == 1:
-            return Direction.RIGHT
+            return Direction.EAST
         if action == 2:
-            return Direction.UP
+            return Direction.NORTH
         if action == 3:
-            return Direction.DOWN
+            return Direction.SOUTH
         raise ValueError(f"Unknown action {action}. Expected 0, 1, 2 or 3")
 
 def play(width, height, speed, obstacles):

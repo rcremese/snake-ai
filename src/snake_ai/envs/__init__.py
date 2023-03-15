@@ -1,5 +1,6 @@
 from .snake_classic_env import SnakeClassicEnv
 from .snake_lines_env import SnakeLinesEnv
+from .grid_world import GridWorld
 from .snake import SnakeAI, SnakeHuman
 from .geometry import Rectangle, Circle
 

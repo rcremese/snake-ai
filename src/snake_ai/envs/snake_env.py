@@ -101,10 +101,10 @@ class SnakeEnv(GridWorld):
             self._is_collision(front), # FRONT
             self._is_collision(right), # RIGHT
             ## Snake direction
-            self._snake.direction == Direction.UP, # UP
-            self._snake.direction == Direction.RIGHT, # RIGHT
-            self._snake.direction == Direction.DOWN, # DOWN
-            self._snake.direction == Direction.LEFT, # LEFT
+            self._snake.direction == Direction.NORTH, # UP
+            self._snake.direction == Direction.EAST, # RIGHT
+            self._snake.direction == Direction.SOUTH, # DOWN
+            self._snake.direction == Direction.WEST, # LEFT
             ## Food position
             self._goal.y < self._position.y, # UP
             self._goal.x > self._position.x, # RIGHT
@@ -182,13 +182,13 @@ class SnakeEnv(GridWorld):
         """
         up, right, down, left = super()._get_neighbours()
 
-        if self._snake.direction == Direction.UP:
+        if self._snake.direction == Direction.NORTH:
             return left, up, right
-        if self._snake.direction == Direction.RIGHT:
+        if self._snake.direction == Direction.EAST:
             return up, right, down
-        if self._snake.direction == Direction.DOWN:
+        if self._snake.direction == Direction.SOUTH:
             return right, down, left
-        if self._snake.direction == Direction.LEFT:
+        if self._snake.direction == Direction.WEST:
             return down, left, up
         raise ValueError(f'Unknown direction {self._snake.direction}')
 

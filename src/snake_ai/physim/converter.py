@@ -40,7 +40,7 @@ class DiffusionConverter(Converter):
         else:
             return self._convert_metapixel(env)
 
-    def _convert_metapixel(env : SnakeClassicEnv) -> Tuple[flow.CenteredGrid, Optional[flow.Geometry]]:
+    def _convert_metapixel(self, env : SnakeClassicEnv) -> Tuple[flow.CenteredGrid, Optional[flow.Geometry]]:
         bounds = flow.Box(x=env.width, y=env.height)
         source =  Circle(*env.food.center // env.pixel_size)
 
@@ -55,5 +55,7 @@ class DiffusionConverter(Converter):
         if self.obstacle_mask is not None:
             self.concentration = (1 - self.obstacle_mask) * self.concentration
 
+    def _convert_pixel(self, env):
+        return super()._convert_pixel(env)
 class PointCloudConverter(Converter):
     pass

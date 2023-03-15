@@ -4,7 +4,7 @@
  # @desc Created on 2023-03-13 1:08:45 pm
  # @copyright MIT License
  #
-from snake_ai.envs import Rectangle
+from snake_ai.envs.geometry import Rectangle
 import pygame
 
 import numpy as np
@@ -68,7 +68,7 @@ class GridWorld(gym.Env):
         self.seed(seed)
 
     ## Public methods
-    def reset(self, seed : Optional[int]=None) -> Tuple[np.ndarray, Dict[str]]:
+    def reset(self, seed : Optional[int]=None) -> Tuple[np.ndarray, Dict[str, Any]]:
         """Method to reset the environment
 
         Args:
@@ -90,7 +90,7 @@ class GridWorld(gym.Env):
         self._goal = self._place_goal()
         self._position = self._place_goal(mask_position=False)
         self._truncated = False
-        self._direction = Direction.UP
+        self._direction = Direction.NORTH
         return self.observations, self.info
 
     def step(self, action : int) -> Tuple[np.ndarray, Reward, bool, Dict]:
@@ -106,16 +106,16 @@ class GridWorld(gym.Env):
             Tuple[np.ndarray, Reward, bool, Dict]: Classical "observations, reward, done, info" signals sent by Gym environments
         """
         if action == 0:
-            self._direction = Direction.UP
+            self._direction = Direction.NORTH
             self._position.move_ip(0, -self.pixel)
         elif action == 1:
-            self._direction = Direction.RIGHT
+            self._direction = Direction.EAST
             self._position.move_ip(self.pixel, 0)
         elif action == 2:
-            self._direction = Direction.DOWN
+            self._direction = Direction.SOUTH
             self._position.move_ip(0, self.pixel)
         elif action == 3:
-            self._direction = Direction.LEFT
+            self._direction = Direction.WEST
             self._position.move_ip(-self.pixel, 0)
         else:
             raise ValueError(f"Expected action values are [0, 1, 2, 3]. Get {action}")
@@ -273,10 +273,10 @@ class GridWorld(gym.Env):
             self._is_collision(down), # BOTTOM
             self._is_collision(left), # LEFT
             ## Snake direction
-            self._direction == Direction.UP, # UP
-            self._direction == Direction.RIGHT, # RIGHT
-            self._direction == Direction.DOWN, # DOWN
-            self._direction == Direction.LEFT, # LEFT
+            self._direction == Direction.NORTH, # UP
+            self._direction == Direction.EAST, # RIGHT
+            self._direction == Direction.SOUTH, # DOWN
+            self._direction == Direction.WEST, # LEFT
             ## Food position
             self._goal.y < self._position.y, # UP
             self._goal.x > self._position.x, # RIGHT
@@ -328,9 +328,9 @@ class GridWorld(gym.Env):
         """
         if not isinstance(rect, Rectangle):
             raise TypeError("Only rectangles are allowed in GridWorld.")
-        if (rect.x < 0) or (rect.x > self.window_size[0]) or (rect.y < 0) or (rect.y > self.window_size[1]):
-            raise OutOfBoundsError(f"The rectangle position ({rect.x}, {rect.y}) is out of bounds {self.window_size}")
-        if any([corner % self.pixel != 0 for corner in [rect.x, rect.y, rect.width, rect.height]]):
+        if self._is_outside(rect):
+            raise OutOfBoundsError(f"The rectangle {rect} is out of bounds {self.window_size}")
+        if any([corner % self.pixel != 0 for corner in [rect.top, rect.left, rect.bottom, rect.right]]):
             raise ResolutionError(f"The rectangle positions and lengths need to be a factor of pixel size : {self.pixel}.")
         if rect.height > max_size or rect.height > max_size:
             raise ShapeError(f"The rectangle length can not be greater than {max_size}. " +

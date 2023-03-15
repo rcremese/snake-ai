@@ -58,13 +58,13 @@ class SnakeClassicEnv(SnakeBaseEnv):
 
             ## Snake direction
             # UP
-            self._snake.direction == Direction.UP,
+            self._snake.direction == Direction.NORTH,
             # RIGHT
-            self._snake.direction == Direction.RIGHT,
+            self._snake.direction == Direction.EAST,
             # DOWN
-            self._snake.direction == Direction.DOWN,
+            self._snake.direction == Direction.SOUTH,
             # LEFT
-            self._snake.direction == Direction.LEFT,
+            self._snake.direction == Direction.WEST,
 
             ## Food position
             # UP
@@ -93,12 +93,12 @@ class SnakeClassicEnv(SnakeBaseEnv):
         left = self._snake.head.move(-self._pixel_size, 0)
         right = self._snake.head.move(self._pixel_size, 0)
 
-        if self._snake.direction == Direction.UP:
+        if self._snake.direction == Direction.NORTH:
             return left, top, right
-        if self._snake.direction == Direction.RIGHT:
+        if self._snake.direction == Direction.EAST:
             return top, right, bottom
-        if self._snake.direction == Direction.DOWN:
+        if self._snake.direction == Direction.SOUTH:
             return right, bottom, left
-        if self._snake.direction == Direction.LEFT:
+        if self._snake.direction == Direction.WEST:
             return bottom, left, top
         raise ValueError(f'Unknown direction {self._snake.direction}')

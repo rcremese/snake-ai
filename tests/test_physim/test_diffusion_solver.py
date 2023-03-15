@@ -63,8 +63,8 @@ class TestSimulation:
 
 from snake_ai.physim.converter import DiffusionConverter
 class TestConverter:
-    pixel_converter = DiffusionConverter("pixel")
-    meta_pixel_converter = DiffusionConverter("meta")
+    pixel_converter = DiffusionConverter("pixel", 1e6)
+    meta_pixel_converter = DiffusionConverter("meta", 1e6)
 
     env = SnakeClassicEnv(nb_obstacles=10)
     env.reset()

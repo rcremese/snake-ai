@@ -102,14 +102,14 @@ class RelativePositionWrapper(gym.Wrapper):
         i.e : suppose the agent's direction is RIGHT, then LEFT is removed from the list and elements are added clockwise
         RIGHT -> DOWN_RIGHT -> DOWN -> DOWN_LEFT -> XXX -> UP_LEFT -> UP -> UP_RIGHT
         """
-        if snake_dir == Direction.UP:
-            return [Direction.UP, Direction.UP_RIGHT, Direction.RIGHT, Direction.DOWN_RIGHT, Direction.DOWN_LEFT, Direction.LEFT, Direction.UP_LEFT]
-        if snake_dir == Direction.RIGHT:
-            return [Direction.RIGHT, Direction.DOWN_RIGHT, Direction.DOWN, Direction.DOWN_LEFT, Direction.UP_LEFT, Direction.UP, Direction.UP_RIGHT]
-        if snake_dir == Direction.DOWN:
-            return [Direction.DOWN, Direction.DOWN_LEFT, Direction.LEFT, Direction.UP_LEFT, Direction.UP_RIGHT, Direction.RIGHT, Direction.DOWN_RIGHT]
-        if snake_dir == Direction.LEFT:
-            return [Direction.LEFT, Direction.UP_LEFT, Direction.UP, Direction.UP_RIGHT, Direction.DOWN_RIGHT, Direction.DOWN, Direction.DOWN_LEFT]
+        if snake_dir == Direction.NORTH:
+            return [Direction.NORTH, Direction.NORTH_EAST, Direction.EAST, Direction.SOUTH_EAST, Direction.SOUTH_WEST, Direction.WEST, Direction.NORTH_WEST]
+        if snake_dir == Direction.EAST:
+            return [Direction.EAST, Direction.SOUTH_EAST, Direction.SOUTH, Direction.SOUTH_WEST, Direction.NORTH_WEST, Direction.NORTH, Direction.NORTH_EAST]
+        if snake_dir == Direction.SOUTH:
+            return [Direction.SOUTH, Direction.SOUTH_WEST, Direction.WEST, Direction.NORTH_WEST, Direction.NORTH_EAST, Direction.EAST, Direction.SOUTH_EAST]
+        if snake_dir == Direction.WEST:
+            return [Direction.WEST, Direction.NORTH_WEST, Direction.NORTH, Direction.NORTH_EAST, Direction.SOUTH_EAST, Direction.SOUTH, Direction.SOUTH_WEST]
         raise ValueError(f'Unknown direction {snake_dir}')
 
     def _get_passing_matrix(self, snake_dir : Direction) -> np.array:
@@ -126,13 +126,13 @@ class RelativePositionWrapper(gym.Wrapper):
         Returns:
             np.array: _description_
         """
-        if snake_dir == Direction.UP:
+        if snake_dir == Direction.NORTH:
             return np.array([[1, 0], [0, -1]])
-        if snake_dir == Direction.RIGHT:
+        if snake_dir == Direction.EAST:
             return np.array([[0, 1], [1, 0]])
-        if snake_dir == Direction.DOWN:
+        if snake_dir == Direction.SOUTH:
             return np.array([[-1, 0], [0, 1]])
-        if snake_dir == Direction.LEFT:
+        if snake_dir == Direction.WEST:
             return np.array([[0, -1], [-1, 0]])
         raise ValueError(f'Unknown direction {snake_dir}')
 
