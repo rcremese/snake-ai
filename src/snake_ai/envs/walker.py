@@ -11,8 +11,8 @@ class Walker2D(Agent):
         self.pixel = int(pixel)
         self._position = Rectangle(x * self.pixel, y * self.pixel, self.pixel, self.pixel)
         self._direction = Direction.NORTH
-    
-    ## Public methods    
+
+    ## Public methods
     def move(self, direction : Direction):
         self.direction = direction
         if direction == Direction.NORTH:
@@ -25,10 +25,10 @@ class Walker2D(Agent):
             self._position.move_ip(-self.pixel, 0)
         else:
             raise errors.UnknownDirection(f"Unknown direction {direction}. Expected directions : 'NORTH', 'EAST', 'SOUTH', 'WEST'.")
-    
+
     def move_from_action(self, action : int):
         if action not in range(4):
-            raise ValueError(f"Unable to map direction with the input value {action}. Action need to be an integer in range [0,3]")
+            raise errors.InvalidAction(f"Unable to map direction with the input value {action}. Action need to be an integer in range [0,3]")
         if action == 0:
             self.move(Direction.NORTH)
         elif action == 1:
@@ -40,8 +40,8 @@ class Walker2D(Agent):
 
     def draw(self, canvas: pygame.Surface):
         pygame.draw.rect(canvas, Colors.BLUE1.value, self.position)
-        
-    # Properties                
+
+    # Properties
     @property
     def neighbours(self) -> List[Rectangle]:
         "Neighbours of the current position of the agent"
@@ -56,3 +56,6 @@ class Walker2D(Agent):
         if not isinstance(other, Walker2D):
             raise TypeError(f"Can not compare instance of Walker2D with {type(other)}")
         return self.direction == other.direction and self.position == other.position
+
+    def __repr__(self) -> str:
+        return f"{__class__.__name__}(position={self.position!r}, direction={self.direction}, pixel={self.pixel})"

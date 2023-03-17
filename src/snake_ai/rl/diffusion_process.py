@@ -5,9 +5,8 @@
  # @copyright https://mit-license.org/
  #
 
-from turtle import done
-from snake_ai.envs import SnakeClassicEnv
-from snake_ai.wrappers import DeterministicDiffusionWrapper, StochasticDiffusionWrapper
+from snake_ai.envs.snake_classic_env import SnakeClassicEnv
+from snake_ai.wrappers import StochasticDiffusionWrapper
 import pygame
 import numpy as np
 

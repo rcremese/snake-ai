@@ -1,25 +1,25 @@
 from snake_ai.physim.diffusion_solver import DiffusionSolver2D
 from snake_ai.physim.gradient_field import compute_log
-from snake_ai.envs import SnakeClassicEnv
+from snake_ai.envs import GridWorld
 from pathlib import Path
 from phi import flow
 import numpy as np
 import json
 class TestDiffusionSolver:
-    env = SnakeClassicEnv(nb_obstacles=10)
+    env = GridWorld()
     env.seed()
     env.reset()
     x_max, y_max = env.window_size
     t_max = 1
 
     def test_init(self):
-        solver = DiffusionSolver2D(self.x_max, self.y_max, self.t_max, source=self.env.food, obstacles=self.env.obstacles)
+        solver = DiffusionSolver2D(self.x_max, self.y_max, self.t_max, source=self.env.goal, obstacles=self.env.obstacles)
         assert solver._x_max == self.x_max
         assert solver._y_max == self.y_max
         assert solver.t_max == 1
         assert solver._grid_res == self.env.window_size
         assert solver.obstacles == [obs.to_phiflow() for obs in self.env.obstacles]
-        solver_without_obs = DiffusionSolver2D(self.x_max, self.y_max, self.t_max, source=self.env.food)
+        solver_without_obs = DiffusionSolver2D(self.x_max, self.y_max, self.t_max, source=self.env.goal)
         assert solver_without_obs.obstacles == []
 
     def test_log(self):
@@ -66,10 +66,10 @@ class TestConverter:
     pixel_converter = DiffusionConverter("pixel", 1e6)
     meta_pixel_converter = DiffusionConverter("meta", 1e6)
 
-    env = SnakeClassicEnv(nb_obstacles=10)
+    env = GridWorld()
     env.reset()
 
-    no_obs_env = SnakeClassicEnv()
+    no_obs_env = GridWorld()
     env.reset()
 
     def test_pixel_converter(self):

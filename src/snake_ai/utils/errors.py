@@ -16,3 +16,5 @@ class OutOfBoundsError(BaseValidationError):
     pass
 class UnknownDirection(BaseValidationError):
     pass
+class InvalidAction(BaseValidationError):
+    pass

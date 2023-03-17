@@ -7,7 +7,7 @@
 from abc import ABCMeta, abstractmethod
 from snake_ai.utils.paths import FONT_PATH
 from snake_ai.utils.errors import CollisionError
-from snake_ai.envs.snake import Snake, SnakeAI
+from snake_ai.envs.snake import Snake
 from snake_ai.envs.geometry import Geometry, Rectangle, Circle
 from snake_ai.utils import Colors
 from pathlib import Path
@@ -176,7 +176,7 @@ class SnakeBaseEnv(gym.Env, metaclass=ABCMeta):
                   env_dict["nb_obstacles"], env_dict["pixel"], env_dict["max_obs_size"], env_dict["seed"])
         # Check for additional informations in the dictionnary
         if 'snake' in env_dict:
-            env.snake = SnakeAI.from_dict(env_dict['snake'])
+            env.snake = Snake.from_dict(env_dict['snake'])
         if 'food' in env_dict:
             if "circle" in env_dict["food"]:
                 env.food = Circle.from_dict(env_dict["food"]["circle"])
@@ -329,7 +329,7 @@ class SnakeBaseEnv(gym.Env, metaclass=ABCMeta):
         available_positions = [(x, y) for x in range(2, self.width) for y in range(self.height) if all(self._free_positions[x-2:x+1, y])]
         assert len(available_positions) > 0, "There is no available positions for the snake in the current environment"
         x, y = self.rng.choice(available_positions)
-        snake = SnakeAI([(x, y), (x-1, y), (x-2, y)], pixel=self._pixel_size)
+        snake = Snake([(x, y), (x-1, y), (x-2, y)], pixel=self._pixel_size)
         self._free_positions[x-2:x+1] = False
         return snake
 

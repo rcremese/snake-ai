@@ -1,5 +1,4 @@
-from snake_ai.envs import SnakeClassicEnv, SnakeAI
-
+from snake_ai.envs import GridWorld, Snake
 import numpy as np
 import pygame
 import pytest
@@ -93,12 +92,12 @@ class TestDiffusionProcess:
     -----  - : empty pixel
     """
     pixel_size = 10
-    env = SnakeClassicEnv(width=5, height=5, nb_obstacles=0, pixel=pixel_size)
+    env = GridWorld(width=5, height=5, pixel=pixel_size)
     env.seed(0)
     env.reset()
     # control environment
     food = pygame.Rect(4 * pixel_size, 0, pixel_size, pixel_size)
-    snake = SnakeAI([(2, 2), (1, 2), (0, 2)], pixel=pixel_size)
+    snake = Snake([(2, 2), (1, 2), (0, 2)], pixel=pixel_size)
     obstacles = [pygame.Rect(0, 0, pixel_size, pixel_size), pygame.Rect(pixel_size, 3 * pixel_size, pixel_size, pixel_size)]
     positions= np.array([
             [0.5, 0.5], # collide
@@ -120,7 +119,7 @@ class TestDiffusionProcess:
         ## Test one particule
         diff_process = DiffusionProcess(nb_particles=1, window_size=self.window_size, t_max=self.t_max, diff_coef=self.diff_coef, part_radius=self.radius, seed=self.seed)
         # initialise the particle
-        diff_process.reset(*self.env.food.center)
+        diff_process.reset(*self.env.goal.center)
         assert diff_process.particles == [Particle(45, 5, self.radius)]
         assert np.array_equal(diff_process._positions, np.array([[45, 5]]))
         assert diff_process._collisions.tolist() == [False]
@@ -146,13 +145,13 @@ class TestDiffusionProcess:
         ## Test one particule
         diff_process = DiffusionProcess(nb_particles=1, window_size=self.window_size, t_max=self.t_max, diff_coef=self.diff_coef, part_radius=self.radius)
         # initialise the particle
-        diff_process.reset(*self.env.food.center)
+        diff_process.reset(*self.env.goal.center)
         diff_process.step()
         assert diff_process.particles == [Particle(45.193077087402344,4.473217010498047, self.radius)]
         assert diff_process._collisions == np.array([False])
         ## Test several particules
         mult_diff_process = DiffusionProcess(nb_particles=self.nb_part, window_size=self.window_size, t_max=self.t_max, diff_coef=self.diff_coef, part_radius=self.radius)
-        mult_diff_process.reset(*self.env.food.center)
+        mult_diff_process.reset(*self.env.goal.center)
         mult_diff_process.step()
         assert mult_diff_process.particles == [
             Particle(44.611873626708984,4.955128192901611, self.radius),

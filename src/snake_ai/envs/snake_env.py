@@ -1,15 +1,15 @@
 import gym
 import gym.spaces
 import pygame
-from snake_ai.envs.snake import Snake, SnakeAI
-from snake_ai.envs.grid_world import GridWorld
+from snake_ai.envs.snake import Snake
+from snake_ai.envs.random_obstacles_env import RandomObstaclesEnv
 from snake_ai.envs.geometry import Rectangle
 from snake_ai.utils import Colors, Reward, Direction
 from snake_ai.utils.errors import CollisionError, ConfigurationError, InitialisationError
 from typing import Optional, Tuple, Dict, List
 import numpy as np
 
-class SnakeEnv(GridWorld):
+class SnakeEnv(RandomObstaclesEnv):
     def __init__(self, width: int = 20, height: int = 20, pixel: int = 20, nb_obs: int = 0,
                  max_obs_size: int = 1, seed: int = 0, render_mode : Optional[str]=None):
         super().__init__(width, height, pixel, nb_obs, max_obs_size, seed, render_mode)
@@ -113,7 +113,7 @@ class SnakeEnv(GridWorld):
         ], dtype=int)
 
     #TODO : Think about a new way to initialize snake !
-    def _place_snake(self) -> SnakeAI:
+    def _place_snake(self) -> Snake:
         # As the snake is initialised along
         # available_positions = [(x, y) for x in range(2, self.width) for y in range(self.height) if all(self._free_positions[x-2:x+1, y])]
         # assert len(available_positions) > 0, "There is no available positions for the snake in the current environment"
@@ -122,7 +122,7 @@ class SnakeEnv(GridWorld):
         snake_positions = self._get_snake_positions(available_positions)
         # x, y = self.rng.choice(self.free_positions)
         # snake = SnakeAI(x * self.pixel, y * self.pixel, pixel=self.pixel)
-        snake = SnakeAI(snake_positions, pixel=self.pixel)
+        snake = Snake(snake_positions, pixel=self.pixel)
         # self._free_position_mask[x-2:x+1, y-2:y+1] = False
         return snake
 

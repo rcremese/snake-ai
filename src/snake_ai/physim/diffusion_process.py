@@ -4,7 +4,7 @@
 # @desc Created on 2022-11-16 5:29:26 pm
 # @copyright https://mit-license.org/
 #
-from snake_ai.envs import SnakeClassicEnv
+from snake_ai.envs.snake_classic_env import SnakeClassicEnv
 from snake_ai.utils import Colors
 from snake_ai.utils.errors import ShapeError
 from snake_ai.physim import Particle
