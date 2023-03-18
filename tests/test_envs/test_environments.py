@@ -100,6 +100,22 @@ class TestGridWorld():
             "truncated": False,
         }
 
+    def test_obstacles(self):
+        grid_world = GridWorld(self.w, self.h, self.pix, self.seed)
+        # -O---
+        # -----
+        # --OOO
+        # --OOO
+        # --OOO
+        obstacles = [Rectangle(self.pix, 0, self.pix, self.pix),
+                     Rectangle(2 * self.pix, 2 * self.pix, 3 * self.pix, 3 * self.pix)]
+        grid_world.obstacles = obstacles
+        free_pos = np.ones((self.w, self.h), dtype=int)
+        free_pos[1,0] = False
+        free_pos[2:,2:] = False
+        assert np.array_equal(grid_world._free_position_mask, free_pos)
+        assert grid_world.obstacles == obstacles
+        
     def test_step(self):
         grid_world = GridWorld(self.w, self.h, self.pix, self.seed)
         grid_world.reset()

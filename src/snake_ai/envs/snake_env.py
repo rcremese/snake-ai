@@ -27,7 +27,7 @@ class SnakeEnv(RandomObstaclesEnv):
         self._free_position_mask = np.ones((self.width, self.height))
         # Initialise obstacles
         self._obstacles = []
-        if self.nb_obs > 0:
+        if self._nb_obs > 0:
             self._obstacles = self._populate_grid_with_obstacles()
         # Initialise goal & position
         self._goal = self._place_goal()
@@ -200,7 +200,7 @@ class SnakeEnv(RandomObstaclesEnv):
         return grid_world_check and snake_check
 
     def __repr__(self) -> str:
-        return f"{__class__.__name__}(width={self.width!r}, height={self.height!r}, pixel={self.pixel!r}, nb_obstacles={self.nb_obs!r}, max_obs_size={self._max_obs_size!r}, render_mode={self.render_mode!r}, seed={self._seed})"
+        return f"{__class__.__name__}(width={self.width!r}, height={self.height!r}, pixel={self.pixel!r}, nb_obstacles={self._nb_obs!r}, max_obs_size={self._max_obs_size!r}, render_mode={self.render_mode!r}, seed={self._seed})"
 
 if __name__ == "__main__":
     import time

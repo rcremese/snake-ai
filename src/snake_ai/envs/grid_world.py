@@ -42,6 +42,8 @@ class GridWorld(gym.Env):
                 f"Get ({width},{height}, {pixel})")
         self.width, self.height, self.pixel  = int(width), int(height), int(pixel)
         self.window_size = (self.width * self.pixel, self.height * self.pixel)
+        self._free_position_mask = np.ones((self.width, self.height))
+        
         # Initialise the render mode
         if (render_mode is not None) and (render_mode not in self.metadata["render_modes"]):
             raise ValueError(f"render_mode should be eather None or in {self.metadata['render_modes']}. Get {render_mode}")
@@ -57,8 +59,7 @@ class GridWorld(gym.Env):
         self._agent = None
         self._obstacles = None
         self._truncated = None
-        self._free_position_mask = None
-
+        
         if self.render_mode == "human":
             self._init_human_renderer()
 
@@ -77,7 +78,7 @@ class GridWorld(gym.Env):
         self.seed(seed)
         # Initialise a grid of free positions and score
         self.score = 0
-        # self.truncated = False
+        self.truncated = False
         self._free_position_mask = np.ones((self.width, self.height))
         # Initialise obstacles
         self._obstacles = []
@@ -86,7 +87,6 @@ class GridWorld(gym.Env):
         self.goal = Rectangle(x_goal * self.pixel, y_goal * self.pixel, self.pixel, self.pixel)
         x_agent, y_agent = self._rng.choice(self.free_positions)
         self.agent = Walker2D(x_agent, y_agent, self.pixel)
-        self._truncated = False
         return self.observations, self.info
 
     def step(self, action : int) -> Tuple[np.ndarray, Reward, bool, Dict]:
@@ -196,13 +196,14 @@ class GridWorld(gym.Env):
     def goal(self, rect : Rectangle):
         assert rect.width == rect.height == self.pixel, f"Only squares of size {self.pixel} are allowed to represent the goal."
         self._sanity_check(rect)
+        # Remove the old position to the free position mask 
         if self._goal is not None:
             x, y = self._get_grid_position(self._goal)
             self._free_position_mask[x, y] = True
-        self._goal = rect
         # Update free position map
         x, y = self._get_grid_position(rect)
         self._free_position_mask[x, y] = False
+        self._goal = rect
 
     @property
     def agent(self) -> Agent:
@@ -235,14 +236,27 @@ class GridWorld(gym.Env):
             raise InitialisationError("The obstacles are not initialized. Reset the environment !")
         return self._obstacles
 
-    # @obstacles.setter
-    # def obstacles(self, rectangles : List[Rectangle]):
-    #     # Simple case in which the user provide only 1 rectangle
-    #     if isinstance(rectangles, Rectangle):
-    #         rectangles = [rectangles]
-    #     for rect in rectangles:
-    #         self._sanity_check(rect, self._max_obs_size * self.pixel)
-    #     self._obstacles = rectangles
+    @obstacles.setter
+    def obstacles(self, rectangles : List[Rectangle]):
+        # Simple case in which the user provide only 1 rectangle
+        if isinstance(rectangles, Rectangle):
+            rectangles = [rectangles]
+        # Make sure all the rectangles fit with the environment
+        for rect in rectangles:
+            self._sanity_check(rect)
+        # free all positions of current obstacles
+        if self._obstacles is not None:
+            for obstacle in self._obstacles:
+                x, y = self._get_grid_position(obstacle)
+                size = obstacle.width // self.pixel 
+                self._free_position_mask[x:x+size, y:y+size] = True
+        # set new obstacles positions to false 
+        for rectangle in rectangles:
+            x, y = self._get_grid_position(rectangle)
+            size = rectangle.width // self.pixel
+            self._free_position_mask[x:x+size, y:y+size] = False
+        # TODO : Implement a warning if obstacles overlaps with goal or agent !
+        self._obstacles = rectangles
 
     @property
     def observations(self) -> np.ndarray:
@@ -319,7 +333,7 @@ class GridWorld(gym.Env):
         # TODO : Add the possibility to add rectangles as obstacles
         if rect.height != rect.width:
             raise ShapeError(f"Only squares are accepted in the environment. Get (width, height) = ({rect.width}, {rect.height}).")
-        if (rect.x < 0) or (rect.x > self.window_size[0]) or (rect.y < 0) or (rect.y > self.window_size[1]):
+        if (rect.x < 0) or (rect.x + rect.width > self.window_size[0]) or (rect.y < 0) or (rect.y + rect.height > self.window_size[1]):
             raise OutOfBoundsError(f"The rectangle position ({rect.x}, {rect.y}) is out of bounds {self.window_size}")
         if any([corner % self.pixel != 0 for corner in [rect.right, rect.top, rect.left, rect.bottom]]):
             raise ResolutionError(f"The rectangle positions and lengths need to be a factor of pixel size : {self.pixel}.")
@@ -405,7 +419,7 @@ class GridWorld(gym.Env):
 
 if __name__ == "__main__":
     import time
-    snake_env = GridWorld(20, 20, nb_obs=10, max_obs_size=10, render_mode="human")
+    snake_env = GridWorld(20, 20, render_mode="human")
     seed = 0
     snake_env.reset(seed)
     print(snake_env._free_position_mask)
@@ -432,6 +446,5 @@ if __name__ == "__main__":
         if terminated:
             seed += 1
             snake_env.reset(seed)
-            print(snake_env._free_position_mask)
             print('You suck ! Try again !')
         snake_env.render()

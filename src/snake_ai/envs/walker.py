@@ -39,7 +39,7 @@ class Walker2D(Agent):
             self.move(Direction.WEST)
 
     def draw(self, canvas: pygame.Surface):
-        pygame.draw.rect(canvas, Colors.BLUE1.value, self.position)
+        pygame.draw.rect(canvas, Colors.BLUE2.value, self.position)
 
     # Properties
     @property
