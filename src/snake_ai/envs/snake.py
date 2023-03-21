@@ -95,7 +95,7 @@ class Snake(Agent):
                 2 -> turn right
         """
         assert isinstance(action, int), f"Action need to be an integer in the range [0,2]. Get {action}."
-        if action not in range(2):
+        if action not in range(3):
             raise errors.InvalidAction(f"Action need to be an integer in the range [0,2]. Get {action}.")
         clock_wise = [Direction.NORTH, Direction.EAST, Direction.SOUTH, Direction.WEST]
         idx = clock_wise.index(self.direction)
@@ -210,6 +210,16 @@ class BidirectionalSnake(Snake):
             super().move_from_action(action)
         else:
             self.go_back()
+
+    @Snake.neighbours.getter
+    def neighbours(self) -> List[Rectangle]:
+        left, front, right = super().neighbours
+        if len(self.body) == 1:
+            tail_disp = (self.body[0].x - self.head.x) // self.pixel, (self.body[0].y - self.head.y) // self.pixel
+        else:
+            tail_disp = (self.body[-1].x - self.body[-2].x), (self.body[-1].y - self.body[-2].y)
+        back = self.body[-1].move(*tail_disp)
+        return left, front, right, back
 class SnakeHuman(BidirectionalSnake):
     def move_from_action(self, action: int):
         if action not in range(4):

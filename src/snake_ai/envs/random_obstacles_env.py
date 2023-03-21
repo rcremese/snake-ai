@@ -46,7 +46,7 @@ class RandomObstaclesEnv(GridWorld):
             observations, info: Vector of 0 and 1 that represent the observations and dictionary of available informations
         """
         self.seed(seed)
-        # Initialise score and a grid of free positions 
+        # Initialise score and a grid of free positions
         self.score = 0
         self.truncated = False
         self._free_position_mask = np.ones((self.width, self.height))
@@ -61,6 +61,28 @@ class RandomObstaclesEnv(GridWorld):
         x_agent, y_agent = self._rng.choice(self.free_positions)
         self.agent = Walker2D(x_agent, y_agent, self.pixel)
         return self.observations, self.info
+
+    @GridWorld.obstacles.setter
+    def obstacles(self, rectangles : List[Rectangle]):
+        # Simple case in which the user provide only 1 rectangle
+        if isinstance(rectangles, Rectangle):
+            rectangles = [rectangles]
+        # Make sure all the rectangles fit with the environment
+        for rect in rectangles:
+            self._sanity_check(rect)
+        # free all positions of current obstacles
+        if self._obstacles is not None:
+            for obstacle in self._obstacles:
+                x, y = self._get_grid_position(obstacle)
+                size = obstacle.width // self.pixel
+                self._free_position_mask[x:x+size, y:y+size] = True
+        # set new obstacles positions to false
+        for rectangle in rectangles:
+            x, y = self._get_grid_position(rectangle)
+            size = rectangle.width // self.pixel
+            self._free_position_mask[x:x+size, y:y+size] = False
+        # TODO : Implement a warning if obstacles overlaps with goal or agent !
+        self._obstacles = rectangles
 
     # def _populate_grid_with_obstacles(self) -> List[Rectangle]:
     #     """Populate the environment with obstacles of various sizes.
@@ -86,12 +108,12 @@ class RandomObstaclesEnv(GridWorld):
     #         for _ in range(nb_obstacle):
     #             obstacles.append(self._place_obstacle(size))
     #     return obstacles
-    
+
     ## Private methods
     def _populate_grid_with_obstacles(self):
         self._obstacles = []
         for size in self._obs_sizes:
-            obstacle = self._place_obstacle(size)    
+            obstacle = self._place_obstacle(size)
             # Update free_position_mask
             x, y = self._get_grid_position(obstacle)
             self._free_position_mask[x:x+size, y:y+size] = False
@@ -113,7 +135,7 @@ class RandomObstaclesEnv(GridWorld):
             if self._free_position_mask[x:x+size, y:y+size].all():
                 return Rectangle(x * self.pixel, y * self.pixel, size * self.pixel, size * self.pixel)
         raise errors.ConfigurationError(f"Unable to place obstacle of size {size} in the environment. Reduce nb_obs or max_obs_size.")
-    
+
     # TODO : cleaner le code
     # def _place_obstacle(self, size: int) -> Rectangle:
     #     """Place an obstacle of a given size in the environment while repecting the free position condition

@@ -100,22 +100,6 @@ class TestGridWorld():
             "truncated": False,
         }
 
-    def test_obstacles(self):
-        grid_world = GridWorld(self.w, self.h, self.pix, self.seed)
-        # -O---
-        # -----
-        # --OOO
-        # --OOO
-        # --OOO
-        obstacles = [Rectangle(self.pix, 0, self.pix, self.pix),
-                     Rectangle(2 * self.pix, 2 * self.pix, 3 * self.pix, 3 * self.pix)]
-        grid_world.obstacles = obstacles
-        free_pos = np.ones((self.w, self.h), dtype=int)
-        free_pos[1,0] = False
-        free_pos[2:,2:] = False
-        assert np.array_equal(grid_world._free_position_mask, free_pos)
-        assert grid_world.obstacles == obstacles
-        
     def test_step(self):
         grid_world = GridWorld(self.w, self.h, self.pix, self.seed)
         grid_world.reset()
@@ -222,6 +206,28 @@ class TestGridWorld():
                                              (2, 0), (2, 1), (2, 2), (2, 3), (2, 4),
                                              (3, 0), (3, 1), (3, 2), (3, 3), (3, 4),
                                              (4, 0), (4, 1), (4, 2), (4, 3), (4, 4)]
+
+from snake_ai.envs.random_obstacles_env import RandomObstaclesEnv
+class TestRandomObstaclesEnv:
+    w, h, pix = 5, 5, 10
+    seed = 0
+
+    def test_obstacles(self):
+        grid_world = RandomObstaclesEnv(self.w, self.h, self.pix, seed=self.seed, nb_obs=0)
+        # -O---
+        # -----
+        # --OOO
+        # --OOO
+        # --OOO
+        obstacles = [Rectangle(self.pix, 0, self.pix, self.pix),
+                     Rectangle(2 * self.pix, 2 * self.pix, 3 * self.pix, 3 * self.pix)]
+        grid_world.obstacles = obstacles
+        free_pos = np.ones((self.w, self.h), dtype=int)
+        free_pos[1,0] = False
+        free_pos[2:,2:] = False
+        assert np.array_equal(grid_world._free_position_mask, free_pos)
+        assert grid_world.obstacles == obstacles
+
 # class TestSnakeClassicalEnv():
 #     w, h, pix = 5, 5, 10
 #     nb_obs = 2
@@ -290,38 +296,3 @@ class TestGridWorld():
 
 #     def test_collisions(self):
 #         pass
-
-from snake_ai.envs.geometry import Rectangle, Circle
-class TestRectangle:
-    x_0, y_0, w_0, h_0 = 0, 0, 1, 1
-    x_1, y_1, w_1, h_1 = -5, -4, -1, 2
-
-    def test_init(self):
-        rect_1 = Rectangle(self.x_0, self.y_0, self.w_0, self.h_0)
-        rect_2 = Rectangle(pygame.Rect(self.x_0, self.y_0, self.w_0, self.h_0))
-        assert rect_1 == rect_2
-
-    def test_phiflow_conversion(self):
-        rect = Rectangle(self.x_0, self.y_0, self.w_0, self.h_0)
-        phiflow_rect = rect.to_phiflow()
-        assert phiflow_rect == flow.Box(x=(self.x_0, self.x_0 + self.w_0), y=(self.y_0, self.y_0 + self.h_0))
-
-    def test_dict_conversion(self):
-        rect = Rectangle(self.x_0, self.y_0, self.w_0, self.h_0)
-        dictionary = {'left' : self.x_0, 'right' : self.x_0 + self.w_0, 'top' : self.y_0, 'bottom' : self.y_0 + self.h_0}
-        rect_dict = rect.to_dict()
-        assert rect_dict == dictionary
-
-        new_rect = Rectangle.from_dict(dictionary)
-        assert new_rect == rect
-
-class TestSphere:
-    x, y = 0, 1
-    radius = 1
-    sphere = Circle(x, y, radius)
-
-    def test_dict_conversion(self):
-        dictionary = self.sphere.to_dict()
-        assert dictionary == {'center' : [self.x, self.y], 'radius': self.radius}
-        new_sphere = Circle.from_dict(dictionary)
-        assert new_sphere == self.sphere

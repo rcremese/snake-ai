@@ -1,6 +1,6 @@
 ##
 # @author  <robin.cremese@gmail.com>
- # @file Description
+ # @file Base class for all 2D path planning environments with discret action space
  # @desc Created on 2023-03-13 1:08:45 pm
  # @copyright MIT License
  #
@@ -43,7 +43,7 @@ class GridWorld(gym.Env):
         self.width, self.height, self.pixel  = int(width), int(height), int(pixel)
         self.window_size = (self.width * self.pixel, self.height * self.pixel)
         self._free_position_mask = np.ones((self.width, self.height))
-        
+
         # Initialise the render mode
         if (render_mode is not None) and (render_mode not in self.metadata["render_modes"]):
             raise ValueError(f"render_mode should be eather None or in {self.metadata['render_modes']}. Get {render_mode}")
@@ -59,7 +59,7 @@ class GridWorld(gym.Env):
         self._agent = None
         self._obstacles = None
         self._truncated = None
-        
+
         if self.render_mode == "human":
             self._init_human_renderer()
 
@@ -78,7 +78,7 @@ class GridWorld(gym.Env):
         self.seed(seed)
         # Initialise a grid of free positions and score
         self.score = 0
-        self.truncated = False
+        self._truncated = False
         self._free_position_mask = np.ones((self.width, self.height))
         # Initialise obstacles
         self._obstacles = []
@@ -196,7 +196,7 @@ class GridWorld(gym.Env):
     def goal(self, rect : Rectangle):
         assert rect.width == rect.height == self.pixel, f"Only squares of size {self.pixel} are allowed to represent the goal."
         self._sanity_check(rect)
-        # Remove the old position to the free position mask 
+        # Remove the old position to the free position mask
         if self._goal is not None:
             x, y = self._get_grid_position(self._goal)
             self._free_position_mask[x, y] = True
@@ -236,27 +236,7 @@ class GridWorld(gym.Env):
             raise InitialisationError("The obstacles are not initialized. Reset the environment !")
         return self._obstacles
 
-    @obstacles.setter
-    def obstacles(self, rectangles : List[Rectangle]):
-        # Simple case in which the user provide only 1 rectangle
-        if isinstance(rectangles, Rectangle):
-            rectangles = [rectangles]
-        # Make sure all the rectangles fit with the environment
-        for rect in rectangles:
-            self._sanity_check(rect)
-        # free all positions of current obstacles
-        if self._obstacles is not None:
-            for obstacle in self._obstacles:
-                x, y = self._get_grid_position(obstacle)
-                size = obstacle.width // self.pixel 
-                self._free_position_mask[x:x+size, y:y+size] = True
-        # set new obstacles positions to false 
-        for rectangle in rectangles:
-            x, y = self._get_grid_position(rectangle)
-            size = rectangle.width // self.pixel
-            self._free_position_mask[x:x+size, y:y+size] = False
-        # TODO : Implement a warning if obstacles overlaps with goal or agent !
-        self._obstacles = rectangles
+
 
     @property
     def observations(self) -> np.ndarray:
@@ -312,7 +292,8 @@ class GridWorld(gym.Env):
         """Available free positions represented as a list of position tuple (x, y) taken from the free position mask"""
         if self._free_position_mask is None:
             raise InitialisationError("The free position mask is not initialised. Reset the environment first !")
-        return [(x, y) for x in range(self.width) for y in range(self.height) if self._free_position_mask[x, y]]
+        return np.argwhere(self._free_position_mask)
+        # return [(x, y) for x in range(self.width) for y in range(self.height) if self._free_position_mask[x, y]]
 
     ## Private methods
     def _sanity_check(self, rect : Rectangle):
@@ -415,15 +396,12 @@ class GridWorld(gym.Env):
         return size_check and position_check and goal_check and obstacles_check
 
     def __repr__(self) -> str:
-        return f"{__class__.__name__}(width={self.width}, height={self.height}, pixel={self.pixel}, nb_obs={self.nb_obs}, max_obs_size={self._max_obs_size}, render_mode={self.render_mode}, seed={self._seed})"
+        return f"{__class__.__name__}(width={self.width}, height={self.height}, pixel={self.pixel}, render_mode={self.render_mode}, seed={self._seed})"
 
 if __name__ == "__main__":
-    import time
     snake_env = GridWorld(20, 20, render_mode="human")
     seed = 0
     snake_env.reset(seed)
-    print(snake_env._free_position_mask)
-    fps = 10
 
     action = 0
     done = False
