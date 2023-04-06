@@ -9,7 +9,7 @@ from snake_ai.utils import errors
 from typing import List, Optional, Tuple, Dict, Any
 
 class RandomObstaclesEnv(GridWorld):
-    def __init__(self, width: int = 20, height: int = 20, pixel: int = 10, nb_obs: int = 0, max_obs_size: int = 1, seed: int = 0, render_mode: Optional[str] = None):
+    def __init__(self, width: int = 20, height: int = 20, pixel: int = 10, nb_obs: int = 0, max_obs_size: int = 1, seed: int = 0, render_mode: Optional[str] = None, **kwargs):
         """
         Args:
             width (int, optional): Environment width in terms of `metapixel`. Defaults to 20.

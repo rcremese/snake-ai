@@ -17,7 +17,7 @@ import pygame
 class MazeGrid(GridWorld):
     maze_generator = ["prims", "hunt_and_kill", "backtracking", "wilsons", "kruskal"]
 
-    def __init__(self, width: int = 20, height: int = 20, pixel: int = 10, seed: int = 0, render_mode: Optional[str] = None, maze_generator: str = "prims"):
+    def __init__(self, width: int = 20, height: int = 20, pixel: int = 10, seed: int = 0, render_mode: Optional[str] = None, maze_generator: str = "prims", **kwargs):
         if maze_generator.lower() not in self.maze_generator:
             raise ValueError(f"Unknown maze generator {maze_generator}. Expected one of the following values : {self.maze_generator}")
         self.maze_generator = maze_generator.lower()

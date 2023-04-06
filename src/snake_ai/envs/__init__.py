@@ -4,6 +4,7 @@ from .snake import Snake, BidirectionalSnake, SnakeHuman
 from .walker import Walker2D
 from .geometry import Rectangle, Circle
 from .grid_world import GridWorld
+from .random_obstacles_env import RandomObstaclesEnv
 from .room_escape import RoomEscape
 from .maze_grid import MazeGrid
 from .snake_env import SnakeEnv

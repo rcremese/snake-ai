@@ -58,11 +58,6 @@ class DiffusionConverter(Converter):
 
         bounds = flow.Box(x=env.window_size[0] // div_factor, y=env.window_size[1] // div_factor)
         initial_concentration = self.init_value * flow.CenteredGrid(source, bounds=bounds, x=env.window_size[0] // div_factor, y=env.window_size[1] // div_factor)
-        # In case of obstacles, we need to mask the initial concentration
-        if len(env.obstacles) > 0:
-            obs_converter = ObstacleConverter(self.type)
-            obstacle_mask = obs_converter(env) # obstacle_mask is 1 where there is an obstacle and 0 where there isn't
-            initial_concentration = (1 - obstacle_mask) * initial_concentration
         return initial_concentration
 
     def __repr__(self) -> str:
@@ -74,7 +69,7 @@ class ObstacleConverter(Converter):
         else:
             div_factor = env.pixel
         grid = flow.CenteredGrid(flow.math.zeros(flow.spatial(x=env.window_size[0] // div_factor, y=env.window_size[1] // div_factor)))
-        if env.obstacles == 0:
+        if env.obstacles == []:
             return grid
         obstacles = convert_obstacles(env.obstacles, div_factor)
         return flow.field.resample(flow.union(obstacles), grid)

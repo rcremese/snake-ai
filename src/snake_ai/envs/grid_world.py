@@ -23,7 +23,7 @@ class GridWorld(gym.Env):
     """
     metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 10}
 
-    def __init__(self, width : int = 20, height : int = 20, pixel : int = 10, seed: int = 0, render_mode : Optional[str]=None):
+    def __init__(self, width : int = 20, height : int = 20, pixel : int = 10, seed: int = 0, render_mode : Optional[str]=None, **kwargs) -> None:
         """
         Args:
             width (int, optional): Environment width in terms of `metapixel`. Defaults to 20.

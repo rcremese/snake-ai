@@ -17,7 +17,7 @@ import numpy as np
 
 class SnakeEnv(RandomObstaclesEnv):
     def __init__(self, width: int = 20, height: int = 20, pixel: int = 20, nb_obs: int = 0,
-                 max_obs_size: int = 1, seed: int = 0, render_mode : Optional[str]=None, snake_type : str = "classic"):
+                 max_obs_size: int = 1, seed: int = 0, render_mode : Optional[str]=None, snake_type : str = "classic", **kwargs):
         super().__init__(width, height, pixel, nb_obs, max_obs_size, seed, render_mode)
         if not snake_type.lower() in ["classic", "bidirectional", "human"]:
             raise ValueError(f"Snake type must be either 'classic', 'bidirectional' or 'human'. Get {snake_type}")

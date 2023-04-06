@@ -13,7 +13,7 @@ import numpy as np
 import pygame
 
 class RoomEscape(GridWorld):
-    def __init__(self, width: int = 20, height: int = 20, pixel: int = 10, seed: int = 0, render_mode: Optional[str] = None):
+    def __init__(self, width: int = 20, height: int = 20, pixel: int = 10, seed: int = 0, render_mode: Optional[str] = None, **kwargs):
         if (width < 5) or (height < 5):
             raise errors.InitialisationError(f"Can not instantiate a room escape environment with width or height lower than 5. Get ({width}, {height})")
         super().__init__(width, height, pixel, seed, render_mode)
