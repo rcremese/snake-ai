@@ -11,11 +11,6 @@ class TestRectangle:
         rect_2 = Rectangle(pygame.Rect(self.x_0, self.y_0, self.w_0, self.h_0))
         assert rect_1 == rect_2
 
-    def test_phiflow_conversion(self):
-        rect = Rectangle(self.x_0, self.y_0, self.w_0, self.h_0)
-        phiflow_rect = rect.to_phiflow()
-        assert phiflow_rect == flow.Box(x=(self.x_0, self.x_0 + self.w_0), y=(self.y_0, self.y_0 + self.h_0))
-
     def test_dict_conversion(self):
         rect = Rectangle(self.x_0, self.y_0, self.w_0, self.h_0)
         dictionary = {'left' : self.x_0, 'right' : self.x_0 + self.w_0, 'top' : self.y_0, 'bottom' : self.y_0 + self.h_0}
@@ -32,6 +27,6 @@ class TestSphere:
 
     def test_dict_conversion(self):
         dictionary = self.sphere.to_dict()
-        assert dictionary == {'center' : [self.x, self.y], 'radius': self.radius}
+        assert dictionary == {'x_center' : self.x, 'y_center' : self.y, 'radius': self.radius}
         new_sphere = Circle.from_dict(dictionary)
         assert new_sphere == self.sphere

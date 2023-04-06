@@ -1,18 +1,19 @@
+##
+# @author  <robin.cremese@gmail.com>
+ # @file Implementation of the geometry module containing rectangle and circle classes
+ # @desc Created on 2023-04-04 10:37:29 am
+ # @copyright MIT License
+ #
 from abc import ABCMeta, abstractmethod
 from typing import Dict, Any, List, Optional
 import pygame
 from snake_ai.utils.types import Numerical
-from phi.jax import flow
 from snake_ai.utils import Colors
 import numpy as np
 
 class Geometry(metaclass=ABCMeta):
     def __repr__(self) -> str:
         return "Abstract class defining an obstacle"
-
-    @abstractmethod
-    def to_phiflow(self):
-        raise NotImplementedError()
 
     @abstractmethod
     def to_dict(self) -> Dict[str, int]:
@@ -27,9 +28,6 @@ class Geometry(metaclass=ABCMeta):
             raise TypeError(f"Expected float or int value for {name}, get {value}")
 
 class Rectangle(pygame.Rect, Geometry):
-    def to_phiflow(self) -> flow.Box:
-        return flow.Box(x=(self.left, self.right), y=(self.top, self.bottom))
-
     def to_dict(self) -> Dict:
         return {'left' : self.left, 'right' : self.right, 'top' : self.top, 'bottom' : self.bottom}
 
@@ -56,9 +54,45 @@ class Circle(Geometry):
             raise ValueError(f"Radius should be > 0, get {radius}")
         self.radius = radius
 
-        self.x, self.y = self.center - self.radius
-        self.diameter = 2 * self.radius
+    ## Public methods
+    def collide(self, obstacle : Geometry):
+        if isinstance(obstacle, Geometry):
+            return self._collide_rect(obstacle)
+        elif isinstance(obstacle, Circle):
+            return self._collide_sphere(obstacle)
+        else:
+            raise TypeError(f"Can not check collisions for instance of {type(obstacle)}")
 
+    def collide_any(self, obstacles : List[Geometry], return_idx : bool) -> bool and Optional[int]:
+        assert isinstance(obstacles, list), 'Use collide if you want to test collision against one obstacle'
+        for i, obstacle in enumerate(obstacles):
+            if self.collide(obstacle):
+                if return_idx:
+                    return True, i
+                return True
+        return False
+
+    def draw(self, canvas : pygame.Surface, color : Colors = Colors.MIDDLE_GREEN):
+        pygame.draw.circle(canvas, color.value, self.center, self.radius)
+
+    def to_dict(self) -> Dict:
+        return {'x_center' : self.center[0], 'y_center' : self.center[1], 'radius' : self.radius}
+
+    def to_rectangle(self) -> Rectangle:
+        return Rectangle(*(self.center - self.radius), self.diameter, self.diameter)
+
+    @property
+    def diameter(self):
+        "Diameter of the circle"
+        return 2 * self.radius
+
+    @classmethod
+    def from_dict(cls, dictionary : Dict[str, int]) -> object:
+        if not {'x_center', 'y_center', 'radius'}.issubset(dictionary.keys()):
+            raise KeyError(f"Input dictonary need to contain the following keys : 'x_center', 'y_center','radius'. Get {dictionary.keys()}")
+        return cls(dictionary['x_center'], dictionary['y_center'], dictionary['radius'])
+
+    ## Private methods
     def _collide_rect(self, rect : Rectangle) -> bool:
         assert isinstance(rect, Rectangle), 'Use colideall if you want to test collision against a list'
         ## obvious case where the particle center is inside the obstacle
@@ -83,43 +117,10 @@ class Circle(Geometry):
         assert isinstance(sphere, Circle), f"Expected to check collision with a sphere, not {type(sphere)}"
         return np.linalg.norm(self.center - sphere.center) < self.radius + sphere.radius
 
-    def collide(self, obstacle : Geometry):
-        if isinstance(obstacle, Geometry):
-            return self._collide_rect(obstacle)
-        elif isinstance(obstacle, Circle):
-            return self._collide_sphere(obstacle)
-        else:
-            raise TypeError(f"Can not check collisions for instance of {type(obstacle)}")
-
-    def collide_any(self, obstacles : List[Geometry], return_idx : bool) -> bool and Optional[int]:
-        assert isinstance(obstacles, list), 'Use collide if you want to test collision against one obstacle'
-        for i, obstacle in enumerate(obstacles):
-            if self.collide(obstacle):
-                if return_idx:
-                    return True, i
-                return True
-        return False
-
-    def draw(self, canvas : pygame.Surface, color : Colors = Colors.MIDDLE_GREEN):
-        pygame.draw.circle(canvas, color.value, self.center, self.radius)
-
-    def to_phiflow(self) -> flow.Box:
-        return flow.Sphere(x=self.center[0], y=self.center[1], radius=self.radius)
-
-    def to_dict(self) -> Dict:
-        return {'x_center' : self.center[0], 'y_center' : self.center[1], 'radius' : self.radius}
-
-    def to_rectangle(self) -> Rectangle:
-        return Rectangle(self.x, self.y, self.diameter, self.diameter)
-
+    ## Dunder methods
     def __repr__(self) -> str:
         return f"{__class__.__name__}({self.center[0]!r},{self.center[1]!r}, {self.radius!r})"
 
     def __eq__(self, other: object) -> bool:
         assert isinstance(other, Circle), f"Can not compare circle with {type(other)}."
         return np.array_equal(self.center, other.center) and self.radius == other.radius
-    @classmethod
-    def from_dict(cls, dictionary : Dict[str, int]) -> object:
-        if not {'x_center', 'y_center', 'radius'}.issubset(dictionary.keys()):
-            raise KeyError(f"Input dictonary need to contain the following keys : 'x_center', 'y_center','radius'. Get {dictionary.keys()}")
-        return cls(dictionary['x_center'], dictionary['y_center'], dictionary['radius'])

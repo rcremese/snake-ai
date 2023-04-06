@@ -192,20 +192,12 @@ class TestGridWorld():
         free_pos = np.ones((self.w, self.h), dtype=np.int)
         free_pos[4, 1] = 0
         assert np.array_equal(grid_world._free_position_mask, free_pos)
-        assert grid_world.free_positions == [(0, 0), (0, 1), (0, 2), (0, 3), (0, 4),
-                                             (1, 0), (1, 1), (1, 2), (1, 3), (1, 4),
-                                             (2, 0), (2, 1), (2, 2), (2, 3), (2, 4),
-                                             (3, 0), (3, 1), (3, 2), (3, 3), (3, 4),
-                                             (4, 0), (4, 2), (4, 3), (4, 4)]
+        assert grid_world.free_positions == np.argwhere(free_pos).tolist()
         grid_world.goal = Rectangle(0, 0, self.pix, self.pix)
         free_pos[4, 1] = 1
         free_pos[0, 0] = 0
         assert np.array_equal(grid_world._free_position_mask, free_pos)
-        assert grid_world.free_positions == [(0, 1), (0, 2), (0, 3), (0, 4),
-                                             (1, 0), (1, 1), (1, 2), (1, 3), (1, 4),
-                                             (2, 0), (2, 1), (2, 2), (2, 3), (2, 4),
-                                             (3, 0), (3, 1), (3, 2), (3, 3), (3, 4),
-                                             (4, 0), (4, 1), (4, 2), (4, 3), (4, 4)]
+        assert grid_world.free_positions == np.argwhere(free_pos).tolist()
 
 from snake_ai.envs.random_obstacles_env import RandomObstaclesEnv
 class TestRandomObstaclesEnv:

@@ -48,7 +48,7 @@ class MazeGrid(GridWorld):
     def reset(self, seed: Optional[int] = None) -> Tuple[np.ndarray, Dict[str, Any]]:
         super().reset(seed)
         self._maze.generate()
-        obstacle_mask = self._maze.grid[1:-1, 1:-1]
+        obstacle_mask = np.array(self._maze.grid[1:-1, 1:-1], dtype=bool)
         self._free_position_mask = ~obstacle_mask
         # Place obstacles
         obstacle_positions = np.argwhere(obstacle_mask)

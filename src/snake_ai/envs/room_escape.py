@@ -1,3 +1,9 @@
+##
+# @author  <robin.cremese@gmail.com>
+ # @file Implmentation of the room escape environment
+ # @desc Created on 2023-04-04 11:03:10 am
+ # @copyright MIT License
+ #
 from snake_ai.envs.grid_world import GridWorld
 from snake_ai.envs.geometry import Rectangle
 from snake_ai.envs.walker import Walker2D

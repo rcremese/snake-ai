@@ -191,7 +191,7 @@ class TestSnake:
         snake_right = Snake([(-1, 2), (0, 2), (0, 1)], self.pixel)
         assert snake == snake_right
 
-        with pytest.raises(AssertionError):
+        with pytest.raises(errors.InvalidAction):
             snake.move_from_action(3)
 
     def test_grow(self):

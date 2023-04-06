@@ -292,8 +292,7 @@ class GridWorld(gym.Env):
         """Available free positions represented as a list of position tuple (x, y) taken from the free position mask"""
         if self._free_position_mask is None:
             raise InitialisationError("The free position mask is not initialised. Reset the environment first !")
-        return np.argwhere(self._free_position_mask)
-        # return [(x, y) for x in range(self.width) for y in range(self.height) if self._free_position_mask[x, y]]
+        return np.argwhere(self._free_position_mask).tolist()
 
     ## Private methods
     def _sanity_check(self, rect : Rectangle):
