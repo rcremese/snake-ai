@@ -1,3 +1,9 @@
+##
+# @author  <robin.cremese@gmail.com>
+ # @file Maze grid environment
+ # @desc Created on 2023-04-07 10:22:34 am
+ # @copyright MIT License
+ #
 from snake_ai.envs.grid_world import GridWorld
 from snake_ai.envs.walker import Walker2D
 from snake_ai.envs.geometry import Rectangle
@@ -49,9 +55,9 @@ class MazeGrid(GridWorld):
         super().reset(seed)
         self._maze.generate()
         obstacle_mask = np.array(self._maze.grid[1:-1, 1:-1], dtype=bool)
-        self._free_position_mask = ~obstacle_mask
+        self._free_position_mask = ~obstacle_mask.T
         # Place obstacles
-        obstacle_positions = np.argwhere(obstacle_mask)
+        obstacle_positions = np.argwhere(obstacle_mask.T)
         self._obstacles = []
         for x, y in obstacle_positions:
             self._obstacles.append(Rectangle(x * self.pixel, y * self.pixel, self.pixel, self.pixel))

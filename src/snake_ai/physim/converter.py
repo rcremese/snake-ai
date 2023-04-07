@@ -39,12 +39,6 @@ class Converter(metaclass=ABCMeta):
     def __repr__(self) -> str:
         return f"{__class__.__name__}(size={self.type})"
 class DiffusionConverter(Converter):
-    def __init__(self, size: str, init_value : float) -> None:
-        super().__init__(size)
-        if init_value <= 0:
-            raise ValueError("Initial value for diffusion process must be > 0.")
-        self.init_value = init_value
-
     ## Dunder methods
     def __call__(self, env: GridWorld) -> flow.CenteredGrid:
         self._check_environment(env)
@@ -57,8 +51,7 @@ class DiffusionConverter(Converter):
             source = flow.Box(x=(env.goal.left // div_factor, env.goal.right // div_factor), y=(env.goal.top // div_factor, env.goal.bottom // div_factor))
 
         bounds = flow.Box(x=env.window_size[0] // div_factor, y=env.window_size[1] // div_factor)
-        initial_concentration = self.init_value * flow.CenteredGrid(source, bounds=bounds, x=env.window_size[0] // div_factor, y=env.window_size[1] // div_factor)
-        return initial_concentration
+        return flow.CenteredGrid(source, bounds=bounds, x=env.window_size[0] // div_factor, y=env.window_size[1] // div_factor)
 
     def __repr__(self) -> str:
         return f"{__class__.__name__}(size={self.type}, init_value={self.init_value})"
