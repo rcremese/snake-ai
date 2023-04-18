@@ -338,22 +338,6 @@ class GridWorld(gym.Env):
             Tuple[int, int]: Grid position of the rectangle
         """
         return (rect.x // self.pixel, rect.y // self.pixel)
-    # def _place_goal(self, mask_position : bool = True) -> Rectangle:
-    #     """Return a rectangle randomly located on the free positions grid and update the free_position_mask
-
-    #     Args:
-    #         mask_position (bool, optional): Flag that indicate if the sampled rectangle position should be masked. Used for agent placement. Defaults to True.
-
-    #     Returns:
-    #         Rectangle: A rectangle that can represent either the agent or the goal.
-    #     """
-    #     # Define the central coordinates of the food to be placed
-    #     # assert len(available_positions) > 0, "There is no available positions for the food in the current environment"
-    #     x, y = self._rng.choice(self.free_positions)
-    #     goal = Rectangle(x * self.pixel, y * self.pixel, self.pixel, self.pixel)
-    #     if mask_position:
-    #         self._free_position_mask[x,y] = False
-    #     return goal
 
     # Collision handling
     def _is_outside(self, rect: Optional[pygame.Rect] = None) -> bool:

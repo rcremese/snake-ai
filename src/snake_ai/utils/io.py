@@ -3,7 +3,7 @@ from snake_ai.envs import GridWorld, RandomObstaclesEnv, RoomEscape, MazeGrid, S
 from abc import ABCMeta, abstractmethod
 from typing import Union, Any
 from pathlib import Path
-import json 
+import json
 class Writter(metaclass=ABCMeta):
     def __init__(self, path : Union[Path, str]):
         self.path = Path(path).resolve()
@@ -38,14 +38,25 @@ class EnvWritter(Writter):
         if isinstance(env, MazeGrid):
             dictionary["maze_generator"] = env.maze_generator
         return dictionary
+
+class SimulationWritter(Writter):
+    def write(self, simulation : Any):
+
+        dictionary = self.convert_to_dict(simulation)
+        with open(self.path, 'w') as f:
+            json.dump(dictionary, f)
+
+    def convert_to_dict(self, simulation : Any):
+        pass
+
 class Loader(metaclass=ABCMeta):
     def __init__(self, path : Union[Path, str]):
         self.path = Path(path).resolve(strict=True)
-        
+
     @abstractmethod
     def load(self) -> Any:
         raise NotImplementedError()
-    
+
     @abstractmethod
     def load_from_dict(self, dictionary : dict) -> Any:
         raise NotImplementedError()
@@ -58,7 +69,7 @@ class EnvLoader(Loader):
     def load_from_dict(self, dictionary : dict) -> GridWorld:
         keys = {'name', 'render_mode', 'width', 'height', 'pixel', 'seed'}
         assert keys.issubset(dictionary.keys()), f"One of the following keys is not in the input dictionary {self.path.name} : {keys}"
-        
+
         if dictionary['name'] == 'GridWorld':
             return GridWorld(**dictionary)
         elif dictionary['name'] == 'RandomObstaclesEnv':

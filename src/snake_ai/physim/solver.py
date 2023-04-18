@@ -2,6 +2,7 @@ from abc import abstractmethod, ABCMeta
 from phi.jax import flow
 from typing import Union, List
 from snake_ai.utils import errors
+
 @flow.math.jit_compile
 def explicit_diffusion(concentration : flow.field.Field, obstacle_mask : flow.field.Field, diffusivity : float, dt : float) -> flow.field.Field:
     return (1-obstacle_mask) * flow.diffuse.explicit(concentration, diffusivity=diffusivity, dt=dt, substeps=2)
@@ -16,7 +17,7 @@ def crank_nicolson_diffusion(concentration : flow.field.Field, obstacle_mask : f
 
 class DiffusionSolver:
     names = ["explicit", "implicit", "crank_nicolson"]
-    def __init__(self, diffusivity : float, t_max: float, dt: float, history_step : float = 0, name : str = "explicit", endless : bool = False) -> None:
+    def __init__(self, diffusivity : float, t_max: float, dt: float, history_step : float = 0, name : str = "crank_nicolson", endless : bool = False) -> None:
         if dt <= 0 or t_max <= 0 or diffusivity <= 0:
             raise ValueError(f"Expected diffusivity, Tmax and dt and to be positive floats, not {diffusivity}, {t_max} and {dt}")
         self.dt, self.t_max = dt, t_max
@@ -75,6 +76,10 @@ class DiffusionSolver:
             raise ValueError("The history is not recorded. Set history_step to a positive value to record the history.")
         return self._history
 
+    @property
+    def is_stationary(self) -> bool:
+        return self._endless
+
     def __repr__(self) -> str:
         return f"{__class__.__name__}(diffusivity={self.diffusivity}, Tmax={self.t_max}, dt={self.dt}, history_step={self._hist_step}, solver={self.name}, endless={self._endless})"
 
@@ -85,7 +90,7 @@ if __name__ == "__main__":
 
     env = MazeGrid()
     env.reset()
-    converter = DiffusionConverter("pixel", 1)
+    converter = DiffusionConverter("pixel")
     obs_converter = ObstacleConverter("pixel")
     field = converter(env)
     obstacles = obs_converter(env)
