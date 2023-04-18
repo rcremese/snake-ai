@@ -11,16 +11,17 @@ from snake_ai.physim.converter import DiffusionConverter, PointCloudConverter, O
 from snake_ai.envs import GridWorld, SnakeClassicEnv
 from snake_ai.utils import errors
 from snake_ai.utils.types import Numerical
-from typing import Union, Optional, List
+from typing import Union, Optional, List, Any, Dict
 from phi.jax import flow
 from pathlib import Path
 import numpy as np
 import json
 
+MAX_TIME = 1
 HISTORY_LENGTH = 10
 class Simulation(ABC):
     resolutions = ["pixel", "meta"]
-    def __init__(self, env : GridWorld, t_max : Optional[float] = None, res : str = "pixel"):
+    def __init__(self, env : GridWorld, t_max : Optional[float] = None, res : str = "pixel", history : bool = False):
         if not isinstance(env, GridWorld):
             raise TypeError(f"Environment need to be a GridWorld. Get {type(env)} instead")
         self.env = env
@@ -30,6 +31,8 @@ class Simulation(ABC):
         if res.lower() not in self.resolutions:
             raise ValueError(f"Resolution need to be in {self.resolutions}. Get {res} instead")
         self.res = res.lower()
+        # Set the history step, in order to have a history of HISTORY_LENGTH steps
+        self._hstep = self.t_max / HISTORY_LENGTH if history else 0
 
     ##Public methods
     @abstractmethod
@@ -55,11 +58,24 @@ class Simulation(ABC):
     @abstractmethod
     def obstacles(self):
         raise NotImplementedError()
+
+    @property
+    @abstractmethod
+    def history(self):
+        raise NotImplementedError()
+
+    @property
+    def hparams(self) -> Dict[str, Any]:
+        return {
+            "t_max" : self.t_max,
+            "res" : self.res,
+        }
+
 class DiffusionSimulation(Simulation):
     solvers = ["explicit", "implicit", "crank_nicolson"]
-    def __init__(self, env : GridWorld, Tmax : Optional[float] = None, res : str = "pixel", diffusivity : float = 1,
-                 init_value : float = 1, solver = "explicit", endless : bool = False, history : bool = False):
-        super().__init__(env, Tmax, res)
+    def __init__(self, env : GridWorld, t_max : Optional[float] = None, res : str = "pixel", history : bool = False,
+                 diffusivity : float = 1, init_value : float = 1, solver = "crank_nicolson", endless : bool = False):
+        super().__init__(env, t_max, res, history)
         if diffusivity <= 0 or init_value <= 0:
             raise ValueError(f"The diffusion coefficient and the initial value need to be > 0. Get {diffusivity} and {init_value} instead")
         self._init_value = init_value
@@ -67,15 +83,17 @@ class DiffusionSimulation(Simulation):
         # Set the stopping criteria
         area = self.env.width * self.env.height if self.res == "meta" else self.env.width * self.env.height * self.env.pixel ** 2
         if self.t_max is None:
-            self.t_max = 2 * area / diffusivity # Stop condition based on the diffusion time needed to diffuse in a free environment
+            self.t_max = MAX_TIME * area / diffusivity # Stop condition based on the diffusion time needed to diffuse in a free environment
+        print(self.t_max)
         # Set the time step of the scheme, considering the resolution to be 1 in each environment
-        dt = 1
+        if res == "meta":
+            dt = 1
+        else:
+            dt = self.env.pixel
         if solver == "explicit":
             dt /= (2 * diffusivity) # Stability condition for the explicit scheme
-        # Set the history step, in order to have a history of HISTORY_LENGTH steps
-        hstep = self.t_max / HISTORY_LENGTH if history else 0
 
-        self._solver = DiffusionSolver(diffusivity, self.t_max, dt=dt, history_step=hstep, name=solver, endless=endless)
+        self._solver = DiffusionSolver(diffusivity, self.t_max, dt=dt, history_step=self._hstep, name=solver, endless=endless)
 
         # Arguments to be instanciated
         self._field = None
@@ -116,15 +134,31 @@ class DiffusionSimulation(Simulation):
             raise errors.InitialisationError("The point cloud is not initialised. Use the reset method before")
         return self._point_cloud
 
+    @property
+    def history(self):
+        if self._hstep == 0:
+            raise ValueError("The history is not recorded. Set history_step to a positive value to record the history.")
+        return self._solver.history
+
+    @Simulation.hparams.getter
+    def hparams(self) -> Dict[str, Any]:
+        hparams = super().hparams
+        hparams["diffusivity"] = self._solver.diffusivity,
+        hparams["dt"] = self._solver.dt
+        hparams["init_value"] = self._init_value,
+        hparams["solver"] = self._solver.name,
+        hparams["endless"] = self._solver.is_stationary
+        return hparams
+
 if __name__ == "__main__":
-    from snake_ai.envs import MazeGrid
+    from snake_ai.envs import MazeGrid, RandomObstaclesEnv
     import matplotlib.pyplot as plt
 
-    env = MazeGrid()
-    simulation = DiffusionSimulation(env, Tmax=500, res="pixel", diffusivity=1, init_value=1, solver="explicit", endless=True)
+    env = RandomObstaclesEnv(nb_obs=10, max_obs_size=3)
+    simulation = DiffusionSimulation(env, res="pixel", diffusivity=1, init_value=1, endless=True)
     simulation.reset()
     simulation.start()
-    flow.vis.plot(simulation.field)
+    flow.vis.plot(flow.math.log(simulation.field))
     plt.show()
 
 INIT_VALUE = 1e6
