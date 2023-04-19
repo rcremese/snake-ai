@@ -8,6 +8,8 @@ from .random_obstacles_env import RandomObstaclesEnv
 from .room_escape import RoomEscape
 from .maze_grid import MazeGrid
 from .snake_env import SnakeEnv
+from .slot_env import SlotEnv
+
 from gym.envs.registration import register
 
 register(

@@ -5,9 +5,9 @@
 # @copyright https://mit-license.org/
 #
 from snake_ai.envs.snake_base_env import SnakeBaseEnv
+from snake_ai.envs.line import Line, intersection_with_obstacles
 from snake_ai.utils import Colors, Reward
 from snake_ai.utils.direction import Direction, get_opposite_direction
-from snake_ai.utils.line import Line, intersection_with_obstacles
 from typing import Tuple, Dict, List
 import numpy as np
 import pygame

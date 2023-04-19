@@ -17,7 +17,7 @@ def crank_nicolson_diffusion(concentration : flow.field.Field, obstacle_mask : f
 
 class DiffusionSolver:
     names = ["explicit", "implicit", "crank_nicolson"]
-    def __init__(self, diffusivity : float, t_max: float, dt: float, history_step : float = 0, name : str = "crank_nicolson", endless : bool = False) -> None:
+    def __init__(self, diffusivity : float, t_max: float, dt: float, history_step : float = 0, name : str = "crank_nicolson", stationary : bool = False) -> None:
         if dt <= 0 or t_max <= 0 or diffusivity <= 0:
             raise ValueError(f"Expected diffusivity, Tmax and dt and to be positive floats, not {diffusivity}, {t_max} and {dt}")
         self.dt, self.t_max = dt, t_max
@@ -31,8 +31,8 @@ class DiffusionSolver:
         if name.lower() not in DiffusionSolver.names:
             raise ValueError( f"Expected name to be one of {DiffusionSolver.names}, not {name}")
         self.name = name.lower()
-        assert isinstance(endless, bool), f"Expected endless to be a boolean, not {type(endless)}"
-        self._endless = endless
+        assert isinstance(stationary, bool), f"Expected endless to be a boolean, not {type(stationary)}"
+        self._stationary = stationary
 
     # TODO : Attendre que le probleme de jit_compile soit resolu pour utiliser crank_nicolson_diffusion
     def step(self, field : flow.CenteredGrid, obs_mask : flow.CenteredGrid) -> flow.CenteredGrid:
@@ -60,7 +60,7 @@ class DiffusionSolver:
         time = 0
         while time < self.t_max:
             field = self.step(field, obs_mask)
-            if self._endless:
+            if self._stationary:
                 field += initial_field
             time += self.dt
             # Record the history
@@ -78,10 +78,10 @@ class DiffusionSolver:
 
     @property
     def is_stationary(self) -> bool:
-        return self._endless
+        return self._stationary
 
     def __repr__(self) -> str:
-        return f"{__class__.__name__}(diffusivity={self.diffusivity}, Tmax={self.t_max}, dt={self.dt}, history_step={self._hist_step}, solver={self.name}, endless={self._endless})"
+        return f"{__class__.__name__}(diffusivity={self.diffusivity}, Tmax={self.t_max}, dt={self.dt}, history_step={self._hist_step}, solver={self.name}, stationary={self._stationary})"
 
 if __name__ == "__main__":
     from snake_ai.envs import MazeGrid
@@ -94,7 +94,7 @@ if __name__ == "__main__":
     obs_converter = ObstacleConverter("pixel")
     field = converter(env)
     obstacles = obs_converter(env)
-    solver = DiffusionSolver(1, 100, 0.1, endless=True)
+    solver = DiffusionSolver(1, 100, 0.1, stationary=True)
     concentration = solver.solve(field, obstacles)
     flow.vis.plot(flow.math.log(concentration))
     plt.show()

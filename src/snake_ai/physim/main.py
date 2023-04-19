@@ -62,7 +62,7 @@ def deterministic_walk(point_cloud : flow.PointCloud, gradient_field : flow.Cent
         i +=1
     return history
 
-def plot_walk_animation(concentration : flow.CenteredGrid, history : List[flow.PointCloud]):
+def animate_walk_history(concentration : flow.CenteredGrid, history : List[flow.PointCloud]):
     fig, ax = plt.subplots()
     ax.imshow(concentration.values.numpy('y,x'))
     ax.set(xlabel='x', ylabel='y', title='Concentration map + deterministic walkers')
@@ -108,7 +108,7 @@ def diffusion_equation_solver(width=20, height=20, nb_obstacles=10, max_size = 2
         print(loss)
 
     history = deterministic_walk(point_cloud, gradient, time_step=50, max_iter=200, save_step=10, goal=None)
-    anim = plot_walk_animation(simu.concentration, history)
+    anim = animate_walk_history(simu.concentration, history)
     anim.save(save_path.joinpath(simu_name, 'video.mp4'))
     plt.show()
 

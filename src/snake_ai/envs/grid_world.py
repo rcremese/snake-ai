@@ -217,26 +217,12 @@ class GridWorld(gym.Env):
         self._sanity_check(agent.position)
         self._agent = agent
 
-    # @property
-    # def direction(self) -> Direction:
-    #     """Current direction of the agent"""
-    #     if self._direction is None:
-    #         raise InitialisationError("The direction argument is not initialized. Reset the environment !")
-
-    # @direction.setter
-    # def direction(self, direction : Direction):
-    #     if direction not in Direction:
-    #         raise ValueError(f"Unknown direction {direction}. Expected one of the following : {Direction}")
-    #     self._direction = direction
-
     @property
     def obstacles(self) -> List[Rectangle]:
         """Obstacles in the environment, represented by a list of rectangle"""
         if self._obstacles is None:
             raise InitialisationError("The obstacles are not initialized. Reset the environment !")
         return self._obstacles
-
-
 
     @property
     def observations(self) -> np.ndarray:

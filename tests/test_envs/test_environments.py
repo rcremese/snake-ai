@@ -4,16 +4,10 @@
  # @desc Created on 2022-11-10 2:28:07 pm
  # @copyright https://mit-license.org/
  #
-from typing import Dict, List, Tuple
-import pygame
-from snake_ai.envs import Snake, Walker2D, Rectangle
-from snake_ai.utils.line import Line
+from snake_ai.envs import Walker2D, Rectangle
 from snake_ai.utils import Direction, Reward, errors
 import numpy as np
-from pathlib import Path
-from phi import flow
 import pytest
-import json
 
 from snake_ai.envs.grid_world import GridWorld
 class TestGridWorld():
@@ -219,72 +213,3 @@ class TestRandomObstaclesEnv:
         free_pos[2:,2:] = False
         assert np.array_equal(grid_world._free_position_mask, free_pos)
         assert grid_world.obstacles == obstacles
-
-# class TestSnakeClassicalEnv():
-#     w, h, pix = 5, 5, 10
-#     nb_obs = 2
-
-#     def test_reset(self):
-#         env = SnakeClassicEnv(render_mode=None, width=self.w, height=self.h, nb_obstacles=self.nb_obs, pixel=self.pix)
-
-#         env.reset()
-#         assert env.snake == SnakeAI(10, 10, pixel=self.pix)
-
-#     def test_write(self, tmp_path):
-#         env = SnakeClassicEnv(width=self.w, height=self.h, nb_obstacles=self.nb_obs, pixel=self.pix)
-#         # Test simple environment write
-#         output_path : Path = tmp_path.joinpath('env_write.json')
-#         env.write(output_path)
-#         with open(output_path, 'r') as file:
-#             env_dict = json.load(file)
-#         assert env_dict == {"width": self.w, "height": self.h, "pixel": self.pix, "seed": 0, "nb_obstacles": self.nb_obs,"max_obs_size": 3, "render_mode": "None"}
-#         env.write(output_path, detailed=True)
-#         with open(output_path, 'r') as file:
-#             env_dict = json.load(file)
-#         assert env_dict == {
-#             "width": self.w,
-#             "height": self.h,
-#             "pixel": self.pix,
-#             "seed": 0,
-#             "nb_obstacles": self.nb_obs,
-#             "max_obs_size": 3,
-#             "render_mode": "None",
-
-#             }
-
-#     def test_load(self):
-#         outputpath = Path(__file__).parent.joinpath('data', 'environment.json').resolve(strict=True)
-#         env = SnakeClassicEnv.load(outputpath)
-#         assert env.height == 10
-#         assert env.width == 10
-#         assert env._pixel_size == 10
-#         assert env._max_obs_size == 2
-#         assert env.nb_obstacles == 2
-#         assert env.render_mode is None
-#         assert env.food == Circle(5, 5, 5)
-#         assert env.snake == SnakeAI(50, 50, 10)
-#         assert env.obstacles == [Rectangle(10,10,10,10), Rectangle(40, 40, 10, 10)]
-
-#     def test_step(self):
-#         pass
-
-#     def test_properties(self):
-#         pass
-
-#     def test_place_food(self):
-#         pass
-
-#     def test_place_obstacel(self):
-#         pass
-
-#     def test_is_outside(self):
-#         pass
-
-#     def test_collide_with_obstacles(slef):
-#         pass
-
-#     def test_collide_with_snake_body(self):
-#         pass
-
-#     def test_collisions(self):
-#         pass
