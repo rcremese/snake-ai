@@ -20,15 +20,15 @@ def advection_simulation(initial_pos : flow.Tensor, velocity : flow.CenteredGrid
         path_lenght += flow.field.l2_loss(update, reduce='vector')
     return points, path_lenght
 
-def position_loss(final_pos : flow.Tensor, initial_pos : flow.Tensor):
-    return flow.math.mean(flow.field.l2_loss(final_pos, reduce='vector') / flow.field.l2_loss(initial_pos, reduce='vector'))
+def position_loss(final_pos : flow.Tensor, initial_pos : flow.Tensor, target_pos : flow.Tensor):
+    return flow.math.mean(flow.field.l2_loss(final_pos - target_pos, reduce='vector') / flow.field.l2_loss(initial_pos, reduce='vector'))
 
 # @flow.math.functional_gradient
-def optimization_step(initial_pos : flow.Tensor, velocity : flow.CenteredGrid, dt : float, gamma : float):
+def optimization_step(initial_pos : flow.Tensor, target_pos : flow.Tensor, velocity : flow.CenteredGrid, dt : float, gamma : float):
     final_pos, path_length = advection_simulation(initial_pos, velocity, dt)
-    return position_loss(final_pos, initial_pos) + gamma * flow.math.mean(path_length)
+    return position_loss(final_pos, initial_pos, target_pos) + gamma * flow.math.mean(path_length)
 
-def deterministic_walk(point_cloud : flow.Tensor, gradient_field : flow.CenteredGrid, time_step : int, goal : flow.Tensor, max_iter : int, save_step : int):
+def deterministic_walk(point_cloud : flow.Tensor, gradient_field : flow.CenteredGrid, time_step : int, max_iter : int, save_step : int):
     i = 0
     history = [point_cloud]
     # jited_advection = flow.math.jit_compile(flow.advect.advect)
@@ -63,29 +63,38 @@ def main():
         simu.start()
         SimulationWritter(dir_path).write(simu)
 
-    # animate_simulation_history(simu, dir_path.joinpath(f"concentration_diffusion.gif"))
+    animate_simulation_history(simu.history, dir_path.joinpath(f"concentration_evolution.gif"))
     # Get log-concentration field
+    print("Computing log-concentration field...")
     threashold = flow.math.where(simu.field.values > EPS, simu.field.values, EPS)
     log_concentration = flow.CenteredGrid(flow.math.log(threashold), extrapolation=np.log(EPS), bounds=simu.field.bounds, resolution=simu.field.resolution)
     log_grad = flow.field.spatial_gradient(log_concentration)
     ## Visualisation
     plot_concentration_with_gradient(simu.field, dir_path.joinpath(f"concentration.png"))
     plot_concentration_with_gradient(log_concentration, dir_path.joinpath(f"concentration_log.png"))
-    # history = deterministic_walk(simu.point_cloud, log_grad, time_step=10, max_iter=100, save_step=10)
-    # animate_walk_history(log_concentration, history, dir_path.joinpath(f"walk_init.gif"))
+    history = deterministic_walk(simu.point_cloud, log_grad, time_step=10, max_iter=100, save_step=10)
+    animate_walk_history(log_concentration, history, dir_path.joinpath(f"walk_init.gif"))
 
     ## Optimization steps
-    lr = 0.1
-    grad_eval = flow.math.functional_gradient(optimization_step, wrt='velocity')
-    for step in range(200):
-        loss, grad = grad_eval(simu.point_cloud, log_grad, dt=10, gamma=0.1)
-        log_grad -= lr * grad
-        print(loss)
+    print("Starting optimization...")
+    # lr = 0.01
+    # target = flow.tensor(flow.math.vec(x = simu.env.goal.x + simu.env.goal.width / 2, y=simu.env.goal.y + simu.env.goal.height / 2))
+    # print(target)
+    # grad_eval = flow.math.functional_gradient(optimization_step, wrt='velocity')
+    # loss_evol = []
+    # for step in range(150):
+    #     loss, grad = grad_eval(simu.point_cloud, target, log_grad, dt=10, gamma=0.1)
+    #     log_grad -= lr * grad
+    #     print(loss)
+    #     loss_evol.append(loss.numpy())
+    
+    # print("Saving results...")
+    # history = deterministic_walk(simu.point_cloud, log_grad, time_step=10, max_iter=100, save_step=10)
+    # animate_walk_history(log_concentration, history, dir_path.joinpath(f"walk_final.gif"))
 
-    history = deterministic_walk(simu.point_cloud, log_grad, time_step=10, max_iter=100, save_step=10)
-    animate_walk_history(log_concentration, history, dir_path.joinpath(f"walk_final.gif"))
-
-    # plt.show()
+    # fig = plt.figure()
+    # plt.plot(loss_evol, xlabel="step", ylabel="loss")
+    # fig.savefig(dir_path.joinpath("loss_evolution.png"))
 
 if __name__ == '__main__':
     main()

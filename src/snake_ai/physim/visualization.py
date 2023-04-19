@@ -5,48 +5,28 @@ import matplotlib.animation as animation
 from pathlib import Path
 from phi.jax import flow
 import numpy as np
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 def plot_concentration_with_gradient(field : flow.CenteredGrid, output : Optional[str] = None):
     gradient = flow.field.spatial_gradient(field)
-    fig, ax = plt.subplots(1,2, dpi=300)
-    ax[0].imshow(field.values.numpy('y,x'), cmap='viridis')
-    ax[0].set(title='Concentration map & gradients', xlabel='x', ylabel='y')
     np_grad = gradient.values.numpy('vector,y,x')
+    
+    fig, ax = plt.subplots(1,2, dpi=300)
+    im1 = ax[0].imshow(field.values.numpy('y,x'), cmap='viridis')
+    ax[0].set(title='Concentration map & gradients', xlabel='x', ylabel='y')
     ax[0].quiver(np_grad[0], np_grad[1], angles='xy', scale_units='xy', scale=1)
-    ax[1].imshow(np.linalg.norm(np_grad, axis=0))
+    divider = make_axes_locatable(ax[0])
+    cax = divider.append_axes('right', size='5%', pad=0.05)
+    fig.colorbar(im1, cax=cax)
+    
+    im2 = ax[1].imshow(np.linalg.norm(np_grad, axis=0))
     ax[1].set(title='Gradient norm', xlabel='x', ylabel='y')
-
+    divider = make_axes_locatable(ax[1])
+    cax = divider.append_axes('right', size='5%', pad=0.05)
+    fig.colorbar(im2, cax=cax)
     fig.tight_layout()
     fig.savefig(output)
     plt.close(fig)
-
-def animate_walker_history(field : flow.CenteredGrid, history : List[flow.Tensor], output : Optional[str] = None):
-    fig, ax = plt.subplots()
-    ax.imshow(field.values.numpy('y,x'))
-    ax.set(xlabel='x', ylabel='y', title='Concentration map + deterministic walkers')
-    anim = []
-    for point_cloud in history:
-        points = point_cloud.numpy('point,vector')
-        # anim.append(flow.plot(point_cloud, animate=True))
-        anim.append(ax.plot(points[:,0], points[:,1], marker="o", ls="", animated=True, color='orange'))
-    anim = animation.ArtistAnimation(fig, anim, blit=True, interval=200)
-    if output is not None:
-        output = Path(output).resolve()
-        anim.save(output)
-
-def animate_simulation_history(simulation : Simulation, output : Optional[str] = None):
-    fps = 10
-    fig, ax = plt.subplots(dpi=300)
-    history = simulation.history
-    ax.imshow(history[0].values.numpy('y,x'), cmap='inferno')
-    ax.set(xlabel='x', ylabel='y', title='Concentration map')
-
-    def animate(i):
-        ax.clear()
-        im = ax.imshow(history[i].values.numpy('y,x'), cmap='inferno')
-        return [im]
-    anim = animation.FuncAnimation(fig, animate, frames=len(history), interval=1000/fps)
-    anim.save(output)
 
 def animate_walk_history(concentration : flow.CenteredGrid, history : List[flow.PointCloud], output : Optional[str] = None):
     fig, ax = plt.subplots(dpi=300)
@@ -59,3 +39,43 @@ def animate_walk_history(concentration : flow.CenteredGrid, history : List[flow.
         anim.append(ax.plot(points[:,0], points[:,1], marker="o", ls="", animated=True, color='orange'))
     anim = animation.ArtistAnimation(fig, anim, blit=True, interval=200)
     anim.save(output)
+
+def animate_simulation_history(history : List[flow.CenteredGrid], output : Optional[str] = None):
+    snapshots = [field.values.numpy('y,x') for field in history]
+        
+   # First set up the figure, the axis, and the plot element we want to animate
+    fig = plt.figure( figsize=(8,8), dpi=300 )
+
+    im = plt.imshow(snapshots[0], interpolation='none', aspect='auto', vmin=0, vmax=1)
+
+    def animate_func(i):
+        im.set_array(snapshots[i])
+        return [im]
+    fps = 10
+    anim = animation.FuncAnimation(
+                                fig, 
+                                animate_func, 
+                                frames = len(snapshots),
+                                interval = 1000 / fps, # in ms
+                                )
+
+    anim.save(output, fps=fps)
+
+if __name__ == "__main__":
+    from snake_ai.envs import MazeGrid, RandomObstaclesEnv
+    from snake_ai.physim.converter import DiffusionConverter, ObstacleConverter
+    import matplotlib.pyplot as plt
+    import time
+
+    env = RandomObstaclesEnv(render_mode="human", pixel=20, nb_obs=10, max_obs_size=3, seed=42)
+    env.reset()
+    env.render()
+    time.sleep(20)
+    # converter = DiffusionConverter("pixel")
+    # obs_converter = ObstacleConverter("pixel")
+    # field = converter(env)
+    # obstacles = obs_converter(env)
+    # solver = DiffusionSolver(1, 1000, 0.1, endless=True, history_step=10)
+    # concentration = solver.solve(field, obstacles)
+    # env.render()
+    # plot_concentration(solver.history)
