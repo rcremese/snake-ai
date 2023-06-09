@@ -34,6 +34,11 @@ class RoomEscape(GridWorld):
             self._place_goal()
         return self.observations, reward, terminated, self.info
 
+    ## Properties
+    @GridWorld.name.getter
+    def name(self) -> str:
+        return f"RoomEscape({self.width}, {self.height})"
+
     ## Private methods
     def _populate_grid_with_obstacles(self):
         # Get walls x and y coordinates (in grid units)

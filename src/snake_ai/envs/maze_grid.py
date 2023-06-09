@@ -74,6 +74,11 @@ class MazeGrid(GridWorld):
         Maze.set_seed(seed)
         super().seed(seed)
 
+    ## Properties
+    @GridWorld.name.getter
+    def name(self) -> str:
+        return f"Maze({self.width}, {self.height})"
+
     ## Dunder methods
     def __repr__(self):
         return f"{__class__.__name__}(width={self.width}, height={self.height}, pixel={self.pixel}, seed={self._seed}, render_mode={self.render_mode}, maze_generator={self.maze_generator})"

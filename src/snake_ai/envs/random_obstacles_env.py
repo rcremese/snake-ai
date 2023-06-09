@@ -62,6 +62,11 @@ class RandomObstaclesEnv(GridWorld):
         self.agent = Walker2D(x_agent, y_agent, self.pixel)
         return self.observations, self.info
 
+    ## Properties
+    @GridWorld.name.getter
+    def name(self) -> str:
+        return f"RandomObstacles({self.width}, {self.height})"
+
     @GridWorld.obstacles.setter
     def obstacles(self, rectangles : List[Rectangle]):
         # Simple case in which the user provide only 1 rectangle

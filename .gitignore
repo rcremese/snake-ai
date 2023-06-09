@@ -6,6 +6,7 @@ __pycache__
 models/*
 # the saved simulations in data
 datas/*
+simulations/*
 # pip installs
 *.egg-info
 # logs

@@ -38,6 +38,11 @@ class SlotEnv(GridWorld):
             self.goal = Rectangle(x_goal * self.pixel, self._obs_center[1] * self.pixel, self.pixel, self.pixel)
         return self.observations, reward, terminated, self.info
 
+    ## Properties
+    @GridWorld.name.getter
+    def name(self) -> str:
+        return f"Slot({self.width}, {self.height})"
+
 if __name__ == "__main__":
     room_escape = SlotEnv(20, 20, pixel=20, render_mode="human")
     room_escape.reset(10)

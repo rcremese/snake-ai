@@ -67,6 +67,10 @@ class SnakeEnv(RandomObstaclesEnv):
     #         raise CollisionError(f"The food {self._goal} collides with the obstacle {self._obstacles[food_collision]}.")
 
     ## Properties
+    @GridWorld.name.getter
+    def name(self) -> str:
+        return f"SnakeEnv({self.width}, {self.height})"
+
     @property
     def snake(self) -> Snake:
         "Snake agent represented by a subclass of Snake."

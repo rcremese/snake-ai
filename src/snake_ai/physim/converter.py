@@ -67,21 +67,21 @@ class ObstacleConverter(Converter):
         obstacles = convert_obstacles(env.obstacles, div_factor)
         return flow.field.resample(flow.union(obstacles), grid)
 class PointCloudConverter(Converter):
-    def __call__(self, env: GridWorld) -> flow.CenteredGrid:
+    def __call__(self, env: GridWorld) -> flow.PointCloud:
         points = []
         for x, y in env.free_positions:
             if self.type == "pixel":
                 points.append(flow.vec(x=(x + 0.5) * env.pixel, y=(y + 0.5) * env.pixel))
             else:
                 points.append(flow.vec(x=x, y=y))
-        return flow.tensor(points, flow.instance('point'))
+        return flow.PointCloud(flow.tensor(points, flow.instance('point')))
 
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
-    from snake_ai.envs import MazeGrid
-    env = MazeGrid()
+    from snake_ai.envs import MazeGrid, RandomObstaclesEnv
+    env = RandomObstaclesEnv(nb_obs=10)
     env.reset()
-    converter = DiffusionConverter("meta", 1)
+    converter = DiffusionConverter("meta")
     obstacles = ObstacleConverter("meta")
     pt_converter = PointCloudConverter("meta")
 
