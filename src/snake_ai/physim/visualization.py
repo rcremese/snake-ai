@@ -7,6 +7,21 @@ from phi.jax import flow
 import numpy as np
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
+def plot_concentration_map(field : flow.CenteredGrid, output : Optional[str] = None, use_log : bool = False):
+    fig, ax = plt.subplots(1,1, dpi=100)
+    concentration = field.values.numpy('y,x')
+    if use_log:
+        concentration = np.log(concentration)
+    title = 'Log concentration map' if use_log else 'Concentration map'
+    im = ax.imshow(concentration, cmap='inferno')
+    ax.set(title=title, xlabel='x', ylabel='y')
+    fig.colorbar(im, ax=ax)
+    if output is not None:
+        fig.savefig(output)
+        plt.close(fig)
+    else:
+        plt.show()
+
 def plot_concentration_with_gradient(field : flow.CenteredGrid, output : Optional[str] = None):
     gradient = flow.field.spatial_gradient(field)
     np_grad = gradient.values.numpy('vector,y,x')

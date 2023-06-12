@@ -56,7 +56,6 @@ def simulate():
     # grid_parser.set_defaults(env=GridWorld(**vars(grid_parser.parse_args())))
     # args = parser.parse_args(['de', '-t', '2000', '--use_log'])
     args = parser.parse_args()
-    print(args)
     diffusion_simulation(args)
 
 def diffusion_simulation(args: argparse.Namespace):

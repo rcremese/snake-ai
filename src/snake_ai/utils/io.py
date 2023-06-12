@@ -6,6 +6,7 @@
  #
 from snake_ai.envs import GridWorld, RandomObstaclesEnv, RoomEscape, MazeGrid, SnakeEnv, SlotEnv
 from snake_ai.physim.simulation import Simulation, DiffusionSimulation
+from snake_ai.physim.visualization import plot_concentration_map
 
 from abc import ABCMeta, abstractmethod
 from typing import Union, Any, Dict
@@ -60,8 +61,9 @@ class SimulationWritter(Writter):
         dictionary = self.convert_to_dict(simulation)
         with open(self.path.joinpath("simulation.json"), 'w') as f:
             json.dump(dictionary, f)
+        plot_concentration_map(simulation.field, self.path.joinpath("field.png"))
+        plot_concentration_map(simulation.field, self.path.joinpath("log_field.png"), use_log=True)
         flow.field.write(simulation.field, str(self.path.joinpath("field")))
-
 
     @staticmethod
     def convert_to_dict(simulation : Simulation) -> Dict[str, Any]:
@@ -83,6 +85,7 @@ class Loader(metaclass=ABCMeta):
     @abstractmethod
     def load_from_dict(self, dictionary : Dict[str, Any]) -> Any:
         raise NotImplementedError()
+
 class EnvLoader(Loader):
     def load(self) -> GridWorld:
         with open(self.path, 'r') as file:
