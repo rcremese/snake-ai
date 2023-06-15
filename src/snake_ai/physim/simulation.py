@@ -49,7 +49,7 @@ class Simulation(ABC):
         self._obstacles_converter = ObstacleConverter(self.res)
         self._point_cloud_converter = PointCloudConverter(self.res)
         # Attributes to be initialised
-        self._field_converter = None
+        # self._field_converter = None
         self._solver = None
         self._field = None
 
@@ -61,7 +61,7 @@ class Simulation(ABC):
     def reset(self, seed : Optional[int] = None):
         self.env.reset(seed)
         # Mask the field with the obstacles and set the initial value
-        self._field = self._init_value * (1 - self.obstacles) * self._field_converter(self.env)
+        # self._field = self._init_value * (1 - self.obstacles) * self._field_converter(self.env)
 
     ## Properties
     @property
@@ -109,23 +109,22 @@ class DiffusionSimulation(Simulation):
     def __init__(self, env : GridWorld, res : str = "pixel", init_value : float = 1, t_max : Optional[float] = None,  dt : Optional[float] = None,
                  history : bool = False, diffusivity : float = 1,  solver = "crank_nicolson", stationary : bool = False, **kwargs):
         super().__init__(env, res, init_value, t_max, dt, history)
+        # Set the spatial resolution of the simulation
+        spatial_res = 1 / self.env.pixel if self.res == "pixel" else 1
         # Set the field diffusive coefficient
         if diffusivity <= 0 :
             raise ValueError(f"The diffusion coefficient needs to be > 0. Get {diffusivity}")
         self._diffusivity = diffusivity
         # Set the stopping criteria
-        area = self.env.width * self.env.height if self.res == "meta" else self.env.width * self.env.height * self.env.pixel ** 2
+        area = self.env.width * self.env.height
         if self.t_max is None:
             self.t_max = MAX_TIME * area / diffusivity # Stop condition based on the diffusion time needed to diffuse in a free environment
         # Set the time step of the scheme, considering the resolution to be 1 in each environment
         if self.dt is None:
-            if res == "meta":
-                self.dt = 1
-            else:
-                self.dt = self.env.pixel
             if solver == "explicit":
-                self.dt /= (2 * self._diffusivity) # Stability condition for the explicit scheme
-
+                self.dt = 0.5 * spatial_res**2 / self._diffusivity # Stability condition for the explicit scheme
+            else:
+                self.dt = spatial_res
         self._solver = DiffusionSolver(self._diffusivity, t_max = self.t_max, dt=self.dt, history_step=self._hstep, name=solver, stationary=stationary)
         self._field_converter = DiffusionConverter(self.res)
 
@@ -133,6 +132,10 @@ class DiffusionSimulation(Simulation):
         if self._field is None:
             raise errors.InitialisationError("The field is not initialised. Use the reset method before")
         self._field = self._solver.solve(self._field, self.obstacles)
+
+    def reset(self, seed : Optional[int] = None):
+        super().reset(seed)
+        self._field = self._init_value * (1 - self.obstacles) * self._field_converter(self.env)
 
     @property
     def name(self) -> str:
