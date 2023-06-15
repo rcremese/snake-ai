@@ -44,37 +44,36 @@ class DiffusionConverter(Converter):
         self._check_environment(env)
         # Select the scaling factor from the type of conversion
         if self.type == "pixel":
-            div_factor = 1
-            source =  flow.Sphere(x=env.goal.centerx, y=env.goal.centery, radius=env.pixel // 2)
+            source =  flow.Sphere(x=env.goal.centerx / env.pixel, y=env.goal.centery / env.pixel, radius=env.pixel // 2)
         else:
-            div_factor = env.pixel
-            source = flow.Box(x=(env.goal.left // div_factor, env.goal.right // div_factor), y=(env.goal.top // div_factor, env.goal.bottom // div_factor))
+            source = flow.Box(x=(env.goal.left // env.pixel, env.goal.right // env.pixel), y=(env.goal.top // env.pixel, env.goal.bottom // env.pixel))
 
-        bounds = flow.Box(x=env.window_size[0] // div_factor, y=env.window_size[1] // div_factor)
-        return flow.CenteredGrid(source, bounds=bounds, x=env.window_size[0] // div_factor, y=env.window_size[1] // div_factor)
+        bounds = flow.Box(x=env.width, y=env.height)
+        return flow.CenteredGrid(source, bounds=bounds, x=env.width, y=env.height)
 
     def __repr__(self) -> str:
-        return f"{__class__.__name__}(size={self.type}, init_value={self.init_value})"
+        return f"{__class__.__name__}(size={self.type})"
+
 class ObstacleConverter(Converter):
     def __call__(self, env: GridWorld) -> flow.CenteredGrid:
         if self.type == "pixel":
-            div_factor = 1
+            tensor = flow.spatial(x=env.window_size[0], y=env.window_size[1])
         else:
-            div_factor = env.pixel
-        grid = flow.CenteredGrid(flow.math.zeros(flow.spatial(x=env.window_size[0] // div_factor, y=env.window_size[1] // div_factor)))
+            tensor = flow.spatial(x=env.width, y=env.height)
+        grid = flow.CenteredGrid(flow.math.zeros(tensor), bounds=flow.Box(x=env.width, y=env.height))
         if env.obstacles == []:
             return grid
-        obstacles = convert_obstacles(env.obstacles, div_factor)
+        obstacles = convert_obstacles(env.obstacles, env.pixel)
         return flow.field.resample(flow.union(obstacles), grid)
+
 class PointCloudConverter(Converter):
     def __call__(self, env: GridWorld) -> flow.PointCloud:
         points = []
         for x, y in env.free_positions:
-            if self.type == "pixel":
-                points.append(flow.vec(x=(x + 0.5) * env.pixel, y=(y + 0.5) * env.pixel))
-            else:
-                points.append(flow.vec(x=x, y=y))
-        return flow.PointCloud(flow.tensor(points, flow.instance('point')))
+            points.append(flow.vec(x=(x +0.5), y=(y + 0.5)))
+        position = flow.tensor(points, flow.instance('walker'))
+        velocity = flow.math.zeros_like(position)
+        return flow.PointCloud(flow.tensor(points, flow.instance('walker')), values=velocity, bounds=flow.Box(x=env.width, y=env.height))
 
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
