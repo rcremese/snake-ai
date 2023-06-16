@@ -186,7 +186,7 @@ class GridWorld(gym.Env):
     ## Properties
     @property
     def name(self) -> str:
-        return f"GridWorld({self.width}, {self.height})"
+        return f"GridWorld({self.width},{self.height})"
 
     @property
     def goal(self) -> Rectangle:

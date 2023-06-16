@@ -77,7 +77,7 @@ class MazeGrid(GridWorld):
     ## Properties
     @GridWorld.name.getter
     def name(self) -> str:
-        return f"Maze({self.width}, {self.height})"
+        return f"Maze({self.width},{self.height})"
 
     ## Dunder methods
     def __repr__(self):

@@ -11,6 +11,20 @@ import numpy as np
 MAX_ITER = 100
 
 @flow.math.jit_compile
+def point_cloud_advection(point_cloud : flow.PointCloud, force_field : flow.CenteredGrid, dt : float, t_max : float):
+    # history = [point_cloud]
+    t = 0
+    while t < t_max:
+        point_cloud = flow.advect(point_cloud, force_field, dt=dt, t_max=t_max)
+        # history.append(point_cloud)
+        t += dt
+    return point_cloud
+
+def convert_concentration_field(concentration_field : flow.CenteredGrid, threshold : float = 1e-6):
+    threashold = flow.math.where(concentration_field.values > threshold, concentration_field.values, threshold)
+    return flow.CenteredGrid(flow.math.log(threashold), extrapolation=np.log(threshold), bounds=concentration_field.bounds, resolution=concentration_field.resolution)
+
+@flow.math.jit_compile
 def advection_simulation(initial_pos : flow.Tensor, velocity : flow.CenteredGrid, dt : float):
     points = flow.math.to_float(flow.math.copy(initial_pos))
     path_lenght = flow.math.zeros_like(flow.field.l2_loss(points, reduce='vector'))
@@ -118,4 +132,4 @@ def main():
     # fig.savefig(dir_path.joinpath("loss_evolution.png"))
 
 if __name__ == '__main__':
-    main()
+    pass

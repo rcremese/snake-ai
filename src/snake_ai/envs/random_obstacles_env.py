@@ -65,7 +65,7 @@ class RandomObstaclesEnv(GridWorld):
     ## Properties
     @GridWorld.name.getter
     def name(self) -> str:
-        return f"RandomObstacles({self.width}, {self.height})"
+        return f"RandomObstacles({self.width},{self.height})"
 
     @GridWorld.obstacles.setter
     def obstacles(self, rectangles : List[Rectangle]):
@@ -88,31 +88,6 @@ class RandomObstaclesEnv(GridWorld):
             self._free_position_mask[x:x+size, y:y+size] = False
         # TODO : Implement a warning if obstacles overlaps with goal or agent !
         self._obstacles = rectangles
-
-    # def _populate_grid_with_obstacles(self) -> List[Rectangle]:
-    #     """Populate the environment with obstacles of various sizes.
-
-    #     Raises:
-    #         ConfigurationError: If the total area occupied by of the obstacles is greater than the total area of the environment.
-
-    #     Returns:
-    #         List[Rectangle]: Randomly spaced obstacles represented as a list of rectangles.
-    #     """
-    #     obstacles = []
-    #     # Construct a list with the number of obstacle samples per size (first value = 1 metapixel).
-    #     nb_samples_per_size = self._max_obs_size * [self._nb_obs // self._max_obs_size, ]
-    #     # If the number of obstacles can not be devided by the maximum value, samples are added to the obstacles of size 1
-    #     nb_samples_per_size[0] += self._nb_obs - sum(nb_samples_per_size)
-    #     total_area = sum([(size + 1) * nb_sample**2 for size, nb_sample in enumerate(nb_samples_per_size)])
-    #     if total_area >= self.width * self.height - 2:
-    #         raise errors.ConfigurationError(f"There are too much obstacles ({self._nb_obs}) or with a range which is too wide {self._max_obs_size} for the environment ({self.width},{self.height}).")
-    #     nb_samples_per_size.reverse()
-    #     # Loop over the obstacle sizes
-    #     for i, nb_obstacle in enumerate(nb_samples_per_size):
-    #         size = self._max_obs_size - i
-    #         for _ in range(nb_obstacle):
-    #             obstacles.append(self._place_obstacle(size))
-    #     return obstacles
 
     ## Private methods
     def _populate_grid_with_obstacles(self):

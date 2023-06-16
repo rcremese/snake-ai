@@ -47,28 +47,10 @@ class SnakeEnv(RandomObstaclesEnv):
         super().draw(canvas)
         self.agent.draw(canvas)
 
-    # def check_overlaps(self):
-    #     """Check overlaps between the snake, the food and the obstacles.
-
-    #     Raises:
-    #         CollisionError: error raised if one of the snake body part or food collide with the obstacles in the environment or with themself
-    #     """
-    #     # Check collisions for the snake
-    #     for snake_part in self._snake:
-    #         if snake_part.colliderect(self._goal):
-    #             raise CollisionError(f"The snake part {snake_part} collides with the food {self._goal}.")
-    #         collision_idx = snake_part.collidelist(self._obstacles)
-    #         if collision_idx != -1:
-    #             raise CollisionError(f"The snake part {snake_part} collides with the obstacle {self._obstacles[collision_idx]}.")
-    #     # Check collisions for the food
-    #     food_collision = self._goal.collidelist(self._obstacles)
-    #     if food_collision != -1:
-    #         raise CollisionError(f"The food {self._goal} collides with the obstacle {self._obstacles[food_collision]}.")
-
     ## Properties
     @GridWorld.name.getter
     def name(self) -> str:
-        return f"SnakeEnv({self.width}, {self.height})"
+        return f"SnakeEnv({self.width},{self.height})"
 
     @property
     def snake(self) -> Snake:

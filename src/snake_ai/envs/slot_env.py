@@ -41,7 +41,7 @@ class SlotEnv(GridWorld):
     ## Properties
     @GridWorld.name.getter
     def name(self) -> str:
-        return f"Slot({self.width}, {self.height})"
+        return f"Slot({self.width},{self.height})"
 
 if __name__ == "__main__":
     room_escape = SlotEnv(20, 20, pixel=20, render_mode="human")

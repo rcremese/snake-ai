@@ -37,7 +37,7 @@ class RoomEscape(GridWorld):
     ## Properties
     @GridWorld.name.getter
     def name(self) -> str:
-        return f"RoomEscape({self.width}, {self.height})"
+        return f"RoomEscape({self.width},{self.height})"
 
     ## Private methods
     def _populate_grid_with_obstacles(self):
