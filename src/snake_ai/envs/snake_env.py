@@ -4,8 +4,7 @@
  # @desc Created on 2023-03-20 1:17:23 pm
  # @copyright MIT License
  #
-import gym
-import gym.spaces
+import gymnasium as gym
 import pygame
 from snake_ai.envs.snake import Snake, SnakeHuman, BidirectionalSnake
 from snake_ai.envs.random_obstacles_env import RandomObstaclesEnv

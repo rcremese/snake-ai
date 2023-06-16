@@ -1,0 +1,26 @@
+cloudpickle==2.2.1
+contourpy==1.1.0
+cycler==0.11.0
+Cython==0.29.27
+Farama-Notifications==0.0.4
+fonttools==4.40.0
+gymnasium==0.28.1
+jax==0.4.11
+jax-jumpy==1.0.0
+jaxlib==0.4.11+cuda12.cudnn88
+kiwisolver==1.4.4
+matplotlib==3.7.1
+mazelib==0.9.13
+ml-dtypes==0.2.0
+numpy==1.22.1
+opt-einsum==3.3.0
+packaging==23.1
+phiflow==2.4.0
+Pillow==9.5.0
+pygame==2.4.0
+pyparsing==3.0.9
+python-dateutil==2.8.2
+scipy==1.10.1
+six==1.16.0
+-e git+ssh://git@github.com/rcremese/snake-ai.git@c9f06160f5212edd81ffcb7c6f1d4dbf8df86ea9#egg=snake_ai
+typing_extensions==4.6.3

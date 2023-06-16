@@ -10,12 +10,8 @@ from snake_ai.physim.solver import DiffusionSolver
 from snake_ai.physim.converter import DiffusionConverter, PointCloudConverter, ObstacleConverter
 from snake_ai.envs import GridWorld
 from snake_ai.utils import errors
-from snake_ai.utils.types import Numerical
 from typing import Union, Optional, List, Any, Dict
 from phi.jax import flow
-from pathlib import Path
-import numpy as np
-import json
 
 MAX_TIME = 1
 HISTORY_LENGTH = 100

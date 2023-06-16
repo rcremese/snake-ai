@@ -18,10 +18,12 @@ classifiers = [
 ]
 #TODO : ajouter des contraintes sur les versions
 dependencies = [
-  "torch",
-  "pygame",
-  "gym",
-  "numpy",
+  "gymnasium>=0.28",
+  "jax>=0.4",
+  "jaxlib==0.4.11+cuda12.cudnn88",
+  "phiflow>=2.4",
+  "pygame>=2.4",
+  "mazelib>=0.9",
 ]
 
 [project.urls]

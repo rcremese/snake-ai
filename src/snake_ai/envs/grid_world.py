@@ -11,8 +11,7 @@ from snake_ai.envs.walker import Walker2D
 import pygame
 
 import numpy as np
-import gym.spaces
-import gym
+import gymnasium as gym
 
 from snake_ai.utils.errors import InitialisationError, ResolutionError, OutOfBoundsError, ShapeError, ConfigurationError
 from snake_ai.utils import Colors, Direction, Reward

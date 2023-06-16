@@ -1,7 +1,5 @@
 from abc import abstractmethod, ABCMeta
 from phi.jax import flow
-from typing import Union, List
-from snake_ai.utils import errors
 
 @flow.math.jit_compile
 def explicit_diffusion(concentration : flow.field.Field, obstacle_mask : flow.field.Field, diffusivity : float, dt : float) -> flow.field.Field:

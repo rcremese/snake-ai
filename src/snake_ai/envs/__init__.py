@@ -7,8 +7,7 @@ from .room_escape import RoomEscape
 from .maze_grid import MazeGrid
 from .snake_env import SnakeEnv
 from .slot_env import SlotEnv
-
-from gym.envs.registration import register
+from gymnasium.envs.registration import register
 
 register(
     id='Snake-v0',
