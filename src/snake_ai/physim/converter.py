@@ -73,7 +73,7 @@ class PointCloudConverter(Converter):
             points.append(flow.vec(x=(x +0.5), y=(y + 0.5)))
         position = flow.tensor(points, flow.instance('walker'))
         velocity = flow.math.zeros_like(position)
-        return flow.PointCloud(flow.tensor(points, flow.instance('walker')), values=velocity, bounds=flow.Box(x=env.width, y=env.height))
+        return flow.PointCloud(position, values=velocity, bounds=flow.Box(x=env.width, y=env.height))
 
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
