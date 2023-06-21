@@ -13,6 +13,7 @@ MAX_ITER = 100
 
 @partial(flow.math.jit_compile, auxiliary_args='dt,nb_iter')
 def point_cloud_advection(point_cloud : flow.PointCloud, force_field : flow.CenteredGrid, dt : float, nb_iter : int = MAX_ITER):
+    nb_iter = int(nb_iter)
     history = nb_iter * [0]
     history[0] = point_cloud
     for i in range(1, nb_iter):
@@ -71,7 +72,7 @@ def normalized_l2_distance(point_cloud : flow.PointCloud, target : flow.Tensor) 
 @partial(flow.functional_gradient, wrt='force_field')
 def walk_simulation(point_cloud : flow.PointCloud, force_field : flow.CenteredGrid, target : flow.Tensor, dt : float, nb_iter : int = MAX_ITER):
     trajectories = point_cloud_advection(point_cloud, force_field, dt=dt, nb_iter=nb_iter)
-    return normalized_l2_distance(trajectories, target)
+    return flow.math.mean(normalized_l2_distance(trajectories, target))
 
 def main():
     simulation_path = Path('/home/rocremes/projects/snake-ai/simulations/Slot(20, 20)_meta_Tmax=400.0_D=1/seed_0')
@@ -86,8 +87,8 @@ def main():
     target = flow.vec(x = simu.env.goal.centerx / simu.env.width, y=simu.env.goal.centery / simu.env.height)
     pt_cloud = simu.point_cloud
 
-    value, grad = walk_simulation(pt_cloud, force_field, simu.env.goal, dt=10, nb_iter=100)
-    flow.vis.plot([force_field, grad])
+    value, grad = walk_simulation(pt_cloud, force_field, target, dt=1, nb_iter=50)
+    flow.vis.plot([force_field, pt_cloud, grad])
     plt.show()
 
 
