@@ -75,7 +75,8 @@ def walk_simulation(point_cloud : flow.PointCloud, force_field : flow.CenteredGr
     return flow.math.mean(normalized_l2_distance(trajectories, target))
 
 def main():
-    simulation_path = Path('/home/rocremes/projects/snake-ai/simulations/Slot(20, 20)_meta_Tmax=400.0_D=1/seed_0')
+    import snake_ai.physim.visualization as vis
+    simulation_path = Path('/home/rcremese/projects/snake-ai/simulations/GridWorld(20,20)_meta_Tmax=400.0_D=1/seed_0')
     loader = SimulationLoader(simulation_path)
     simu = loader.load()
 
@@ -84,10 +85,11 @@ def main():
     force_field = flow.field.spatial_gradient(log_concentration, type=flow.CenteredGrid)
     force_field = clip_gradient_norm(force_field, threashold=1)
 
-    target = flow.vec(x = simu.env.goal.centerx / simu.env.width, y=simu.env.goal.centery / simu.env.height)
+    target = flow.vec(x = 5, y=5)
     pt_cloud = simu.point_cloud
-
-    value, grad = walk_simulation(pt_cloud, force_field, target, dt=1, nb_iter=50)
+    # history = point_cloud_advection(pt_cloud, force_field, dt=1, nb_iter=100)
+    # vis.animate_walk_history(log_concentration, history, output=simulation_path.joinpath("deterministic_walkers.gif"))
+    value, grad = walk_simulation(pt_cloud, force_field, target, dt=1, nb_iter=100)
     flow.vis.plot([force_field, pt_cloud, grad])
     plt.show()
 

@@ -40,23 +40,29 @@ def plot_concentration_with_gradient(field : flow.CenteredGrid, output : Optiona
     cax = divider.append_axes('right', size='5%', pad=0.05)
     fig.colorbar(im2, cax=cax)
     fig.tight_layout()
-    fig.savefig(output)
-    plt.close(fig)
+    if output is not None:
+        fig.savefig(output)
+        plt.close(fig)
+    else:
+        plt.show()
 
-def animate_walk_history(concentration : flow.CenteredGrid, history : List[flow.PointCloud], output : Optional[str] = None):
-    snapshots = [point_cloud.numpy('point,vector') for point_cloud in history]
-
+def animate_walk_history(concentration : flow.CenteredGrid, history : flow.PointCloud, output : Optional[str]):
+    # snapshots = [point_cloud.numpy('point,vector') for point_cloud in history]
+    snapshots = history.points.numpy('time,walker,vector')
     fig, ax = plt.subplots(dpi=300)
-    ax.imshow(concentration.values.numpy('y,x'))
+    im = ax.imshow(concentration.values.numpy('y,x'), cmap='inferno')
     ax.set(xlabel='x', ylabel='y', title='Concentration map + deterministic walkers')
+    fig.colorbar(im, ax=ax)
+    
     anim = []
     for points in snapshots:
         # anim.append(flow.plot(point_cloud, animate=True))
         # ax.plot(points[0,0], points[0,1], marker="o", ls="", animated=True, color='orange')
         # im = ax.plot(points[1,0], points[1,1], marker="o", ls="", animated=True, color='blue')
-        anim.append(ax.plot(points[:,0], points[:,1], marker="o", ls="", animated=True, color='orange'))
+        anim.append(ax.plot(points[:,0], points[:,1], marker="o", ls="", animated=True, color='yellow'))
     anim = animation.ArtistAnimation(fig, anim, blit=True, interval=200)
     anim.save(output, fps=10)
+    plt.close(fig)
 
 def animate_simulation_history(history : List[flow.CenteredGrid], output : Optional[str] = None):
     snapshots = [field.values.numpy('y,x') for field in history]
