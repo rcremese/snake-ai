@@ -72,7 +72,7 @@ def diffusion_simulation(args: argparse.Namespace):
     else:
         raise ValueError(f"Unknown environment {args.name}. Expected one of the following values : {ENVIRONMENT_NAMES}")
     # Define a simulation with the input parameters and execute it
-    simulation = DiffusionSimulation(env, diff=args.diff_coef, t_max=args.t_max, dt=args.dt, res=args.res, solver=args.solver,
+    simulation = DiffusionSimulation(env, diffusivity=args.diff_coef, t_max=args.t_max, dt=args.dt, res=args.res, solver=args.solver,
                                      stationary=args.stationary, init_value=args.init_value)
 
     # Check if the simulation already exists
