@@ -8,7 +8,7 @@ from abc import ABC, abstractmethod
 # from snake_ai.physim import DiffusionSolver2D
 from snake_ai.physim.solver import DiffusionSolver
 from snake_ai.physim.converter import DiffusionConverter, PointCloudConverter, ObstacleConverter
-from snake_ai.envs import GridWorld
+from snake_ai.envs import GridWorld, MazeGrid
 from snake_ai.utils import errors
 from typing import Union, Optional, List, Any, Dict
 from phi.jax import flow
@@ -114,7 +114,8 @@ class DiffusionSimulation(Simulation):
         # Set the stopping criteria
         area = self.env.width * self.env.height
         if self.t_max is None:
-            self.t_max = MAX_TIME * area / diffusivity # Stop condition based on the diffusion time needed to diffuse in a free environment
+            max_time = 10 if isinstance(env, MazeGrid) else 1
+            self.t_max = max_time * area / diffusivity # Stop condition based on the diffusion time needed to diffuse in a free environment
         # Set the time step of the scheme, considering the resolution to be 1 in each environment
         if self.dt is None:
             if solver == "explicit":

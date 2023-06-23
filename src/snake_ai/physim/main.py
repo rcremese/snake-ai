@@ -62,7 +62,7 @@ def diffusion_simulation(args: argparse.Namespace):
     if args.name == "grid_world":
         env = GridWorld(width=args.width, height=args.height, pixel=args.pixel, seed=args.seed)
     elif args.name == "rand_obs":
-        env = RandomObstaclesEnv(width=args.width, height=args.height, pixel=args.pixel, seed=args.seed, max_size=args.max_size, nb_obstacles=args.nb_obs)
+        env = RandomObstaclesEnv(width=args.width, height=args.height, pixel=args.pixel, seed=args.seed, max_obs_size=args.max_size, nb_obs=args.nb_obs)
     elif args.name == "maze":
         env = MazeGrid(width=args.width, height=args.height, pixel=args.pixel, seed=args.seed, generator=args.maze_generator)
     elif args.name == "slot":
