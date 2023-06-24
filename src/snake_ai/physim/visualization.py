@@ -46,23 +46,67 @@ def plot_concentration_with_gradient(field : flow.CenteredGrid, output : Optiona
     else:
         plt.show()
 
-def animate_walk_history(concentration : flow.CenteredGrid, history : flow.PointCloud, output : Optional[str]):
+def plot_walkers_with_concentration(
+        concentration : flow.CenteredGrid,
+        point_cloud : flow.PointCloud,
+        target : Optional[flow.Tensor] = None,
+        force_field : Optional[flow.CenteredGrid] = None,
+        cmap_concentration : str = 'inferno',
+        cmap_walkers : str = 'afmhot',
+        title : str = 'Concentration map + walkers',
+        ):
+    point_cloud = point_cloud.points.numpy('walker,vector')
+    # Create colormaps
+    colormap = plt.cm.get_cmap(cmap_walkers)
+    cloud_colors = colormap(np.linspace(0, 1, point_cloud.shape[0]))
+    # Create figure and background image
+    fig, ax = plt.subplots(dpi=300)
+    im = ax.imshow(concentration.values.numpy('y,x'), cmap=cmap_concentration)
+    ax.set(xlabel='x', ylabel='y', title=title)
+    if force_field is not None:
+        gradient = force_field.values.numpy('vector,y,x')
+        ax.quiver(gradient[0], gradient[1], angles='xy', scale_units='xy', scale=1)
+    # Print the target if it exists
+    if target is not None:
+        tx, ty = target.numpy('vector')
+        ax.plot(tx, ty, color='blue', marker='x', markersize=10, ls='', label='Target')
+        fig.legend()
+    fig.colorbar(im, ax=ax)
+    scatter = ax.scatter(point_cloud[:,0], point_cloud[:,1], c=cloud_colors)
+    return fig, ax, scatter
+
+def animate_walk_history(
+        concentration : flow.CenteredGrid,
+        history : flow.PointCloud,
+        output : str,
+        target : Optional[flow.Tensor] = None,
+        force_field : Optional[flow.CenteredGrid] = None,
+        cmap_concentration : str = 'inferno',
+        cmap_walkers : str = 'afmhot',
+        title : str = 'Concentration map + walkers',
+        ):
     # snapshots = [point_cloud.numpy('point,vector') for point_cloud in history]
     snapshots = history.points.numpy('time,walker,vector')
-    fig, ax = plt.subplots(dpi=300)
-    im = ax.imshow(concentration.values.numpy('y,x'), cmap='inferno')
-    ax.set(xlabel='x', ylabel='y', title='Concentration map + deterministic walkers')
-    fig.colorbar(im, ax=ax)
-    
-    anim = []
-    for points in snapshots:
-        # anim.append(flow.plot(point_cloud, animate=True))
-        # ax.plot(points[0,0], points[0,1], marker="o", ls="", animated=True, color='orange')
-        # im = ax.plot(points[1,0], points[1,1], marker="o", ls="", animated=True, color='blue')
-        anim.append(ax.plot(points[:,0], points[:,1], marker="o", ls="", animated=True, color='yellow'))
-    anim = animation.ArtistAnimation(fig, anim, blit=True, interval=200)
+    # Create colormap
+    fig, _, scatter = plot_walkers_with_concentration(concentration, history.time[0], target, force_field, cmap_concentration, cmap_walkers, title)
+
+    def update(frame):
+        # read new points
+        scatter.set_offsets(snapshots[frame])
+
+    anim = animation.FuncAnimation(fig, update, frames=range(snapshots.shape[0]), interval=200)
     anim.save(output, fps=10)
     plt.close(fig)
+
+def plot_loss(loss : List[float], output : Optional[str] = None):
+    fig, ax = plt.subplots(1,1, dpi=300)
+    ax.plot(loss)
+    ax.set(title='Loss function evolution', xlabel='step', ylabel='Loss')
+    if output is not None:
+        fig.savefig(output)
+        plt.close(fig)
+    else:
+        plt.show()
 
 def animate_simulation_history(history : List[flow.CenteredGrid], output : Optional[str] = None):
     snapshots = [field.values.numpy('y,x') for field in history]

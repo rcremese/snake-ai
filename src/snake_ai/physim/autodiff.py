@@ -1,3 +1,9 @@
+##
+# @author  <robin.cremese@gmail.com>
+ # @file Description
+ # @desc Created on 2023-06-24 10:07:34 am
+ # @copyright MIT License
+ #
 from snake_ai.envs import RoomEscape, SlotEnv, RandomObstaclesEnv
 from snake_ai.physim.simulation import DiffusionSimulation
 from snake_ai.physim.solver import DiffusionSolver
@@ -11,7 +17,7 @@ from functools import partial
 
 MAX_ITER = 100
 
-@partial(flow.math.jit_compile, auxiliary_args='dt,nb_iter')
+# @partial(flow.math.jit_compile, auxiliary_args='dt,nb_iter')
 def point_cloud_advection(point_cloud : flow.PointCloud, force_field : flow.CenteredGrid, dt : float, nb_iter : int = MAX_ITER):
     nb_iter = int(nb_iter)
     history = nb_iter * [0]
@@ -67,16 +73,16 @@ def normalized_l2_distance(point_cloud : flow.PointCloud, target : flow.Tensor) 
     assert 'vector' in point_cloud.points.shape.names, "The point cloud must contain a 'vector' dimension that contains the position of one particle"
     assert 'vector' in target.shape.names, "The target must contain a 'vector' dimension that correspond to the position of the target"
     # Compute the total variation of each trajectory
-    return flow.math.l2_loss(point_cloud.points.time[-1] - target, reduce='vector') / flow.math.l2_loss(point_cloud.points.time[0] - target, reduce='vector')
+    return flow.math.l2_loss(point_cloud.points.time[-1] - target, reduce='vector') #/ flow.math.l2_loss(point_cloud.points.time[0] - target, reduce='vector')
 
 @partial(flow.functional_gradient, wrt='force_field')
 def walk_simulation(point_cloud : flow.PointCloud, force_field : flow.CenteredGrid, target : flow.Tensor, dt : float, nb_iter : int = MAX_ITER):
-    trajectories = point_cloud_advection(point_cloud, force_field, dt=dt, nb_iter=nb_iter)
+    advected_sim = flow.jit_compile(point_cloud_advection, auxiliary_args='dt,nb_iter')
+    trajectories = advected_sim(point_cloud, force_field, dt=dt, nb_iter=nb_iter)
     return flow.math.mean(normalized_l2_distance(trajectories, target))
 
-def main():
+def main(simulation_path : str | Path):
     import snake_ai.physim.visualization as vis
-    simulation_path = Path('/home/rocremes/projects/snake-ai/simulations/GridWorld(20,20)_meta_Tmax=400.0_D=1/seed_0')
     loader = SimulationLoader(simulation_path)
     simu = loader.load()
 
@@ -84,20 +90,33 @@ def main():
     log_concentration = compute_log_concentration(concentration, epsilon=1e-6)
     force_field = flow.field.spatial_gradient(log_concentration, type=flow.CenteredGrid)
     force_field = clip_gradient_norm(force_field, threashold=1)
-
-    target = flow.vec(x = 5, y=5)
+    # Plot the concentration field and the walkers inital state
     pt_cloud = simu.point_cloud
+    # fig, _, _ = vis.plot_walkers_with_concentration(log_concentration, pt_cloud, force_field=force_field)
+    # fig.savefig(simulation_path.joinpath("initial_configuration.png"))
+    # Plot a first initial walk to see if it converges to the goal
     # history = point_cloud_advection(pt_cloud, force_field, dt=1, nb_iter=100)
-    # vis.animate_walk_history(log_concentration, history, output=simulation_path.joinpath("deterministic_walkers.gif"))
+    # vis.animate_walk_history(log_concentration, history, output=simulation_path.joinpath("initial_walkers.gif"), force_field=force_field)
+
+    # Define a target reaching problem and solve it with gradient descent
+    target = flow.vec(x = 5, y=5)
+    loss = []
     for e in range(100):
         value, grad = walk_simulation(pt_cloud, force_field, target, dt=1, nb_iter=20)
+        print(f"iter : {e}, loss : {value}")
+        loss.append(value.numpy())
         force_field -= grad
-        print(f"loss : {value}")
-    history = point_cloud_advection(pt_cloud, force_field, dt=1, nb_iter=100)
-    vis.animate_walk_history(log_concentration, history, output=simulation_path.joinpath("differentiated_field.gif"))
+        force_field = clip_gradient_norm(force_field, threashold=1)
 
-    flow.vis.plot([force_field, grad, flow.math.l2_loss(grad, reduce='vector')])
-    plt.show()
+    # A new animatin with walkers moved to the new target
+    history = point_cloud_advection(pt_cloud, force_field, dt=1, nb_iter=100)
+    vis.animate_walk_history(log_concentration, history, output=simulation_path.joinpath("differentiated_walkers.gif"),
+                             target=target,
+                             force_field=force_field)
+
+    vis.plot_loss(loss, output=simulation_path.joinpath("loss_evolution.png"))
+    # flow.vis.plot([force_field, grad, flow.math.l2_loss(grad, reduce='vector')])
+    # plt.show()
 
 
 @flow.math.jit_compile
@@ -209,4 +228,6 @@ def trajectory_optimization(simu : DiffusionSimulation, target : flow.Tensor, lo
 
 
 if __name__ == '__main__':
-    main()
+    dirpath = Path("/home/rocremes/projects/snake-ai/simulations")
+    simulation_path = dirpath.joinpath("GridWorld(20,20)_meta_Tmax=400.0_D=1/seed_0")
+    main(simulation_path)

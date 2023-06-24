@@ -114,7 +114,7 @@ class DiffusionSimulation(Simulation):
         # Set the stopping criteria
         area = self.env.width * self.env.height
         if self.t_max is None:
-            max_time = 10 if isinstance(env, MazeGrid) else 1
+            max_time = 2 if isinstance(env, MazeGrid) else 1
             self.t_max = max_time * area / diffusivity # Stop condition based on the diffusion time needed to diffuse in a free environment
         # Set the time step of the scheme, considering the resolution to be 1 in each environment
         if self.dt is None:
