@@ -13,7 +13,7 @@ from snake_ai.envs import (
     SlotEnv,
 )
 from snake_ai.physim.simulation import Simulation, DiffusionSimulation
-from snake_ai.physim.visualization import plot_concentration_map
+import snake_ai.physim.visualization as vis 
 
 from abc import ABCMeta, abstractmethod
 from typing import Union, Any, Dict
@@ -73,10 +73,11 @@ class SimulationWritter(Writter):
         dictionary = self.convert_to_dict(simulation)
         with open(self.path.joinpath("simulation.json"), "w") as f:
             json.dump(dictionary, f)
-
-        # fig, _, _ = plot_concentration_map(simulation.field, self.path.joinpath("field.png"))
-        # plot_concentration_map(simulation.field, self.path.joinpath("log_field.png"), use_log=True)
+        # Save the field values
         flow.field.write(simulation.field, str(self.path.joinpath("field")))
+        # Save a screen-shot of the field
+        fig, _, _ = vis.plot_concentration_map(simulation.field)
+        fig.savefig(self.path.joinpath("field.png"), dpi=100)
 
     @staticmethod
     def convert_to_dict(simulation: Simulation) -> Dict[str, Any]:

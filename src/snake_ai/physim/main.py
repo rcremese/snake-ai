@@ -97,7 +97,7 @@ def simulate():
     diffusion_parser.add_argument(
         "--solver",
         type=str,
-        default="crank_nicolson",
+        default="explicit",
         choices=DiffusionSimulation.solvers,
         help="Name of the solver used for the simulation",
     )
@@ -194,127 +194,6 @@ def diffusion_simulation(args: argparse.Namespace):
     simulation.reset(args.seed)
     simulation.start()
     sim_writter.write(simulation)
-
-
-def deterministic_walk(
-    point_cloud: flow.PointCloud,
-    gradient_field: flow.CenteredGrid,
-    time_step: int,
-    goal: flow.Tensor,
-    max_iter: int,
-    save_step: int,
-):
-    i = 0
-    history = [point_cloud]
-    # jited_advection = flow.math.jit_compile(flow.advect.advect)
-    while i < max_iter:
-        point_cloud: flow.PointCloud = flow.advect.advect(
-            point_cloud, gradient_field, dt=time_step
-        )
-        # point_cloud : flow.PointCloud = jited_advection(point_cloud, gradient_field, time_step)
-        if i % save_step:
-            history.append(point_cloud)
-        i += 1
-    return history
-
-
-def animate_walk_history(
-    concentration: flow.CenteredGrid, history: List[flow.PointCloud]
-):
-    fig, ax = plt.subplots()
-    ax.imshow(concentration.values.numpy("y,x"))
-    ax.set(xlabel="x", ylabel="y", title="Concentration map + deterministic walkers")
-    anim = []
-    for point_cloud in history:
-        points = point_cloud.elements.center.numpy("point,vector")
-        # anim.append(flow.plot(point_cloud, animate=True))
-        anim.append(
-            ax.plot(
-                points[:, 0],
-                points[:, 1],
-                marker="o",
-                ls="",
-                animated=True,
-                color="orange",
-            )
-        )
-    return animation.ArtistAnimation(fig, anim, blit=True, interval=200)
-
-
-def compute_log(field: flow.CenteredGrid, eps: float = 1e-6):
-    threashold = flow.math.where(field.values < eps, eps, field.values)
-    return flow.CenteredGrid(
-        flow.math.log(threashold),
-        extrapolation=np.log(eps),
-        bounds=field.bounds,
-        resolution=field.resolution,
-    )
-
-
-def diffusion_equation_solver(
-    width=20,
-    height=20,
-    nb_obstacles=10,
-    max_size=2,
-    diff_coef=1,
-    seed=0,
-    pixel=10,
-    t_max=100,
-    use_log=False,
-    eps=1e-6,
-    **kwargs,
-):
-    save_path = Path(__file__).parents[3].joinpath("datas").resolve(strict=True)
-    simu_name = f"diffusion_Tmax={t_max}_D={diff_coef}_Nobs={nb_obstacles}_size={max_size}_Box({width * pixel},{height * pixel})_seed={seed}"
-    if save_path.joinpath(simu_name).exists():
-        loader = SimulationLoader(save_path.joinpath(simu_name))
-        simu = loader.load()
-    else:
-        simu = DiffusionSimulation(
-            width,
-            height,
-            nb_obstacles,
-            max_size,
-            pixel,
-            seed,
-            diff=diff_coef,
-            t_max=t_max,
-        )
-        simu.start()
-        writer = SimulationWritter(save_path.joinpath(simu_name))
-        writer.write(simu)
-
-    if use_log:
-        log_concentration = compute_log(simu.field, eps=eps)
-        gradient = flow.field.spatial_gradient(log_concentration)
-    else:
-        gradient = flow.field.spatial_gradient(simu.field)
-    ## Visualisation
-    # simu.env.render("human")
-    fig, ax = plt.subplots(1, 2)
-    ax[0].imshow(simu.field.values.numpy("y,x"), cmap="viridis")
-    ax[0].set(title="Concentration + gradients", xlabel="x", ylabel="y")
-    np_grad = gradient.values.numpy("vector,y,x")
-    ax[0].quiver(np_grad[0], np_grad[1], angles="xy", scale_units="xy", scale=1)
-    ax[1].imshow(np.linalg.norm(np_grad, axis=0))
-    ax[1].set(title="Gradient norm", xlabel="x", ylabel="y")
-    fig.savefig(save_path.joinpath(simu_name, "concentration.png"))
-    point_cloud = simu.point_cloud
-    ## Optimization steps
-    lr = 0.1
-    grad_eval = flow.math.functional_gradient(optimization_step, wrt="velocity")
-    for step in range(200):
-        loss, grad = grad_eval(point_cloud.points, gradient, dt=10, gamma=0)
-        gradient -= lr * grad
-        print(loss)
-
-    history = deterministic_walk(
-        point_cloud, gradient, time_step=50, max_iter=200, save_step=10, goal=None
-    )
-    anim = animate_walk_history(simu.concentration, history)
-    anim.save(save_path.joinpath(simu_name, "video.mp4"))
-    plt.show()
-
 
 if __name__ == "__main__":
     simulate()

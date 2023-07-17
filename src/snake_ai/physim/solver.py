@@ -10,7 +10,7 @@ def explicit_diffusion(
     dt: float,
 ) -> flow.field.Field:
     return (1 - obstacle_mask) * flow.diffuse.explicit(
-        concentration, diffusivity=diffusivity, dt=dt, substeps=2
+        concentration, diffusivity=diffusivity, dt=dt, substeps=3
     )
 
 
@@ -47,7 +47,7 @@ class DiffusionSolver:
         t_max: float,
         dt: float,
         history_step: float = 0,
-        name: str = "crank_nicolson",
+        name: str = "explicit",
         stationary: bool = False,
     ) -> None:
         if dt <= 0 or t_max <= 0 or diffusivity <= 0:
