@@ -16,8 +16,9 @@ import numpy as np
 from functools import partial
 
 MAX_ITER = 100
+MAX_EPOCH = 50
 
-# @partial(flow.math.jit_compile, auxiliary_args='dt,nb_iter')
+@partial(flow.math.jit_compile, auxiliary_args='dt,nb_iter')
 def point_cloud_advection(point_cloud : flow.PointCloud, force_field : flow.CenteredGrid, dt : float, nb_iter : int = MAX_ITER):
     nb_iter = int(nb_iter)
     history = nb_iter * [0]
@@ -78,7 +79,8 @@ def normalized_l2_distance(point_cloud : flow.PointCloud, target : flow.Tensor) 
 @partial(flow.functional_gradient, wrt='force_field')
 def walk_simulation(point_cloud : flow.PointCloud, force_field : flow.CenteredGrid, target : flow.Tensor, dt : float, nb_iter : int = MAX_ITER):
     advected_sim = flow.jit_compile(point_cloud_advection, auxiliary_args='dt,nb_iter')
-    trajectories = advected_sim(point_cloud, force_field, dt=dt, nb_iter=nb_iter)
+    # trajectories = advected_sim(point_cloud, force_field, dt=dt, nb_iter=nb_iter)
+    trajectories = point_cloud_advection(point_cloud, force_field, dt=dt, nb_iter=nb_iter)
     return flow.math.mean(normalized_l2_distance(trajectories, target))
 
 def main(simulation_path : str | Path):
@@ -92,16 +94,17 @@ def main(simulation_path : str | Path):
     force_field = clip_gradient_norm(force_field, threashold=1)
     # Plot the concentration field and the walkers inital state
     pt_cloud = simu.point_cloud
-    # fig, _, _ = vis.plot_walkers_with_concentration(log_concentration, pt_cloud, force_field=force_field)
+    # fig, _, _ = vis.plot_walkers_with_concentration(pt_cloud, log_concentration, force_field=force_field)
     # fig.savefig(simulation_path.joinpath("initial_configuration.png"))
-    # Plot a first initial walk to see if it converges to the goal
+    # # Plot a first initial walk to see if it converges to the goal
     # history = point_cloud_advection(pt_cloud, force_field, dt=1, nb_iter=100)
-    # vis.animate_walk_history(log_concentration, history, output=simulation_path.joinpath("initial_walkers.gif"), force_field=force_field)
+    # vis.animate_walk_history(history, log_concentration, output=simulation_path.joinpath("initial_walkers.gif"), force_field=force_field)
 
     # Define a target reaching problem and solve it with gradient descent
-    target = flow.vec(x = 5, y=5)
+    # target_center = simu.env.target.center
+    target = flow.vec(x = 15.5, y=5.5)
     loss = []
-    for e in range(100):
+    for e in range(MAX_EPOCH):
         value, grad = walk_simulation(pt_cloud, force_field, target, dt=1, nb_iter=20)
         print(f"iter : {e}, loss : {value}")
         loss.append(value.numpy())
@@ -109,14 +112,12 @@ def main(simulation_path : str | Path):
         force_field = clip_gradient_norm(force_field, threashold=1)
 
     # A new animatin with walkers moved to the new target
-    history = point_cloud_advection(pt_cloud, force_field, dt=1, nb_iter=100)
-    vis.animate_walk_history(log_concentration, history, output=simulation_path.joinpath("differentiated_walkers.gif"),
+    history = point_cloud_advection(pt_cloud, force_field, dt=1, nb_iter=20)
+    vis.animate_walk_history(history, log_concentration, output=simulation_path.joinpath("differentiated_walkers.gif"),
                              target=target,
                              force_field=force_field)
 
     vis.plot_loss(loss, output=simulation_path.joinpath("loss_evolution.png"))
-    # flow.vis.plot([force_field, grad, flow.math.l2_loss(grad, reduce='vector')])
-    # plt.show()
 
 
 @flow.math.jit_compile
@@ -175,59 +176,11 @@ def trajectory_optimization(simu : DiffusionSimulation, target : flow.Tensor, lo
         loss_evol.append(loss.numpy())
     return loss_evol, log_grad
 
-# def main():
-#     INIT_VALUE = 1e6
-#     TMAX = 1000
-#     DIFFUSIVITY = 1
-#     SEED = 0
-#     EPS = 1e-6
-#     DT = 1
-
-
-#     save_path = Path(__file__).parents[3].joinpath("datas").resolve(strict=True)
-#     simu_name = f"slotEnv_diffusion_Tmax={TMAX}_D={DIFFUSIVITY}_seed={SEED}"
-#     dir_path = save_path.joinpath(simu_name)
-#     if dir_path.exists():
-#         simu = SimulationLoader(dir_path).load()
-#     else:
-#         env = SlotEnv(seed=SEED)
-#         print("Starting simulation...")
-#         simu = DiffusionSimulation(env, t_max=TMAX, dt=DT, init_value=INIT_VALUE, history=True, stationary=True)
-#         simu.reset()
-#         simu.start()
-#         SimulationWritter(dir_path).write(simu)
-
-#     print("Diffusion simulation...")
-#     # animate_simulation_history(simu.history, dir_path.joinpath(f"concentration_evolution.gif"))
-#     # Get log-concentration field
-#     print("Computing log-concentration field...")
-#     threashold = flow.math.where(simu.field.values > EPS, simu.field.values, EPS)
-#     log_concentration = flow.CenteredGrid(flow.math.log(threashold), extrapolation=np.log(EPS), bounds=simu.field.bounds, resolution=simu.field.resolution)
-#     log_grad = flow.field.spatial_gradient(log_concentration)
-#     ## Visualisation
-#     # plot_concentration_with_gradient(simu.field, dir_path.joinpath(f"concentration.png"))
-#     # plot_concentration_with_gradient(log_concentration, dir_path.joinpath(f"concentration_log.png"))
-#     # print("First walk...")
-#     # agent = flow.tensor(flow.math.vec(x = simu.env.agent.position.centerx, y=simu.env.agent.position.centery))
-#     history = deterministic_walk(simu.point_cloud, log_grad, time_step=10, max_iter=300, save_step=10)
-#     animate_walk_history(log_concentration, history, dir_path.joinpath(f"walk.gif"))
-#     # stochastic_history = stochastic_walk(flow.tensor(5 * [agent, ], flow.instance('point')), log_grad, time_step=10, max_iter=500, save_step=10, D_init=0.01)
-#     # animate_walk_history(log_concentration, stochastic_history, dir_path.joinpath(f"stochastic_walk.gif"))
-
-#     ## Optimization steps
-#     # print("Starting optimization...")
-#     # loss_evol, new_log = trajectory_optimization(simu, simu.env.goal, log_grad)
-
-#     # print("Saving results...")
-#     # history = deterministic_walk(simu.point_cloud, new_log, time_step=10, max_iter=150, save_step=10)
-#     # animate_walk_history(log_concentration, history, dir_path.joinpath(f"walk_final.gif"))
-#     # fig, ax = plt.subplots(dpi=300)
-#     # ax.plot(loss_evol)
-#     # ax.set(xlabel="Iteration", ylabel="Loss")
-#     # fig.savefig(dir_path.joinpath("loss_evolution.png"))
-
-
 if __name__ == '__main__':
     dirpath = Path("/home/rocremes/projects/snake-ai/simulations")
-    simulation_path = dirpath.joinpath("GridWorld(20,20)_meta_Tmax=400.0_D=1/seed_0")
+    # simulation_path = dirpath.joinpath("GridWorld(20,20)_meta_Tmax=400.0_D=1/seed_0")
+    # simulation_path = dirpath.joinpath("RandomObstacles(20,20)_meta_Tmax=400.0_D=1/seed_0")
+    # simulation_path = dirpath.joinpath("RandomObstacles(20,20)_pixel_Tmax=400.0_D=1/seed_0")
+    # simulation_path = dirpath.joinpath("RoomEscape(20,20)_meta_Tmax=400.0_D=1/seed_0")
+    simulation_path = dirpath.joinpath("Slot(20,20)_meta_Tmax=400.0_D=1/seed_0")
     main(simulation_path)

@@ -42,7 +42,7 @@ class EnvWritter(Writter):
             "render_mode": "None" if env.render_mode is None else env.render_mode,
         }
         if isinstance(env, RandomObstaclesEnv):
-            dictionary["nb_obstacles"] = env._nb_obs
+            dictionary["nb_obs"] = env._nb_obs
             dictionary["max_obs_size"] = env._max_obs_size
         if isinstance(env, SnakeEnv):
             dictionary["snake_type"] = env._snake_type
@@ -61,8 +61,9 @@ class SimulationWritter(Writter):
         dictionary = self.convert_to_dict(simulation)
         with open(self.path.joinpath("simulation.json"), 'w') as f:
             json.dump(dictionary, f)
-        plot_concentration_map(simulation.field, self.path.joinpath("field.png"))
-        plot_concentration_map(simulation.field, self.path.joinpath("log_field.png"), use_log=True)
+
+        # fig, _, _ = plot_concentration_map(simulation.field, self.path.joinpath("field.png"))
+        # plot_concentration_map(simulation.field, self.path.joinpath("log_field.png"), use_log=True)
         flow.field.write(simulation.field, str(self.path.joinpath("field")))
 
     @staticmethod
@@ -103,11 +104,11 @@ class EnvLoader(Loader):
         if dictionary['name'] == 'GridWorld':
             return GridWorld(**dictionary)
         elif dictionary['name'] == 'RandomObstaclesEnv':
-            keys = {'nb_obstacles', 'max_obs_size'}
+            keys = {'nb_obs', 'max_obs_size'}
             assert keys.issubset(dictionary.keys()), f"One of the following keys is not in the input dictionary : {keys}"
             return RandomObstaclesEnv(**dictionary)
         elif dictionary['name'] == 'SnakeEnv':
-            keys = {'nb_obstacles', 'max_obs_size', 'snake_type'}
+            keys = {'nb_obs', 'max_obs_size', 'snake_type'}
             assert keys.issubset(dictionary.keys()), f"One of the following keys is not in the input dictionary : {keys}"
             return SnakeEnv(**dictionary)
         elif dictionary['name'] == 'MazeGrid':

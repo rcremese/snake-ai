@@ -70,7 +70,7 @@ class PointCloudConverter(Converter):
     def __call__(self, env: GridWorld) -> flow.PointCloud:
         points = []
         for x, y in env.free_positions:
-            points.append(flow.vec(x=x, y=y))
+            points.append(flow.vec(x=(x + 0.5), y=(y + 0.5)))
         position = flow.tensor(points, flow.instance('walker'))
         velocity = flow.math.zeros_like(position)
         return flow.PointCloud(position, values=velocity, bounds=flow.Box(x=env.width, y=env.height))

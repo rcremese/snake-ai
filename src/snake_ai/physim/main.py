@@ -17,6 +17,8 @@ import logging
 import time
 
 ENVIRONMENT_NAMES = ["grid_world", "rand_obs", "maze", "slot", "rooms"]
+# import os
+# os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 
 def simulate():
     # Parent parser for the environment

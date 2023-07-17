@@ -45,6 +45,7 @@ class RandomObstaclesEnv(GridWorld):
         Returns:
             observations, info: Vector of 0 and 1 that represent the observations and dictionary of available informations
         """
+        super().reset(seed)
         self.seed(seed)
         # Initialise score and a grid of free positions
         self.score = 0
