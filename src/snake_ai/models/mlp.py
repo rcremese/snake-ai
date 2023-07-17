@@ -2,9 +2,12 @@ from pathlib import Path
 import torch
 import os
 
+
 # SILU = SWISH with \beta=1
 class MLP(torch.nn.Module):
-    def __init__(self, input_size, output_size, hidden_sizes=[128], act_fn = torch.nn.SiLU()):
+    def __init__(
+        self, input_size, output_size, hidden_sizes=[128], act_fn=torch.nn.SiLU()
+    ):
         """
         Args:
             act_fn: Object of the activation function that should be used as non-linearity in the network.
@@ -31,11 +34,11 @@ class MLP(torch.nn.Module):
             "hidden_sizes": hidden_sizes,
         }
 
-    def forward(self, x : torch.Tensor):
+    def forward(self, x: torch.Tensor):
         return self.layers(x)
 
-    def save(self, filename='mlp.pth'):
-        model_path = os.getenv('MODEL_PATH')
+    def save(self, filename="mlp.pth"):
+        model_path = os.getenv("MODEL_PATH")
         if model_path is None:
             model_path = Path(__file__).parents[4].joinpath("models")
         filepath = Path(model_path).joinpath(filename).resolve()

@@ -8,8 +8,19 @@ import numpy as np
 from snake_ai.utils import errors
 from typing import List, Optional, Tuple, Dict, Any
 
+
 class RandomObstaclesEnv(GridWorld):
-    def __init__(self, width: int = 20, height: int = 20, pixel: int = 10, nb_obs: int = 0, max_obs_size: int = 1, seed: int = 0, render_mode: Optional[str] = None, **kwargs):
+    def __init__(
+        self,
+        width: int = 20,
+        height: int = 20,
+        pixel: int = 10,
+        nb_obs: int = 0,
+        max_obs_size: int = 1,
+        seed: int = 0,
+        render_mode: Optional[str] = None,
+        **kwargs,
+    ):
         """
         Args:
             width (int, optional): Environment width in terms of `metapixel`. Defaults to 20.
@@ -27,16 +38,24 @@ class RandomObstaclesEnv(GridWorld):
         super().__init__(width, height, pixel, seed, render_mode)
         # Initialise all numerical parameters
         if (max_obs_size < 1) or (nb_obs < 0):
-            raise ValueError(f"Only positive integers are allowed for parameters nb_obs & max_obs_size (>= 1) . Get ({nb_obs}, {max_obs_size})")
+            raise ValueError(
+                f"Only positive integers are allowed for parameters nb_obs & max_obs_size (>= 1) . Get ({nb_obs}, {max_obs_size})"
+            )
         if (max_obs_size > self.width) or (max_obs_size > self.height):
-            raise ValueError(f"Can not set an obstacle of size {max_obs_size} in an environment of size ({self.width}, {self.height})")
-        if nb_obs * max_obs_size ** 2 > self.width * self.height - 2:
-            raise errors.ConfigurationError(f"The maximal area of obstacles is greater than the maximal area of the environment.")
+            raise ValueError(
+                f"Can not set an obstacle of size {max_obs_size} in an environment of size ({self.width}, {self.height})"
+            )
+        if nb_obs * max_obs_size**2 > self.width * self.height - 2:
+            raise errors.ConfigurationError(
+                f"The maximal area of obstacles is greater than the maximal area of the environment."
+            )
         self._nb_obs, self._max_obs_size = int(nb_obs), int(max_obs_size)
-        self._obs_sizes = self._rng.integers(1, max_obs_size, size=nb_obs, endpoint=True)
+        self._obs_sizes = self._rng.integers(
+            1, max_obs_size, size=nb_obs, endpoint=True
+        )
 
     ## Public methods
-    def reset(self, seed : Optional[int]=None) -> Tuple[np.ndarray, Dict[str, Any]]:
+    def reset(self, seed: Optional[int] = None) -> Tuple[np.ndarray, Dict[str, Any]]:
         """Method to reset the environment
 
         Args:
@@ -58,7 +77,9 @@ class RandomObstaclesEnv(GridWorld):
             self._obstacles = []
         # Initialise goal & position
         x_goal, y_goal = self._rng.choice(self.free_positions)
-        self.goal = Rectangle(x_goal * self.pixel, y_goal * self.pixel, self.pixel, self.pixel)
+        self.goal = Rectangle(
+            x_goal * self.pixel, y_goal * self.pixel, self.pixel, self.pixel
+        )
         x_agent, y_agent = self._rng.choice(self.free_positions)
         self.agent = Walker2D(x_agent, y_agent, self.pixel)
         return self.observations, self.info
@@ -69,7 +90,7 @@ class RandomObstaclesEnv(GridWorld):
         return f"RandomObstacles({self.width},{self.height})"
 
     @GridWorld.obstacles.setter
-    def obstacles(self, rectangles : List[Rectangle]):
+    def obstacles(self, rectangles: List[Rectangle]):
         # Simple case in which the user provide only 1 rectangle
         if isinstance(rectangles, Rectangle):
             rectangles = [rectangles]
@@ -81,12 +102,12 @@ class RandomObstaclesEnv(GridWorld):
             for obstacle in self._obstacles:
                 x, y = self._get_grid_position(obstacle)
                 size = obstacle.width // self.pixel
-                self._free_position_mask[x:x+size, y:y+size] = True
+                self._free_position_mask[x : x + size, y : y + size] = True
         # set new obstacles positions to false
         for rectangle in rectangles:
             x, y = self._get_grid_position(rectangle)
             size = rectangle.width // self.pixel
-            self._free_position_mask[x:x+size, y:y+size] = False
+            self._free_position_mask[x : x + size, y : y + size] = False
         # TODO : Implement a warning if obstacles overlaps with goal or agent !
         self._obstacles = rectangles
 
@@ -97,7 +118,7 @@ class RandomObstaclesEnv(GridWorld):
             obstacle = self._place_obstacle(size)
             # Update free_position_mask
             x, y = self._get_grid_position(obstacle)
-            self._free_position_mask[x:x+size, y:y+size] = False
+            self._free_position_mask[x : x + size, y : y + size] = False
             # Append obstacle to the list
             self._obstacles.append(obstacle)
 
@@ -113,9 +134,13 @@ class RandomObstaclesEnv(GridWorld):
         available_positions = self.free_positions
         self._rng.shuffle(available_positions)
         for x, y in available_positions:
-            if self._free_position_mask[x:x+size, y:y+size].all():
-                return Rectangle(x * self.pixel, y * self.pixel, size * self.pixel, size * self.pixel)
-        raise errors.ConfigurationError(f"Unable to place obstacle of size {size} in the environment. Reduce nb_obs or max_obs_size.")
+            if self._free_position_mask[x : x + size, y : y + size].all():
+                return Rectangle(
+                    x * self.pixel, y * self.pixel, size * self.pixel, size * self.pixel
+                )
+        raise errors.ConfigurationError(
+            f"Unable to place obstacle of size {size} in the environment. Reduce nb_obs or max_obs_size."
+        )
 
     # TODO : cleaner le code
     # def _place_obstacle(self, size: int) -> Rectangle:
@@ -144,9 +169,13 @@ class RandomObstaclesEnv(GridWorld):
     def __repr__(self) -> str:
         return f"{__class__.__name__}(width={self.width}, height={self.height}, pixel={self.pixel}, nb_obs={self._nb_obs}, max_obs_size={self._max_obs_size}, render_mode={self.render_mode}, seed={self._seed})"
 
+
 if __name__ == "__main__":
     import time
-    snake_env = RandomObstaclesEnv(20, 20, nb_obs=15, max_obs_size=5, render_mode="human")
+
+    snake_env = RandomObstaclesEnv(
+        20, 20, nb_obs=15, max_obs_size=5, render_mode="human"
+    )
     seed = 0
     snake_env.reset(seed)
     print(snake_env._free_position_mask)
@@ -173,5 +202,5 @@ if __name__ == "__main__":
         if terminated:
             seed += 1
             snake_env.reset(seed)
-            print('You suck ! Try again !')
+            print("You suck ! Try again !")
         snake_env.render()

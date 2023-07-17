@@ -1,10 +1,11 @@
 ##
 # @author Robin CREMESE <robin.cremese@gmail.com>
- # @file Colors used for pygame
- # @desc Created on 2022-11-10 10:51:55 pm
- # @copyright https://mit-license.org/
- #
+# @file Colors used for pygame
+# @desc Created on 2022-11-10 10:51:55 pm
+# @copyright https://mit-license.org/
+#
 import enum
+
 
 class Colors(enum.Enum):
     WHITE = (255, 255, 255)

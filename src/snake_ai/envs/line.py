@@ -1,27 +1,30 @@
 ##
 # @author Robin CREMESE <robin.cremese@gmail.com>
- # @file Description
- # @desc Created on 2022-11-11 1:03:17 am
- # @copyright https://mit-license.org/
- #
+# @file Description
+# @desc Created on 2022-11-11 1:03:17 am
+# @copyright https://mit-license.org/
+#
 import pygame
 from typing import Tuple, List, Optional
 import logging
 import numpy as np
 
-class Line():
-    def __init__(self, start : Tuple[int], end : Tuple[int]) -> None:
+
+class Line:
+    def __init__(self, start: Tuple[int], end: Tuple[int]) -> None:
         self.start = start
         self.end = end
         self.length = np.linalg.norm(np.array(self.end) - np.array(self.start))
 
     def __repr__(self) -> str:
-        return f'Line({self.start}, {self.end})'
+        return f"Line({self.start}, {self.end})"
 
-    def intersect(self, rect : pygame.Rect) -> Tuple[Tuple[int]]:
+    def intersect(self, rect: pygame.Rect) -> Tuple[Tuple[int]]:
         return rect.clipline(self.start, self.end)
 
-    def draw(self, display : pygame.display, line_color : Tuple[int], point_color : Tuple[int]):
+    def draw(
+        self, display: pygame.display, line_color: Tuple[int], point_color: Tuple[int]
+    ):
         pygame.draw.line(display, line_color, self.start, self.end)
         pygame.draw.circle(display, point_color, self.end, radius=5)
 
@@ -33,7 +36,10 @@ class Line():
         """
         return np.array(self.end) - np.array(self.start)
 
-def intersection_with_obstacles(initial_line : Line, rect_list : List[pygame.Rect]) -> Line:
+
+def intersection_with_obstacles(
+    initial_line: Line, rect_list: List[pygame.Rect]
+) -> Line:
     min_distance = initial_line.length
     shortest_line = None
 
@@ -50,7 +56,8 @@ def intersection_with_obstacles(initial_line : Line, rect_list : List[pygame.Rec
         return initial_line
     return shortest_line
 
-def intersect_obstacle(initial_line : Line, rect : pygame.Rect) -> Optional[Line]:
+
+def intersect_obstacle(initial_line: Line, rect: pygame.Rect) -> Optional[Line]:
     starting_point = np.array(initial_line.start)
     intersection = initial_line.intersect(rect)
     if len(intersection) == 0:
