@@ -152,4 +152,3 @@ dependencies:
     - pyparsing==3.1.0
     - python-dateutil==2.8.2
     - six==1.16.0
-prefix: /home/rcremese/mambaforge/envs/snake-env

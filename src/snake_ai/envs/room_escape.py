@@ -36,14 +36,13 @@ class RoomEscape(GridWorld):
         self._populate_grid_with_obstacles()
         x_agent, y_agent = self._rng.choice(self.free_positions)
         self.agent = Walker2D(x_agent, y_agent, self.pixel)
-        self._place_goal()
+        # self._place_goal()
+        x_goal, y_goal = self._rng.choice(self.free_positions)
+        self.goal = Rectangle(
+            x_goal * self.pixel, y_goal * self.pixel, self.pixel, self.pixel
+        )
+        
         return self.observations, self.info
-
-    def step(self, action: int) -> Tuple[np.ndarray, float, bool, Dict[str, Any]]:
-        _, reward, terminated, info = super().step(action)
-        if info["truncated"] and self._are_in_same_room(self.agent.position, self.goal):
-            self._place_goal()
-        return self.observations, reward, terminated, self.info
 
     ## Properties
     @GridWorld.name.getter
@@ -84,6 +83,11 @@ class RoomEscape(GridWorld):
         hole_x_2 = self._rng.integers(x_0 + 1, self.width - 1)
         hole_y_1 = self._rng.integers(1, y_0)
         hole_y_2 = self._rng.integers(y_0 + 1, self.height - 1)
+        # Update free position mask
+        self._free_position_mask[hole_x_1, y_0] = True
+        self._free_position_mask[hole_x_2, y_0] = True
+        self._free_position_mask[x_0, hole_y_1] = True
+        self._free_position_mask[x_0, hole_y_2] = True
 
         self._obstacles = []
         # Construct horizontal walls
@@ -100,37 +104,6 @@ class RoomEscape(GridWorld):
             self._obstacles.append(
                 Rectangle(x_0 * self.pixel, y * self.pixel, self.pixel, self.pixel)
             )
-
-    def _place_goal(self):
-        agent_room_index = [
-            room.contains(self.agent.position) for room in self._rooms
-        ].index(True)
-        # print(f"Agent is in room {agent_room_index}. Goal is in room {(agent_room_index + 1) % 4}")
-        goal_room = self._rooms[
-            (agent_room_index + 2) % 4
-        ]  # Goal is in the opposite room
-        goal_position = self._rng.choice(
-            [
-                (x, y)
-                for x in range(goal_room.left, goal_room.right, self.pixel)
-                for y in range(goal_room.top, goal_room.bottom, self.pixel)
-            ]
-        )
-        self.goal = Rectangle(*goal_position, self.pixel, self.pixel)
-
-    def _are_in_same_room(
-        self, agent_postion: Rectangle, goal_position: Rectangle
-    ) -> bool:
-        assert isinstance(agent_postion, Rectangle) and isinstance(
-            goal_position, Rectangle
-        ), "Agent and goal positions must be instance of Rectangle."
-        return any(
-            [
-                room.contains(agent_postion) and room.contains(goal_position)
-                for room in self._rooms
-            ]
-        )
-
 
 if __name__ == "__main__":
     room_escape = RoomEscape(20, 20, pixel=20, render_mode="human")

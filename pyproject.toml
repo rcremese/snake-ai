@@ -25,4 +25,5 @@ dependencies = [
 
 [project.scripts]
 play_snake = "snake_ai.wrappers.playable_snake:main"
-simulate = "snake_ai.physim.main:simulate"
+simulate_diffusion = "snake_ai.physim.main:simulate_diffusion"
+simulate_walkers = "snake_ai.physim.main:simulate_walkers"

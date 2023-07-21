@@ -1,14 +1,13 @@
 # scientific lib import
-import numpy as np
 from phi.jax import flow
 import matplotlib.pyplot as plt
 from matplotlib import animation
 
 # project import
 from snake_ai.envs import GridWorld, RandomObstaclesEnv, MazeGrid, SlotEnv, RoomEscape
-from snake_ai.physim import DiffusionSimulation
+from snake_ai.physim import DiffusionSimulation, maths, autodiff
 from snake_ai.utils.io import SimulationLoader, SimulationWritter
-from snake_ai.physim.autodiff import optimization_step
+import snake_ai.physim.visualization as vis
 
 # general import
 from pathlib import Path
@@ -18,11 +17,8 @@ import logging
 import time
 
 ENVIRONMENT_NAMES = ["grid_world", "rand_obs", "maze", "slot", "rooms"]
-# import os
-# os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 
-
-def simulate():
+def environment_parser() -> argparse.ArgumentParser:
     # Parent parser for the environment
     env_parser = argparse.ArgumentParser(
         add_help=False, formatter_class=argparse.ArgumentDefaultsHelpFormatter
@@ -69,7 +65,9 @@ def simulate():
             choices=MazeGrid.maze_generator,
             help="Algorithm used for maze generation",
         )
+    return env_parser
 
+def simulation_parser() -> argparse.ArgumentParser:
     # Parent parser for all diffusion simulations
     diffusion_parser = argparse.ArgumentParser(
         add_help=False, formatter_class=argparse.ArgumentDefaultsHelpFormatter
@@ -97,7 +95,7 @@ def simulate():
     diffusion_parser.add_argument(
         "--solver",
         type=str,
-        default="explicit",
+        default="crank_nicolson",
         choices=DiffusionSimulation.solvers,
         help="Name of the solver used for the simulation",
     )
@@ -112,29 +110,49 @@ def simulate():
         default=1,
         help="Value of the initial concentration field",
     )
+    return diffusion_parser
 
+def walker_parser() -> argparse.ArgumentParser:
+    walk_parser = argparse.ArgumentParser(add_help=False, formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    
+    walk_parser.add_argument("-p", "--path", type=str, required=True, help="Path to the simulation directory")
+    walk_parser.add_argument("-t", "--t_max", type=int, default=100, help="Maximum time for the simulation")
+    walk_parser.add_argument("--dt", type=float, default=0.1, help="Time step for the simulation")
+    walk_parser.add_argument("--eps", type=float, default=1e-6, help="Epsilon value for the log concentration computation")
+    walk_parser.add_argument("--stochastic", action="store_true", help="Flag to indicate if the walkers should be deterministic or not")
+    return walk_parser 
+
+def simulate_diffusion():
+    env_parser = environment_parser()
+    diffusion_parser = simulation_parser()
+    walk_parser = walker_parser()
     # Define the main parser and all the subparsed values
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
         parents=[env_parser, diffusion_parser],
         description="Physical simulation visualisation",
     )
+    # subparsers = parser.add_subparsers(title='subcommands', required=True, dest='subparser_name')
+    # # Add diffusion solver specific parser
+    # diff_sim_parser = subparsers.add_parser('diffusion', parents=[env_parser, diffusion_parser], help="Simulate the diffusion equation",
+    #                                     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    # diff_sim_parser.set_defaults(func=diffusion_simulation)
+    # # Add walker specific parser
+    # walker_sim_parser = subparsers.add_parser('walkers', parents=[walk_parser], help="Simulate walkers in the environment",
+    #                                     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    # walker_sim_parser.set_defaults(func=walk_simulation)
+        
     parser.add_argument(
         "--overwrite",
         action="store_true",
         help="Flag to indicate if the simulation should be overwritten or not",
     )
-    # subparsers = parser.add_subparsers(title='subcommands', required=True, dest='subparser_name')
-    # # Add diffusion solver specific parser
-    # grid_parser = subparsers.add_parser('grid_world', parents=[env_parser, diffusion_parser], help="Diffusion equation in a grid world",
-    #                                     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    # grid_parser.set_defaults(env=GridWorld(**vars(grid_parser.parse_args())))
-    # args = parser.parse_args(['de', '-t', '2000', '--use_log'])
+
     args = parser.parse_args()
-    diffusion_simulation(args)
+    diffuse(args)
+    # args.func(args)
 
-
-def diffusion_simulation(args: argparse.Namespace):
+def diffuse(args: argparse.Namespace):
     if args.name == "grid_world":
         env = GridWorld(
             width=args.width, height=args.height, pixel=args.pixel, seed=args.seed
@@ -190,10 +208,57 @@ def diffusion_simulation(args: argparse.Namespace):
             f"The simulation {simulation.name} already exists. Use the --overwrite flag to overwrite it."
         )
     sim_writter = SimulationWritter(save_dir)
+    
     # Start the simulation and save the result
     simulation.reset(args.seed)
     simulation.start()
     sim_writter.write(simulation)
 
+    # Visualize the initial configuration of walkers
+    concentration = simulation.field
+    log_concentration = maths.compute_log_concentration(concentration, epsilon=1e-6)
+    force_field = flow.field.spatial_gradient(log_concentration, type=flow.CenteredGrid)
+    pt_cloud = simulation.point_cloud
+    fig, _, _ = vis.plot_walkers_with_concentration(
+        pt_cloud, log_concentration, force_field=force_field
+    )
+    fig.savefig(save_dir.joinpath("initial_configuration.png"))
+    
+# TODO : Integrer walker dans le simulateur
+def simulate_walkers():
+    walk_parser = argparse.ArgumentParser(
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter, description="Walker simulation using precomputed concentration field",
+    )
+    walk_parser.add_argument("-p", "--path", type=str, required=True, help="Valid path to the simulation directory")
+    walk_parser.add_argument("-t", "--t_max", type=int, default=100, help="Maximum time for the simulation")
+    walk_parser.add_argument("--dt", type=float, default=0.1, help="Time step for the simulation")
+    walk_parser.add_argument("--eps", type=float, default=1e-6, help="Epsilon value for the log concentration computation")
+    walk_parser.add_argument("--stochastic", action="store_true", help="Flag to indicate if the walkers should be deterministic or not")
+    args = walk_parser.parse_args()
+    walk(args)
+
+def walk(args: argparse.Namespace):
+    path = Path(args.path).resolve(strict=True)
+
+    loader = SimulationLoader(path)
+    simulation = loader.load()
+    
+    concentration = simulation.field
+    log_concentration = maths.compute_log_concentration(concentration, epsilon=args.eps)
+    force_field = flow.field.spatial_gradient(log_concentration, type=flow.CenteredGrid)
+    force_field = maths.clip_gradient_norm(force_field, threashold=1)
+    
+    trajectories = autodiff.deterministic_walk_simulation(simulation.point_cloud, force_field, dt=args.dt, nb_iter=args.t_max)
+    
+    walker_type = "stochastic" if args.stochastic else "deterministic"
+    animation_name = f"{walker_type}_walkers_Tmax={args.t_max}_dt={args.dt}.gif"
+
+    vis.animate_walk_history(
+        trajectories,
+        log_concentration,
+        output=path.joinpath(animation_name),
+        force_field=force_field,
+    )
+
 if __name__ == "__main__":
-    simulate()
+    simulate_diffusion()

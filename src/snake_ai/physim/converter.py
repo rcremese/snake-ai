@@ -111,9 +111,10 @@ class PointCloudConverter(Converter):
 
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
-    from snake_ai.envs import MazeGrid, RandomObstaclesEnv
+    from snake_ai.envs import MazeGrid, RandomObstaclesEnv, RoomEscape
 
-    env = RandomObstaclesEnv(nb_obs=10)
+    # env = RandomObstaclesEnv(nb_obs=10)
+    env = RoomEscape()
     env.reset()
     converter = DiffusionConverter("meta")
     obstacles = ObstacleConverter("meta")

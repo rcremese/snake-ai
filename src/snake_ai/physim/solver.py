@@ -9,9 +9,11 @@ def explicit_diffusion(
     diffusivity: float,
     dt: float,
 ) -> flow.field.Field:
-    return (1 - obstacle_mask) * flow.diffuse.explicit(
-        concentration, diffusivity=diffusivity, dt=dt, substeps=3
-    )
+    diffused = concentration + dt * diffusivity * flow.field.laplace(concentration)
+    return flow.field.where(obstacle_mask, concentration, diffused)
+    # return (1 - obstacle_mask) * flow.diffuse.explicit(
+    #     concentration, diffusivity=diffusivity, dt=dt, substeps=2
+    # )
 
 
 @flow.math.jit_compile
@@ -21,10 +23,17 @@ def implicit_diffusion(
     diffusivity: float,
     dt: float,
 ) -> flow.field.Field:
-    return (1 - obstacle_mask) * flow.diffuse.implicit(
-        concentration, diffusivity=diffusivity, dt=dt
+    return flow.math.solve_linear(
+        explicit_diffusion,
+        concentration,
+        flow.math.Solve(x0=concentration),
+        dt=-dt,
+        diffusivity=diffusivity,
+        obstacle_mask=obstacle_mask,
     )
-
+    # return (1 - obstacle_mask) * flow.diffuse.implicit(
+    #     concentration, diffusivity=diffusivity, dt=dt, order=2
+    # )
 
 @flow.math.jit_compile
 def crank_nicolson_diffusion(
@@ -33,9 +42,11 @@ def crank_nicolson_diffusion(
     diffusivity: float,
     dt: float,
 ) -> flow.CenteredGrid:
-    return (1 - obstacle_mask) * flow.diffuse.implicit(
-        concentration, diffusivity=diffusivity, dt=dt, order=2
-    )
+    midstep = explicit_diffusion(concentration, obstacle_mask, diffusivity, dt / 2)
+    return implicit_diffusion(midstep, obstacle_mask, diffusivity, dt / 2)
+    # return (1 - obstacle_mask) * flow.diffuse.implicit(
+    #     concentration, diffusivity=diffusivity, dt=dt, order=2
+    # )
 
 
 class DiffusionSolver:
@@ -47,7 +58,7 @@ class DiffusionSolver:
         t_max: float,
         dt: float,
         history_step: float = 0,
-        name: str = "explicit",
+        name: str = "crank_nicolson",
         stationary: bool = False,
     ) -> None:
         if dt <= 0 or t_max <= 0 or diffusivity <= 0:
@@ -74,7 +85,6 @@ class DiffusionSolver:
         ), f"Expected endless to be a boolean, not {type(stationary)}"
         self._stationary = stationary
 
-    # TODO : Attendre que le probleme de jit_compile soit resolu pour utiliser crank_nicolson_diffusion
     def step(
         self, field: flow.CenteredGrid, obs_mask: flow.CenteredGrid
     ) -> flow.CenteredGrid:

@@ -147,7 +147,7 @@ class DiffusionSimulation(Simulation):
         dt: Optional[float] = None,
         history: bool = False,
         diffusivity: float = 1,
-        solver="explicit",
+        solver="crank_nicolson",
         stationary: bool = False,
         **kwargs,
     ):
@@ -163,14 +163,13 @@ class DiffusionSimulation(Simulation):
         # Set the stopping criteria
         area = self.env.width * self.env.height
         if self.t_max is None:
-            max_time = 2 if isinstance(env, MazeGrid) else 1
+            max_time = 4 if isinstance(env, MazeGrid) else 2
             self.t_max = max_time * area / diffusivity # Stop condition based on the diffusion time needed to diffuse in a free environment
         # Set the time step of the scheme, considering the resolution to be 1 in each environment
         if self.dt is None:
             if solver == "explicit":
-                self.dt = (
-                    0.5 * spatial_res**2 / self._diffusivity
-                )  # Stability condition for the explicit scheme
+                # Stability condition for the explicit scheme
+                self.dt = 0.25 * spatial_res**2 / self._diffusivity
             else:
                 self.dt = spatial_res
         self._solver = DiffusionSolver(
@@ -192,9 +191,7 @@ class DiffusionSimulation(Simulation):
 
     def reset(self, seed: Optional[int] = None):
         super().reset(seed)
-        self._field = (
-            self._init_value * (1 - self.obstacles) * self._field_converter(self.env)
-        )
+        self._field = self._init_value * (1 - self.obstacles) * self._field_converter(self.env)
 
     @property
     def name(self) -> str:
