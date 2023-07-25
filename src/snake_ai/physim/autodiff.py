@@ -14,6 +14,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 from functools import partial
+from typing import Union
 
 MAX_ITER = 100
 MAX_EPOCH = 50
@@ -34,6 +35,24 @@ def deterministic_walk_simulation(
         history[i] = point_cloud
     return flow.field.stack(history, flow.batch("time"))
 
+# @partial(flow.math.jit_compile, auxiliary_args="dt,nb_iter")
+def stochastic_walk_simulation(
+    point_cloud: flow.PointCloud,
+    force_field: flow.CenteredGrid,
+    dt: float,
+    nb_iter: int,
+    diffusivity: float = 0.1,
+):
+    i = 1
+    history = [point_cloud]
+    while i < int(nb_iter):
+        points = point_cloud.elements
+        update = dt * flow.field.sample(force_field, points) + np.sqrt(2 * dt * diffusivity) * flow.math.random_normal(points.shape) 
+        point_cloud = point_cloud.with_elements(points.shifted(update))
+        history.append(point_cloud)
+        i += 1
+    return flow.field.stack(history, flow.batch("time"))
+
 @partial(flow.functional_gradient, wrt="force_field")
 def simulation(
     point_cloud: flow.PointCloud,
@@ -49,6 +68,7 @@ def simulation(
 
 def close_to_target(point_cloud: flow.PointCloud, force_field : flow.CenteredGrid, target: flow.Tensor, threashold: float = 1):
     target = flow.vec(x = 15.5, y=5.5)
+    maths.clip_gradient_norm(force_field, threashold=1)
     loss = []
     for e in range(MAX_EPOCH):
         diff_simulation = flow.functional_gradient(simulation, wrt="force_field")
@@ -68,7 +88,7 @@ def close_to_target(point_cloud: flow.PointCloud, force_field : flow.CenteredGri
     vis.plot_loss(loss, output=simulation_path.joinpath("loss_evolution.png"))
 
 
-def main(simulation_path: str | Path):
+def main(simulation_path: Union[str, Path]):
     import snake_ai.physim.visualization as vis
 
     loader = SimulationLoader(simulation_path)
@@ -85,13 +105,13 @@ def main(simulation_path: str | Path):
     )
     fig.savefig(simulation_path.joinpath("initial_configuration.png"))
     # # Plot a first initial walk to see if it converges to the goal
-    history = deterministic_walk_simulation(pt_cloud, force_field, dt=1, nb_iter=100)
-    vis.animate_walk_history(
-        history,
-        log_concentration,
-        output=simulation_path.joinpath("initial_walkers.gif"),
-        force_field=force_field,
-    )
+    history = stochastic_walk_simulation(pt_cloud, force_field, dt=1, nb_iter=10)
+    # vis.animate_walk_history(
+    #     history,
+    #     log_concentration,
+    #     output=simulation_path.joinpath("test.gif"),
+    #     force_field=force_field,
+    # )
 
     # Define a target reaching problem and solve it with gradient descent
     # target_center = simu.env.target.center
@@ -113,31 +133,11 @@ def main(simulation_path: str | Path):
     # vis.plot_loss(loss, output=simulation_path.joinpath("loss_evolution.png"))
 
 
-def stochastic_walk(
-    point_cloud: flow.Tensor,
-    gradient_field: flow.CenteredGrid,
-    time_step: int,
-    max_iter: int,
-    save_step: int,
-    D_init: float = 0.1,
-):
-    i = 0
-    history = [point_cloud]
-    # D_list = np.linspace(D_init, 0, max_iter)
-    while i < max_iter:
-        point_cloud += time_step * flow.field.sample(
-            gradient_field, point_cloud
-        ) + np.sqrt(2 * time_step * D_init) * flow.math.random_normal(point_cloud.shape)
-        if i % save_step == 0:
-            history.append(point_cloud)
-        i += 1
-    return history
-
 if __name__ == "__main__":
     dirpath = Path("/home/rcremese/projects/snake-ai/simulations")
     # simulation_path = dirpath.joinpath("GridWorld(20,20)_meta_Tmax=400.0_D=1/seed_0")
     # simulation_path = dirpath.joinpath("RandomObstacles(20,20)_meta_Tmax=400.0_D=1/seed_0")
     # simulation_path = dirpath.joinpath("RandomObstacles(20,20)_pixel_Tmax=400.0_D=1/seed_0")
-    simulation_path = dirpath.joinpath("RoomEscape(20,20)_meta_Tmax=400.0_D=1/seed_0")
+    simulation_path = dirpath.joinpath("RoomEscape(20,20)_meta_Tmax=1600.0_D=1/seed_0")
     # simulation_path = dirpath.joinpath("Slot(20,20)_pixel_Tmax=400.0_D=1/seed_0")
     main(simulation_path)

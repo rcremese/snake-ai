@@ -17,10 +17,19 @@ from snake_ai.envs import GridWorld, MazeGrid
 from snake_ai.utils import errors
 from typing import Union, Optional, List, Any, Dict
 from phi.jax import flow
+from enum import Enum
 
-MAX_TIME = 1
+class TimeFactor(Enum):
+    """
+    Time factor used to scale the simulation time
+    """
+    GridWorld = 1
+    MazeGrid = 10
+    RandomObstaclesEnv = 2
+    RoomEscape = 4
+    SlotEnv = 2
+
 HISTORY_LENGTH = 100
-
 
 class Simulation(ABC):
     resolutions = ["pixel", "meta"]
@@ -163,8 +172,8 @@ class DiffusionSimulation(Simulation):
         # Set the stopping criteria
         area = self.env.width * self.env.height
         if self.t_max is None:
-            max_time = 4 if isinstance(env, MazeGrid) else 2
-            self.t_max = max_time * area / diffusivity # Stop condition based on the diffusion time needed to diffuse in a free environment
+            # Stop condition based on the diffusion time needed to diffuse in a free environment
+            self.t_max = TimeFactor[self.env.__class__.__name__].value * area / diffusivity 
         # Set the time step of the scheme, considering the resolution to be 1 in each environment
         if self.dt is None:
             if solver == "explicit":
@@ -217,7 +226,6 @@ if __name__ == "__main__":
         res="pixel",
         diffusivity=1,
         init_value=1e6,
-        t_max=1000,
         dt=1,
         stationary=True,
     )

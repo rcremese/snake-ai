@@ -125,23 +125,12 @@ def walker_parser() -> argparse.ArgumentParser:
 def simulate_diffusion():
     env_parser = environment_parser()
     diffusion_parser = simulation_parser()
-    walk_parser = walker_parser()
     # Define the main parser and all the subparsed values
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
         parents=[env_parser, diffusion_parser],
         description="Physical simulation visualisation",
-    )
-    # subparsers = parser.add_subparsers(title='subcommands', required=True, dest='subparser_name')
-    # # Add diffusion solver specific parser
-    # diff_sim_parser = subparsers.add_parser('diffusion', parents=[env_parser, diffusion_parser], help="Simulate the diffusion equation",
-    #                                     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    # diff_sim_parser.set_defaults(func=diffusion_simulation)
-    # # Add walker specific parser
-    # walker_sim_parser = subparsers.add_parser('walkers', parents=[walk_parser], help="Simulate walkers in the environment",
-    #                                     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    # walker_sim_parser.set_defaults(func=walk_simulation)
-        
+    )    
     parser.add_argument(
         "--overwrite",
         action="store_true",
@@ -248,7 +237,10 @@ def walk(args: argparse.Namespace):
     force_field = flow.field.spatial_gradient(log_concentration, type=flow.CenteredGrid)
     force_field = maths.clip_gradient_norm(force_field, threashold=1)
     
-    trajectories = autodiff.deterministic_walk_simulation(simulation.point_cloud, force_field, dt=args.dt, nb_iter=args.t_max)
+    if args.stochastic:
+        trajectories = autodiff.stochastic_walk_simulation(simulation.point_cloud, force_field, dt=args.dt, nb_iter=args.t_max)
+    else:
+        trajectories = autodiff.deterministic_walk_simulation(simulation.point_cloud, force_field, dt=args.dt, nb_iter=args.t_max)
     
     walker_type = "stochastic" if args.stochastic else "deterministic"
     animation_name = f"{walker_type}_walkers_Tmax={args.t_max}_dt={args.dt}.gif"
@@ -262,3 +254,13 @@ def walk(args: argparse.Namespace):
 
 if __name__ == "__main__":
     simulate_diffusion()
+    # subparsers = parser.add_subparsers(title='subcommands', required=True, dest='subparser_name')
+    # # Add diffusion solver specific parser
+    # diff_sim_parser = subparsers.add_parser('diffusion', parents=[env_parser, diffusion_parser], help="Simulate the diffusion equation",
+    #                                     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    # diff_sim_parser.set_defaults(func=diffusion_simulation)
+    # # Add walker specific parser
+    # walker_sim_parser = subparsers.add_parser('walkers', parents=[walk_parser], help="Simulate walkers in the environment",
+    #                                     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    # walker_sim_parser.set_defaults(func=walk_simulation)
+    
