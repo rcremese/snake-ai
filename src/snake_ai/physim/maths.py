@@ -56,7 +56,7 @@ def total_variation(point_cloud: flow.PointCloud) -> flow.Tensor:
 
 
 def normalized_l2_distance(
-    point_cloud: flow.PointCloud, target: flow.Tensor
+    point_cloud: flow.PointCloud, target: flow.geom.Point
 ) -> flow.Tensor:
     """Compute the normalized l2 distance between a point cloud representing trajectories and a target point
 
@@ -80,5 +80,5 @@ def normalized_l2_distance(
     ), "The target must contain a 'vector' dimension that correspond to the position of the target"
     # Compute the total variation of each trajectory
     return flow.math.l2_loss(
-        point_cloud.points.time[-1] - target, reduce="vector"
+        point_cloud.points.time[-1] - target.center, reduce="vector"
     )  # / flow.math.l2_loss(point_cloud.points.time[0] - target, reduce='vector')

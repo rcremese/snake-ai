@@ -44,7 +44,7 @@ def plot_concentration_map(
 def plot_walkers_with_concentration(
     point_cloud: flow.PointCloud,
     concentration: Optional[flow.CenteredGrid] = None,
-    target: Optional[flow.Tensor] = None,
+    target: Optional[flow.geom.Point] = None,
     force_field: Optional[flow.CenteredGrid] = None,
     cmap_concentration: str = "inferno",
     cmap_walkers: str = "afmhot",
@@ -84,7 +84,7 @@ def plot_walkers_with_concentration(
 
     # Print the target if it exists
     if target is not None:
-        tx, ty = target.numpy("vector")
+        tx, ty = target.center.numpy("vector")
         ax.plot(tx, ty, color="green", marker="x", markersize=10, ls="", label="Target")
         fig.legend()
 
@@ -97,7 +97,7 @@ def animate_walk_history(
     trajectories: flow.PointCloud,
     concentration: flow.CenteredGrid,
     output: str,
-    target: Optional[flow.Tensor] = None,
+    target: Optional[flow.geom.Point] = None,
     force_field: Optional[flow.CenteredGrid] = None,
     cmap_concentration: str = "inferno",
     cmap_walkers: str = "afmhot",

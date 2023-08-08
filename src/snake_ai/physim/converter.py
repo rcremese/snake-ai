@@ -11,8 +11,10 @@ from abc import ABCMeta, abstractmethod
 from snake_ai.utils import errors
 from typing import Optional, Tuple, List, Union
 
+def convert_position_to_point(position : Rectangle, div_factor : int = 1) -> flow.geom.Point:
+    return flow.geom.Point(flow.vec(x=position.centerx // div_factor, y=position.centery // div_factor)) 
 
-def convert_obstacles(
+def convert_obstacles_to_geometry(
     obstacles: List[Rectangle], div_factor: int = 1
 ) -> List[flow.Box]:
     # Handle the case where there is only one obstacle
@@ -55,7 +57,7 @@ class Converter(metaclass=ABCMeta):
         raise NotImplementedError()
 
     def __repr__(self) -> str:
-        return f"{__class__.__name__}(size={self.type})"
+        return f"{self.__class__.__name__}(size={self.type})"
 
 
 class DiffusionConverter(Converter):
@@ -78,9 +80,6 @@ class DiffusionConverter(Converter):
         bounds = flow.Box(x=env.width, y=env.height)
         return flow.CenteredGrid(source, bounds=bounds, x=env.width, y=env.height)
 
-    def __repr__(self) -> str:
-        return f"{__class__.__name__}(size={self.type})"
-
 
 class ObstacleConverter(Converter):
     def __call__(self, env: GridWorld) -> flow.CenteredGrid:
@@ -93,9 +92,11 @@ class ObstacleConverter(Converter):
         )
         if env.obstacles == []:
             return grid
-        obstacles = convert_obstacles(env.obstacles, env.pixel)
+        obstacles = convert_obstacles_to_geometry(env.obstacles, env.pixel)
         return flow.field.resample(flow.union(obstacles), grid)
 
+    def to_geometry(self, env: GridWorld) -> List[flow.Box]:
+        return convert_obstacles_to_geometry(env.obstacles, env.pixel)
 
 class PointCloudConverter(Converter):
     def __call__(self, env: GridWorld) -> flow.PointCloud:
