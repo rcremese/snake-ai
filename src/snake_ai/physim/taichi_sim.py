@@ -5,9 +5,12 @@ import matplotlib.pyplot as plt
 import taichi.math as tm
 from typing import Dict, List, Tuple
 
+GAMMA = 10
+
 
 @ti.func
 def lerp(a, b, t):
+    t = tm.clamp(t, 0, 1)
     return a + (b - a) * t
 
 
@@ -179,14 +182,13 @@ class DifferentiableSimulation:
         for n in range(self.nb_particles):
             self.loss[None] += (
                 tm.length(self._states[n, t].pos - self.target)
-                + self._collision_count[n]
+                + GAMMA * self._collision_count[n]
             ) / self.nb_particles
 
     def optimize(self):
         for iter in range(self.max_epoch):
             with ti.ad.Tape(self.loss):
                 self.run()
-
             print("Iter=", iter, "Loss=", self.loss[None])
             self._update_force_field()
 
@@ -204,41 +206,59 @@ class DifferentiableSimulation:
         #     self.force_field[i, j] -= self.lr * self.force_field.grad[i, j]
 
     @ti.func
-    def obstacle_collision(self, time_idx: int, part_idx: int, obs_idx: int):
-        # Update x position and velocity
-        if (
-            self._states[part_idx, time_idx - 1].pos.x < self._obstacles[obs_idx].min.x
-            and self._states[part_idx, time_idx].pos.x >= self._obstacles[obs_idx].min.x
-        ):
-            self._states[part_idx, time_idx].pos.x = self._obstacles[obs_idx].min.x
-            self._states[part_idx, time_idx].vel.x = -self._states[
-                part_idx, time_idx
-            ].vel.x
-        elif (
-            self._states[part_idx, time_idx - 1].pos.x > self._obstacles[obs_idx].max.x
-            and self._states[part_idx, time_idx].pos.x <= self._obstacles[obs_idx].max.x
-        ):
-            self._states[part_idx, time_idx].pos.x = self._obstacles[obs_idx].max.x
-            self._states[part_idx, time_idx].vel.x = -self._states[
-                part_idx, time_idx
-            ].vel.x
-        # Update y position and velocity
-        if (
-            self._states[part_idx, time_idx - 1].pos.y < self._obstacles[obs_idx].min.y
-            and self._states[part_idx, time_idx].pos.y >= self._obstacles[obs_idx].min.y
-        ):
-            self._states[part_idx, time_idx].pos.y = self._obstacles[obs_idx].min.y
-            self._states[part_idx, time_idx].vel.y = -self._states[
-                part_idx, time_idx
-            ].vel.y
-        elif (
-            self._states[part_idx, time_idx - 1].pos.y > self._obstacles[obs_idx].max.y
-            and self._states[part_idx, time_idx].pos.y <= self._obstacles[obs_idx].max.y
-        ):
-            self._states[part_idx, time_idx].pos.y = self._obstacles[obs_idx].max.y
-            self._states[part_idx, time_idx].vel.y = -self._states[
-                part_idx, time_idx
-            ].vel.y
+    def obstacle_collision(self, t: int, n: int, o: int):
+        for i in ti.static(range(2)):
+            # Collision on the min border
+            if (self._states[n, t - 1].pos[i] < self._obstacles[o].min[i]) and (
+                self._states[n, t].pos[i] >= self._obstacles[o].min[i]
+            ):
+                # Calculate the time of impact
+                toi = (self._obstacles[o].min[i] - self._states[n, t - 1].pos[i]) / (
+                    self._states[n, t].pos[i] - self._states[n, t - 1].pos[i]
+                )
+                self._states[n, t].pos[i] = lerp(
+                    self._states[n, t - 1].pos[i], self._states[n, t].pos[i], toi
+                ) - ti.abs(self._obstacles[o].min[i] - self._states[n, t].pos[i])
+                # self._states[n, t].pos[i] = self._obstacles[o].min[i] - ti.abs(
+                #     self._obstacles[o].min[i] - self._states[n, t].pos[i]
+                # )
+                # Reflect velocity
+                self._states[n, t].vel[i] = -self._states[n, t].vel[i]
+            # Collision on the max border
+            elif (self._states[n, t - 1].pos[i] > self._obstacles[o].max[i]) and (
+                self._states[n, t].pos[i] <= self._obstacles[o].max[i]
+            ):
+                # Calculate the time of impact
+                toi = (self._obstacles[o].max[i] - self._states[n, t - 1].pos[i]) / (
+                    self._states[n, t].pos[i] - self._states[n, t - 1].pos[i]
+                )
+                self._states[n, t].pos[i] = lerp(
+                    self._states[n, t - 1].pos[i], self._states[n, t].pos[i], toi
+                ) + ti.abs(self._obstacles[o].max[i] - self._states[n, t].pos[i])
+
+                # self._states[n, t].pos[i] = self._obstacles[o].max[i] + ti.abs(
+                #     self._obstacles[o].max[i] - self._states[n, t].pos[i]
+                # )
+                # Reflect velocity
+                self._states[n, t].vel[i] = -self._states[n, t].vel[i]
+
+        # LEGACY : Update x position and velocity
+        # if (
+        #     self._states[part_idx, time_idx - 1].pos.x < self._obstacles[obs_idx].min.x
+        #     and self._states[part_idx, time_idx].pos.x >= self._obstacles[obs_idx].min.x
+        # ):
+        #     self._states[part_idx, time_idx].pos.x = self._obstacles[obs_idx].min.x
+        #     self._states[part_idx, time_idx].vel.x = -self._states[
+        #         part_idx, time_idx
+        #     ].vel.x
+        # elif (
+        #     self._states[part_idx, time_idx - 1].pos.x > self._obstacles[obs_idx].max.x
+        #     and self._states[part_idx, time_idx].pos.x <= self._obstacles[obs_idx].max.x
+        # ):
+        #     self._states[part_idx, time_idx].pos.x = self._obstacles[obs_idx].max.x
+        #     self._states[part_idx, time_idx].vel.x = -self._states[
+        #         part_idx, time_idx
+        #     ].vel.x
 
     @property
     def particles(self):
@@ -253,12 +273,17 @@ def render(
     simulation: DifferentiableSimulation,
     concentration: np.ndarray,
     cmap: str = "inferno",
+    output_dir: Path = None,
 ):
     gui = ti.GUI("Differentiable Simulation", (simulation.width, simulation.height))
 
     trajectories = simulation.trajectories
 
     obstacles = simulation._obstacles.to_numpy()
+    if output_dir:
+        output_dir = Path(output_dir).resolve()
+        output_dir.mkdir(exist_ok=True)
+    filename = None
 
     for t in range(simulation.nb_steps):
         gui.contour(concentration, normalize=True)
@@ -273,7 +298,9 @@ def render(
         #         radius=5,
         #         color=0x0000FF,
         #     )
-        gui.show()
+        if output_dir:
+            filename = output_dir.joinpath(f"frame_{t:04d}.png").as_posix()
+        gui.show(filename)
 
 
 def main():
@@ -285,6 +312,9 @@ def main():
 
     sim_dir = Path("/home/rcremese/projects/snake-ai/simulations").resolve(strict=True)
     field_path = sim_dir.joinpath("Slot(20,20)_pixel_Tmax=800.0_D=1", "seed_0")
+    # field_path = sim_dir.joinpath(
+    #     "RandomObstacles(20,20)_pixel_Tmax=800.0_D=1", "seed_0"
+    # )
     loader = SimulationLoader(field_path)
     simu = loader.load()
 
@@ -322,17 +352,29 @@ def main():
     simulation = DifferentiableSimulation(
         point_cloud,
         force_field,
-        t_max=1000,
+        t_max=100,
         dt=1,
         obstacles=obstacles,
         bounds=bounds,
         target=target,
         diffusivity=0.1,
-        max_epoch=100,
+        max_epoch=200,
         lr=1,
     )
-    simulation.run()
-    render(simulation, concentration)
+
+    # simulation.run()
+    # render(
+    #     simulation,
+    #     concentration,
+    #     output_dir=field_path.joinpath("initial_walkers").as_posix(),
+    # )
+    # change the maximum time
+    simulation.optimize()
+    render(
+        simulation,
+        concentration,
+        output_dir=field_path.joinpath("optimized_walkers").as_posix(),
+    )
 
     trajectories = simulation.trajectories
     plt.imshow(concentration.to_numpy())  # , extent=[0, width, 0, height])
