@@ -18,6 +18,7 @@ import time
 
 ENVIRONMENT_NAMES = ["grid_world", "rand_obs", "maze", "slot", "rooms"]
 
+
 def environment_parser() -> argparse.ArgumentParser:
     # Parent parser for the environment
     env_parser = argparse.ArgumentParser(
@@ -67,6 +68,7 @@ def environment_parser() -> argparse.ArgumentParser:
         )
     return env_parser
 
+
 def simulation_parser() -> argparse.ArgumentParser:
     # Parent parser for all diffusion simulations
     diffusion_parser = argparse.ArgumentParser(
@@ -112,15 +114,35 @@ def simulation_parser() -> argparse.ArgumentParser:
     )
     return diffusion_parser
 
+
 def walker_parser() -> argparse.ArgumentParser:
-    walk_parser = argparse.ArgumentParser(add_help=False, formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    
-    walk_parser.add_argument("-p", "--path", type=str, required=True, help="Path to the simulation directory")
-    walk_parser.add_argument("-t", "--t_max", type=int, default=100, help="Maximum time for the simulation")
-    walk_parser.add_argument("--dt", type=float, default=1, help="Time step for the simulation")
-    walk_parser.add_argument("--eps", type=float, default=1e-6, help="Epsilon value for the log concentration computation")
-    walk_parser.add_argument("--diffusivity", type=float, default=0, help="Diffusion coefficient of the walkers. If set to zeor, the walkers are deterministic")
-    return walk_parser 
+    walk_parser = argparse.ArgumentParser(
+        add_help=False, formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
+
+    walk_parser.add_argument(
+        "-p", "--path", type=str, required=True, help="Path to the simulation directory"
+    )
+    walk_parser.add_argument(
+        "-t", "--t_max", type=int, default=100, help="Maximum time for the simulation"
+    )
+    walk_parser.add_argument(
+        "--dt", type=float, default=1, help="Time step for the simulation"
+    )
+    walk_parser.add_argument(
+        "--eps",
+        type=float,
+        default=1e-6,
+        help="Epsilon value for the log concentration computation",
+    )
+    walk_parser.add_argument(
+        "--diffusivity",
+        type=float,
+        default=0,
+        help="Diffusion coefficient of the walkers. If set to zeor, the walkers are deterministic",
+    )
+    return walk_parser
+
 
 def simulate_diffusion():
     env_parser = environment_parser()
@@ -130,7 +152,7 @@ def simulate_diffusion():
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
         parents=[env_parser, diffusion_parser],
         description="Physical simulation visualisation",
-    )    
+    )
     parser.add_argument(
         "--overwrite",
         action="store_true",
@@ -140,6 +162,7 @@ def simulate_diffusion():
     args = parser.parse_args()
     diffuse(args)
     # args.func(args)
+
 
 def diffuse(args: argparse.Namespace):
     if args.name == "grid_world":
@@ -197,7 +220,7 @@ def diffuse(args: argparse.Namespace):
             f"The simulation {simulation.name} already exists. Use the --overwrite flag to overwrite it."
         )
     sim_writter = SimulationWritter(save_dir)
-    
+
     # Start the simulation and save the result
     simulation.reset(args.seed)
     simulation.start()
@@ -212,32 +235,48 @@ def diffuse(args: argparse.Namespace):
         pt_cloud, log_concentration, force_field=force_field
     )
     fig.savefig(save_dir.joinpath("initial_configuration.png"))
-    
+
+
 # TODO : Integrer walker dans le simulateur
 def simulate_walkers():
     walk_parser = walker_parser()
     args = walk_parser.parse_args()
     walk(args)
 
+
 def walk(args: argparse.Namespace):
     path = Path(args.path).resolve(strict=True)
 
     loader = SimulationLoader(path)
     simulation = loader.load()
-    
+
     concentration = simulation.field
     log_concentration = maths.compute_log_concentration(concentration, epsilon=args.eps)
     force_field = flow.field.spatial_gradient(log_concentration, type=flow.CenteredGrid)
     force_field = maths.clip_gradient_norm(force_field, threashold=1)
-    
-    
+
+    tic = time.perf_counter()
+
     if args.diffusivity:
-        trajectories = autodiff.stochastic_walk_simulation(simulation.point_cloud, force_field, dt=args.dt, nb_iter=args.t_max, diffusivity=args.diffusivity)
+        trajectories = autodiff.stochastic_walk_simulation(
+            simulation.point_cloud,
+            force_field,
+            dt=args.dt,
+            nb_iter=args.t_max,
+            diffusivity=args.diffusivity,
+        )
     else:
-        trajectories = autodiff.deterministic_walk_simulation(simulation.point_cloud, force_field, dt=args.dt, nb_iter=args.t_max)
-    
+        trajectories = autodiff.deterministic_walk_simulation(
+            simulation.point_cloud, force_field, dt=args.dt, nb_iter=args.t_max
+        )
+
+    toc = time.perf_counter()
+    print(f"Simulation time : {toc -tic} s")
+
     walker_type = "stochastic" if args.diffusivity else "deterministic"
-    animation_name = f"{walker_type}_walkers_Tmax={args.t_max}_dt={args.dt}_D={args.diffusivity}.gif"
+    animation_name = (
+        f"{walker_type}_walkers_Tmax={args.t_max}_dt={args.dt}_D={args.diffusivity}.gif"
+    )
 
     vis.animate_walk_history(
         trajectories,
@@ -246,42 +285,80 @@ def walk(args: argparse.Namespace):
         force_field=force_field,
     )
 
+
 def autodiff_simulation():
     walk_parser = walker_parser()
     autodiff_parser = argparse.ArgumentParser(
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter, 
-        parents=[walk_parser], 
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+        parents=[walk_parser],
         description="Walker simulation optimization loop using autodiff",
     )
-    autodiff_parser.add_argument("--lr", type=float, default=1e-2, help="Learning rate for the gradient descent")
-    autodiff_parser.add_argument("--max_epoch", type=int, default=100, help="Maximum number of epoch for the gradient descent")
-    autodiff_parser.add_argument("--gradient_clip", type=float, default=1, help="Maximum norm of the gradient")
+    autodiff_parser.add_argument(
+        "--lr", type=float, default=1e-2, help="Learning rate for the gradient descent"
+    )
+    autodiff_parser.add_argument(
+        "--max_epoch",
+        type=int,
+        default=100,
+        help="Maximum number of epoch for the gradient descent",
+    )
+    autodiff_parser.add_argument(
+        "--gradient_clip", type=float, default=1, help="Maximum norm of the gradient"
+    )
     args = autodiff_parser.parse_args()
     autodiff_sim(args)
 
-def autodiff_sim(args : argparse.Namespace):
+
+def autodiff_sim(args: argparse.Namespace):
     from snake_ai.physim import converter
+
     path = Path(args.path).resolve(strict=True)
 
     loader = SimulationLoader(path)
     simulation = loader.load()
-    
+
     concentration = simulation.field
     log_concentration = maths.compute_log_concentration(concentration, epsilon=args.eps)
     force_field = flow.field.spatial_gradient(log_concentration, type=flow.CenteredGrid)
 
-    target = converter.convert_position_to_point(simulation.env.goal, simulation.env.pixel)
-    obstacles = converter.convert_obstacles_to_geometry(simulation.env.obstacles, simulation.env.pixel)
-    
-    loss_values, force_field = autodiff.trajectory_optimization(simulation.point_cloud, force_field, target=target, obstacles=obstacles, dt=args.dt, nb_iter=args.t_max, 
-                                     lr=args.lr, max_epoch=args.max_epoch, gradient_clip=args.gradient_clip, diffusivity=args.diffusivity)
+    target = converter.convert_position_to_point(
+        simulation.env.goal, simulation.env.pixel
+    )
+    obstacles = converter.convert_obstacles_to_geometry(
+        simulation.env.obstacles, simulation.env.pixel
+    )
 
-    history = autodiff.stochastic_walk_simulation(simulation.point_cloud, force_field, dt=args.dt, nb_iter=args.t_max, diffusivity=args.diffusivity)
-    vis.animate_walk_history(history, log_concentration, output=path.joinpath("differentiated_walkers.gif"),
-                             target=target,
-                             force_field=force_field)
+    loss_values, force_field = autodiff.trajectory_optimization(
+        simulation.point_cloud,
+        force_field,
+        target=target,
+        obstacles=obstacles,
+        dt=args.dt,
+        nb_iter=args.t_max,
+        lr=args.lr,
+        max_epoch=args.max_epoch,
+        gradient_clip=args.gradient_clip,
+        diffusivity=args.diffusivity,
+    )
+
+    history = autodiff.stochastic_walk_simulation(
+        simulation.point_cloud,
+        force_field,
+        dt=args.dt,
+        nb_iter=args.t_max,
+        diffusivity=args.diffusivity,
+    )
+    vis.animate_walk_history(
+        history,
+        log_concentration,
+        output=path.joinpath("differentiated_walkers.gif"),
+        target=target,
+        force_field=force_field,
+    )
 
     vis.plot_loss(loss_values, output=path.joinpath("loss_evolution.png"))
+
+
 if __name__ == "__main__":
     simulate_diffusion()
     # subparsers = parser.add_subparsers(title='subcommands', required=True, dest='subparser_name')
@@ -293,4 +370,3 @@ if __name__ == "__main__":
     # walker_sim_parser = subparsers.add_parser('walkers', parents=[walk_parser], help="Simulate walkers in the environment",
     #                                     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     # walker_sim_parser.set_defaults(func=walk_simulation)
-    

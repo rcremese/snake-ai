@@ -182,7 +182,7 @@ class DifferentiableSimulation:
         for n in range(self.nb_particles):
             self.loss[None] += (
                 tm.length(self._states[n, t].pos - self.target)
-                + GAMMA * self._collision_count[n]
+                # + GAMMA * self._collision_count[n]
             ) / self.nb_particles
 
     def optimize(self):
@@ -196,6 +196,10 @@ class DifferentiableSimulation:
     def _update_force_field(self):
         for i, j in self.force_field:
             self.force_field[i, j] -= self.lr * self.force_field.grad[i, j]
+            ## Gradient clipping
+            # if tm.length(self.force_field[i, j]) > 1:
+            #     self.force_field[i, j] = tm.normalize(self.force_field[i, j])
+        ## Setting the force field to 0 inside obstacles
         # inside_obs = False
         # for obs in range(self.nb_obstacles):
         #     if self._obstacles[obs].is_inside(tm.vec2(i, j)):
@@ -307,6 +311,7 @@ def main():
     from snake_ai.utils.io import SimulationLoader
     from snake_ai.physim import maths
     from phi import flow
+    import time
 
     ti.init(debug=True)
 
@@ -323,7 +328,7 @@ def main():
     log_concentration = maths.compute_log_concentration(concentration_field)
     np_field = log_concentration.values.numpy("x,y")
     dx_concentration = flow.field.spatial_gradient(log_concentration)
-    dx_concentration = maths.clip_gradient_norm(dx_concentration, 0.5)
+    dx_concentration = maths.clip_gradient_norm(dx_concentration, 10)
     np_force_field = dx_concentration.values.numpy("x,y,vector")
     width, height = np_field.shape
 
@@ -352,32 +357,40 @@ def main():
     simulation = DifferentiableSimulation(
         point_cloud,
         force_field,
-        t_max=100,
+        t_max=400,
         dt=1,
         obstacles=obstacles,
         bounds=bounds,
         target=target,
         diffusivity=0.1,
-        max_epoch=200,
+        max_epoch=100,
         lr=1,
     )
-
-    # simulation.run()
+    tic = time.perf_counter()
+    simulation.run()
+    toc = time.perf_counter()
+    print(f"Simulation time : {toc -tic} s")
     # render(
     #     simulation,
     #     concentration,
     #     output_dir=field_path.joinpath("initial_walkers").as_posix(),
     # )
-    # change the maximum time
+    ## Optimization step
+    tic = time.perf_counter()
     simulation.optimize()
+    toc = time.perf_counter()
+    print(f"Optimization time : {toc -tic} s")
+
     render(
         simulation,
         concentration,
-        output_dir=field_path.joinpath("optimized_walkers").as_posix(),
+        # output_dir=field_path.joinpath("optimized_walkers").as_posix(),
     )
 
     trajectories = simulation.trajectories
-    plt.imshow(concentration.to_numpy())  # , extent=[0, width, 0, height])
+    plt.imshow(
+        concentration.to_numpy(), cmap="plasma"
+    )  # , extent=[0, width, 0, height])
     plt.quiver(
         force_field.to_numpy()[:, :, 1],
         force_field.to_numpy()[:, :, 0],

@@ -25,6 +25,7 @@ class ExplicitDiffusion:
         obstacles: np.ndarray,
         diffusivity: float = 1,
         dt: float = 1,
+        eps: float = 1e-5,
     ) -> None:
         """_summary_
 
@@ -37,6 +38,8 @@ class ExplicitDiffusion:
         self.width, self.height = initial_concentration.shape
         self.diffusivity = diffusivity
         self.dt = dt
+        assert eps > 0
+        self.eps = eps
         # Define initial concentration map in numpy
         assert initial_concentration.shape == obstacles.shape
         self._initial_concentration = ti.field(
@@ -106,30 +109,26 @@ class ExplicitDiffusion:
     def is_stationary(self) -> bool:
         is_stationary = True
         for i, j in ti.ndrange(self.width, self.height):
-            if (
-                ti.abs(self._concentration[0, i, j] - self._concentration[1, i, j])
-                > 1e-5
-            ):
+            if self._concentration[1, i, j] < self.eps and (self._obstacles[i, j] != 1):
                 is_stationary = False
         return is_stationary
 
     def run(self):
         self.reset()
 
-        # gui = ti.GUI("Concentration evolution", res=(self.height, self.width))
+        gui = ti.GUI("Concentration evolution", res=(self.height, self.width))
         # Sets the window title and the resolution
         substeps = 2
         i = 0
         t = 0
-        concentration = ti.field(dtype=float, shape=self._initial_concentration.shape)
         while not self.is_stationary():
-            print(f"t = {t}")
             for i in range(substeps):
                 self.update(i % 2, self.dt / substeps)
             t += 1
-            # self.render()
-            # gui.contour(self._pixel, normalize=True)
-            # gui.show()
+        print(f"final time : {t * self.dt}")
+        self.render()
+        gui.contour(self._pixel, normalize=True)
+        gui.show()
 
 
 def main():
@@ -155,7 +154,7 @@ def main():
 
     plt.show()
     solver = ExplicitDiffusion(
-        initial_concentration, obstacles, diffusivity=1, dt=1 / FPS
+        initial_concentration, obstacles, diffusivity=1, dt=1 / 10
     )
     solver.run()
     fig, ax = plt.subplots(1, 1)
