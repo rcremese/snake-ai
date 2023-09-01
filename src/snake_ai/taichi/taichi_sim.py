@@ -309,7 +309,7 @@ def render(
 
 def main():
     from snake_ai.utils.io import SimulationLoader
-    from snake_ai.physim import maths
+    from snake_ai.phiflow import maths
     from phi import flow
     import time
 
