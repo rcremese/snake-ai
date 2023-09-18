@@ -1,4 +1,4 @@
-from snake_ai.physim.simulation import Simulation
+from snake_ai.phiflow.simulation import Simulation
 from typing import List, Optional
 import matplotlib
 import matplotlib.pyplot as plt
@@ -143,7 +143,7 @@ def plot_loss(loss: List[float], output: Optional[str] = None):
 if __name__ == "__main__":
     from snake_ai.utils.io import SimulationLoader
     import matplotlib.pyplot as plt
-    from snake_ai.physim.autodiff import compute_log_concentration, clip_gradient_norm
+    from snake_ai.phiflow.autodiff import compute_log_concentration, clip_gradient_norm
     import time
 
     dirpath = Path("/home/rocremes/projects/snake-ai/simulations")

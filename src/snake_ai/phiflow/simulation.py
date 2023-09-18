@@ -7,8 +7,8 @@
 from abc import ABC, abstractmethod
 
 # from snake_ai.physim import DiffusionSolver2D
-from snake_ai.physim.solver import DiffusionSolver
-from snake_ai.physim.converter import (
+from snake_ai.phiflow.solver import DiffusionSolver
+from snake_ai.phiflow.converter import (
     DiffusionConverter,
     PointCloudConverter,
     ObstacleConverter,
@@ -19,17 +19,21 @@ from typing import Union, Optional, List, Any, Dict
 from phi.jax import flow
 from enum import Enum
 
+
 class TimeFactor(Enum):
     """
     Time factor used to scale the simulation time
     """
+
     GridWorld = 1
     MazeGrid = 10
     RandomObstaclesEnv = 2
     RoomEscape = 4
     SlotEnv = 2
 
+
 HISTORY_LENGTH = 100
+
 
 class Simulation(ABC):
     resolutions = ["pixel", "meta"]
@@ -173,7 +177,9 @@ class DiffusionSimulation(Simulation):
         area = self.env.width * self.env.height
         if self.t_max is None:
             # Stop condition based on the diffusion time needed to diffuse in a free environment
-            self.t_max = TimeFactor[self.env.__class__.__name__].value * area / diffusivity 
+            self.t_max = (
+                TimeFactor[self.env.__class__.__name__].value * area / diffusivity
+            )
         # Set the time step of the scheme, considering the resolution to be 1 in each environment
         if self.dt is None:
             if solver == "explicit":
@@ -200,7 +206,9 @@ class DiffusionSimulation(Simulation):
 
     def reset(self, seed: Optional[int] = None):
         super().reset(seed)
-        self._field = self._init_value * (1 - self.obstacles) * self._field_converter(self.env)
+        self._field = (
+            self._init_value * (1 - self.obstacles) * self._field_converter(self.env)
+        )
 
     @property
     def name(self) -> str:

@@ -370,11 +370,11 @@ def main():
     simulation.run()
     toc = time.perf_counter()
     print(f"Simulation time : {toc -tic} s")
-    # render(
-    #     simulation,
-    #     concentration,
-    #     output_dir=field_path.joinpath("initial_walkers").as_posix(),
-    # )
+    render(
+        simulation,
+        concentration,
+        # output_dir=field_path.joinpath("initial_walkers").as_posix(),
+    )
     ## Optimization step
     tic = time.perf_counter()
     simulation.optimize()

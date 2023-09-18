@@ -12,8 +12,8 @@ from snake_ai.envs import (
     SnakeEnv,
     SlotEnv,
 )
-from snake_ai.physim.simulation import Simulation, DiffusionSimulation
-import snake_ai.physim.visualization as vis 
+from snake_ai.phiflow.simulation import Simulation, DiffusionSimulation
+import snake_ai.phiflow.visualization as vis
 
 from abc import ABCMeta, abstractmethod
 from typing import Union, Any, Dict
