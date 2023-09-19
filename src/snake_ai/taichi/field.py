@@ -300,6 +300,29 @@ def spatial_gradient(
     )
 
 
+def log(
+    scalar_field: ScalarField, needs_grad: bool = False, eps: float = 1e-5
+) -> ScalarField:
+    """Compute the spatial gradient of a scalar field.
+
+    Args:
+        scalar_field (ScalarField): _description_
+
+    Returns:
+        VectorField: _description_
+    """
+    assert isinstance(
+        scalar_field, ScalarField
+    ), f"Expected a ScalarField, get {type(scalar_field)})"
+    values = np.log(np.where(scalar_field.values > eps, scalar_field.values, eps))
+    return ScalarField(
+        values,
+        scalar_field._bounds,
+        scalar_field._extrapolation,
+        needs_grad,
+    )
+
+
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
 

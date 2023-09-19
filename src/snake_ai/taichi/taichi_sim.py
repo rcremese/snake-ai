@@ -316,7 +316,7 @@ def main():
     ti.init(debug=True)
 
     sim_dir = Path("/home/rcremese/projects/snake-ai/simulations").resolve(strict=True)
-    field_path = sim_dir.joinpath("Slot(20,20)_pixel_Tmax=800.0_D=1", "seed_0")
+    field_path = sim_dir.joinpath("Slot(20,20)_pixel_Tmax=800.0_D=1", "seed_10")
     # field_path = sim_dir.joinpath(
     #     "RandomObstacles(20,20)_pixel_Tmax=800.0_D=1", "seed_0"
     # )
@@ -349,20 +349,21 @@ def main():
     target = tm.vec2(simu.env.goal.center)
     # Define the obstacles
     obstacles = Box.field(shape=(len(simu.env.obstacles)), needs_grad=True)
-    obs_min = np.array([obs.topleft for obs in simu.env.obstacles])
-    obs_max = np.array([obs.bottomright for obs in simu.env.obstacles])
+    obs_min = np.array([obs.topleft for obs in simu.env.obstacles] + [(60, 40)])
+    obs_max = np.array([obs.bottomright for obs in simu.env.obstacles] + [(70, 50)])
+    print(obs_min, obs_max)
     obstacles.min.from_numpy(obs_min)
     obstacles.max.from_numpy(obs_max)
     # simulation = ParticleSimulation(point_cloud, force_field, 1000, 1, bounds, target)
     simulation = DifferentiableSimulation(
         point_cloud,
         force_field,
-        t_max=400,
+        t_max=100,
         dt=1,
         obstacles=obstacles,
         bounds=bounds,
         target=target,
-        diffusivity=0.1,
+        diffusivity=0,
         max_epoch=100,
         lr=1,
     )

@@ -3,10 +3,10 @@ import taichi.math as tm
 import numpy as np
 
 from snake_ai.envs import Rectangle
-from snake_ai.taichi.field import VectorField
+from snake_ai.taichi.field import ScalarField, VectorField
 
 from abc import ABC, abstractmethod
-from typing import List, Tuple, Union
+from typing import Dict, List, Tuple, Union
 
 
 @ti.dataclass
@@ -49,6 +49,7 @@ class WalkerSimulationStoch2D(WalkerSimulation2D):
         positions: np.ndarray,
         force_field: VectorField,
         obstacles: List[Rectangle],
+        t_max: int = 100,
         dt: float = 0.1,
         diffusivity: float = 1.0,
     ):
@@ -66,29 +67,51 @@ class WalkerSimulationStoch2D(WalkerSimulation2D):
         ), "Expected force_field to be a VectorField. Get {}".format(type(force_field))
         self._force_field = force_field
 
-        self._states = State.field(
-            shape=(self.nb_walkers, 10),
+        self._states = State.field(shape=(self.nb_walkers, t_max), needs_grad=True)
+        self._noise = ti.Vector.field(
+            2, dtype=float, shape=(self.nb_walkers, t_max), needs_grad=True
         )
         assert (
-            dt > 0.0 and diffusivity > 0.0
+            dt > 0.0 and diffusivity >= 0.0
         ), f"Expected dt and diffusivity to be positive. Get {dt} and {diffusivity}"
         self.dt = dt
+        self.nb_steps = t_max
         self.diffusivity = diffusivity
+        # Definition of the loss
+        self.loss = ti.field(ti.f32, shape=(), needs_grad=True)
 
     @ti.kernel
     def reset(self):
         for n in ti.ndrange(self.nb_walkers):
             self._states[n, 0].pos = self._init_pos[n]
             self._states[n, 0].vel = tm.vec2(0.0, 0.0)
+            for t in range(self.nb_steps):
+                self._noise[n, t] = tm.vec2(ti.randn(), ti.randn())
 
     def collision_handling(self):
         return super().collision_handling()
 
-    def compute_loss(self):
-        return super().compute_loss()
+    @ti.kernel
+    def compute_loss(self, t: int):
+        for n in range(self.nb_walkers):
+            self.loss[None] += (
+                tm.length(self._states[n, t].pos - self.target)
+            ) / self.nb_walkers
 
-    def optimize(self, target_pos: np.ndarray, max_iter: int = 1000, lr: float = 1e-3):
-        return super().optimize(target_pos, max_iter, lr)
+    def optimize(self, target_pos: np.ndarray, max_iter: int = 100, lr: float = 1e-3):
+        self.target = tm.vec2(*target_pos)
+        for iter in range(max_iter):
+            self.reset()
+            with ti.ad.Tape(self.loss):
+                self.run()
+                self.compute_loss(self.nb_steps - 1)
+            print("Iter=", iter, "Loss=", self.loss[None])
+            self._update_force_field(lr)
+
+    @ti.kernel
+    def _update_force_field(self, lr: float):
+        for i, j in self._force_field._values:
+            self._force_field._values[i, j] -= lr * self._force_field._values.grad[i, j]
 
     @ti.kernel
     def step(self, t: int):
@@ -96,18 +119,39 @@ class WalkerSimulationStoch2D(WalkerSimulation2D):
             self._states[n, t].pos = (
                 self._states[n, t - 1].pos
                 + self.dt * self._force_field._at_2d(self._states[n, t - 1].pos)
-                + tm.sqrt(2 * self.dt * self.diffusivity)
-                * tm.vec2(ti.randn(), ti.randn())
+                + tm.sqrt(2 * self.dt * self.diffusivity) * self._noise[n, t]
             )
 
     def run(self):
-        return super().run()
+        for t in range(1, self.nb_steps):
+            self.step(t)
+
+    @property
+    def trajectories(self) -> Dict[str, np.ndarray]:
+        return self._states.to_numpy()
+
+
+def render(
+    simulation: WalkerSimulationStoch2D,
+    concentration: ScalarField,
+    window_size: Tuple[int, int],
+):
+    gui = ti.GUI("Differentiable Simulation", window_size)
+    scale_vector = np.array(
+        concentration._bounds.width(), concentration._bounds.height()
+    )
+    trajectories = simulation.trajectories
+    for t in range(simulation.nb_steps):
+        gui.contour(concentration._values, normalize=True)
+        pos = trajectories["pos"][:, t] / scale_vector
+        gui.circles(pos, radius=5, color=int(ti.rgb_to_hex([255, 0, 0])))
+        gui.show()
 
 
 if __name__ == "__main__":
     from pathlib import Path
     from snake_ai.utils.io import SimulationLoader
-    from snake_ai.taichi.field import ScalarField, spatial_gradient
+    from snake_ai.taichi.field import ScalarField, spatial_gradient, log
     from snake_ai.taichi.geometry import Box2D
 
     ti.init(debug=True)
@@ -120,12 +164,17 @@ if __name__ == "__main__":
     ti.init(debug=True)
     bounds = Box2D(obj["lower"], obj["upper"])
     concentration = ScalarField(obj["data"], bounds)
-    force_field = spatial_gradient(concentration)
-    starting_pos = np.array([[0.5, 0.5], [10.5, 10.5]])
+    log_concentration = log(concentration)
+    force_field = spatial_gradient(log_concentration, needs_grad=True)
+    starting_pos = np.array([[0.5, 0.5], [10.5, 10.5], [0.5, 10.5], [15.5, 10.5]])
 
-    simulation = WalkerSimulationStoch2D(starting_pos, force_field, [], diffusivity=0.1)
+    simulation = WalkerSimulationStoch2D(
+        starting_pos, force_field, [], t_max=100, diffusivity=0
+    )
     simulation.reset()
-    simulation.step(1)
-    simulation.step(2)
-
-    print(simulation._states)
+    simulation.run()
+    print(simulation.trajectories["pos"][:, -1])
+    render(simulation, concentration, (500, 500))
+    simulation.optimize(np.array([10.5, 5.0]), max_iter=100, lr=1)
+    render(simulation, concentration, (500, 500))
+    # simulation.optimize(np.array([13.5, 13.5]), lr=0.1)
