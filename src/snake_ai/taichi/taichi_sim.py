@@ -295,13 +295,13 @@ def render(
         pos = trajectories["pos"][:, t] / scale_vector
         gui.circles(pos, radius=5, color=int(ti.rgb_to_hex([255, 0, 0])))
         # # Obstacle
-        # for obs_min, obs_max in zip(obstacles["min"], obstacles["max"]):
-        #     gui.rect(
-        #         obs_min / scale_vector,
-        #         obs_max / scale_vector,
-        #         radius=5,
-        #         color=0x0000FF,
-        #     )
+        for obs_min, obs_max in zip(obstacles["min"], obstacles["max"]):
+            gui.rect(
+                obs_min / scale_vector,
+                obs_max / scale_vector,
+                radius=5,
+                color=0x0000FF,
+            )
         if output_dir:
             filename = output_dir.joinpath(f"frame_{t:04d}.png").as_posix()
         gui.show(filename)
@@ -358,7 +358,7 @@ def main():
     simulation = DifferentiableSimulation(
         point_cloud,
         force_field,
-        t_max=100,
+        t_max=1000,
         dt=1,
         obstacles=obstacles,
         bounds=bounds,
