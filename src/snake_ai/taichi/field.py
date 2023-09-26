@@ -151,13 +151,14 @@ class ScalarField(SampledField):
         extrapolation: Extrapolation = Extrapolation.ZERO,
         needs_grad: bool = False,
     ) -> None:
+        ## Dimension and values
         assert (
             values.ndim == 2 or values.ndim == 3
         ), f"Expected sampled field to be 2D or 3D. Get {values.ndim}D"
         self.values = ti.field(dtype=ti.f32, shape=values.shape, needs_grad=needs_grad)
         self.values.from_numpy(values)
         self.dim = values.ndim
-
+        ## Bounds and step sizes
         # assert (isinstance(bounds, Box2D) and self.dim == 2) or (
         #     isinstance(bounds, Box3D) and self.dim == 3
         # ), f"Expected bounds to be an instance of Box{self.dim}D. Get {type(bounds)}"
@@ -184,16 +185,21 @@ class VectorField(SampledField):
         extrapolation: Extrapolation = Extrapolation.ZERO,
         needs_grad: bool = False,
     ) -> None:
+        ## Dimension and values
         dim = values.shape[0]
         assert (dim == 2 and values.ndim == 3) or (
             dim == 3 and values.ndim == 3
         ), f"Expected sampled field to be 2D or 3D vector fields. Get {dim}D"
+        self.dim = dim
         self.values = ti.Vector.field(
             dim, dtype=ti.f32, shape=values.shape[1:], needs_grad=needs_grad
         )
         self.values.from_numpy(np.moveaxis(values, 0, -1))
-        self.dim = dim
 
+        ## Bounds and step sizes
+        # assert (isinstance(bounds, Box2D) and self.dim == 2) or (
+        #     isinstance(bounds, Box3D) and self.dim == 3
+        # ), f"Expected bounds to be an instance of Box{self.dim}D. Get {type(bounds)}"
         self.bounds = bounds
         self._step_sizes = [
             (self.bounds.max[i] - self.bounds.min[i]) / (self.values.shape[i] - 1)

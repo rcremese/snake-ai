@@ -252,6 +252,8 @@ if __name__ == "__main__":
     from snake_ai.taichi.field import ScalarField, spatial_gradient, log
     from snake_ai.taichi.geometry import Box2D
 
+    import snake_ai.utils.visualization as vis
+
     ti.init(arch=ti.gpu)
     dirpath = Path("/home/rcremese/projects/snake-ai/simulations").resolve(strict=True)
     filepath = dirpath.joinpath(
@@ -259,7 +261,6 @@ if __name__ == "__main__":
     )
     obj = np.load(filepath)
 
-    ti.init(debug=True)
     bounds = Box2D(obj["lower"], obj["upper"])
     concentration = ScalarField(obj["data"], bounds)
     log_concentration = log(concentration)
@@ -275,6 +276,14 @@ if __name__ == "__main__":
     )
     simulation.reset()
     simulation.run()
+
     render(simulation, concentration, (500, 500))
+    vis.animate_walk_history(
+        simulation.positions,
+        log_concentration.values.to_numpy(),
+        bound_limits=obj["upper"],
+        output_path="test.gif",
+    )
+
     # simulation.optimize(np.array([10.5, 5.0]), max_iter=100, lr=1)
     # render(simulation, concentration, (500, 500))

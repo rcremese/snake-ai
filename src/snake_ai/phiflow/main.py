@@ -5,9 +5,9 @@ from matplotlib import animation
 
 # project import
 from snake_ai.envs import GridWorld, RandomObstaclesEnv, MazeGrid, SlotEnv, RoomEscape
-from snake_ai.physim import DiffusionSimulation, maths, autodiff
+from snake_ai.phiflow import DiffusionSimulation, maths, autodiff
 from snake_ai.utils.io import SimulationLoader, SimulationWritter
-import snake_ai.physim.visualization as vis
+import snake_ai.phiflow.visualization as vis
 
 # general import
 from pathlib import Path
@@ -310,7 +310,7 @@ def autodiff_simulation():
 
 
 def autodiff_sim(args: argparse.Namespace):
-    from snake_ai.physim import converter
+    from snake_ai.phiflow import converter
 
     path = Path(args.path).resolve(strict=True)
 
