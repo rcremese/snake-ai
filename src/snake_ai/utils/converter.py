@@ -4,7 +4,7 @@ import numpy as np
 from typing import Union, Tuple, List
 
 
-def convert_free_space_to_point_cloud(env: GridWorld) -> np.ndarray:
+def convert_free_space_to_point_cloud(env: GridWorld, step: int = 1) -> np.ndarray:
     """Transform free space of the environment into a point cloud.
 
     Args:
@@ -14,7 +14,28 @@ def convert_free_space_to_point_cloud(env: GridWorld) -> np.ndarray:
     """
     assert isinstance(env, GridWorld), "environmnent must be of type GridWorld"
     assert env.free_positions is not None, "Environment does not contain free positions"
-    return np.array(env.free_positions) + 0.5
+    assert isinstance(step, int) and step > 1, "Step must be an integer > 1"
+    positions = []
+    for x, y in env.free_positions:
+        if x % step == 0 and y % step == 0:
+            positions.append((x + 0.5, y + 0.5))
+    return np.array(positions)
+
+
+def convert_obstacles_to_physical_space(env: GridWorld) -> List[Rectangle]:
+    assert isinstance(env, GridWorld), "environmnent must be of type GridWorld"
+    assert (
+        env.obstacles is not None
+    ), "Environment does not contain obstacles. Call reset() first."
+    return [
+        Rectangle(
+            obstacle.x // env.pixel,
+            obstacle.y // env.pixel,
+            obstacle.width // env.pixel,
+            obstacle.height // env.pixel,
+        )
+        for obstacle in env.obstacles
+    ]
 
 
 def convert_obstacles_to_binary_map(env: GridWorld, res: str = "pixel") -> np.ndarray:

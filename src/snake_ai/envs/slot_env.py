@@ -22,6 +22,7 @@ class SlotEnv(GridWorld):
             )
         super().__init__(width, height, pixel, seed, render_mode, **kwargs)
         self._obs_center = None
+        self._entries = None
 
     def reset(self, seed: Optional[int] = None) -> Tuple[np.ndarray, Dict[str, Any]]:
         super().reset(seed)
@@ -32,6 +33,8 @@ class SlotEnv(GridWorld):
         self._free_position_mask[x_obs, :] = False
         self._free_position_mask[x_obs, y_obs - 1] = True
         self._free_position_mask[x_obs, y_obs + 1] = True
+
+        self._entries = [(x_obs, y_obs - 1), (x_obs, y_obs + 1)]
 
         self._obstacles = [
             Rectangle(x_obs * self.pixel, y * self.pixel, self.pixel, self.pixel)
@@ -60,6 +63,25 @@ class SlotEnv(GridWorld):
             )
         return self.observations, reward, terminated, self.info
 
+    def close_entry(self) -> None:
+        assert self._entries is not None, "The environment has not been reset"
+        if len(self._entries) == 0:
+            raise errors.InitialisationError(
+                "All entries have been closed. Reset the environment to open new entries"
+            )
+        idx = np.random.randint(0, len(self._entries))
+
+        closed_entry = self._entries.pop(idx)
+        self._free_position_mask[closed_entry] = False
+        self._obstacles.append(
+            Rectangle(
+                closed_entry[0] * self.pixel,
+                closed_entry[1] * self.pixel,
+                self.pixel,
+                self.pixel,
+            )
+        )
+
     ## Properties
     @GridWorld.name.getter
     def name(self) -> str:
@@ -67,6 +89,11 @@ class SlotEnv(GridWorld):
 
 
 if __name__ == "__main__":
+    import matplotlib.pyplot as plt
+
     room_escape = SlotEnv(20, 20, pixel=20, render_mode="human")
     room_escape.reset(10)
+    room_escape.close_entry()
     room_escape.render()
+    plt.imshow(room_escape._free_position_mask)
+    plt.show()

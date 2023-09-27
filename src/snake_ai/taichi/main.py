@@ -2,6 +2,14 @@ import taichi as ti
 import numpy as np
 
 from snake_ai.utils.io import EnvLoader
+import snake_ai.utils.visualization as vis
+from snake_ai.taichi.field import ScalarField, Box2D, log
+from snake_ai.taichi.walk_simulation import WalkerSimulationStoch2D
+from snake_ai.utils.converter import (
+    convert_free_space_to_point_cloud,
+    convert_obstacles_to_physical_space,
+    convert_goal_position,
+)
 
 from pathlib import Path
 import argparse
@@ -37,14 +45,6 @@ def walker_parser() -> argparse.ArgumentParser:
 
 
 def walk(args: argparse.Namespace):
-    from snake_ai.taichi.field import ScalarField, Box2D, log
-    from snake_ai.taichi.walk_simulation import WalkerSimulationStoch2D
-    from snake_ai.utils.converter import (
-        convert_free_space_to_point_cloud,
-        convert_goal_position,
-    )
-    import snake_ai.utils.visualization as vis
-
     path = Path(args.path).resolve(strict=True)
     if not path.joinpath("environment.json").exists():
         raise FileNotFoundError(
@@ -67,7 +67,7 @@ def walk(args: argparse.Namespace):
     simulation = WalkerSimulationStoch2D(
         starting_pos,
         log_concentration,
-        obstacles=env.obstacles,
+        obstacles=convert_obstacles_to_physical_space(env),
         t_max=args.t_max,
         diffusivity=args.diffusivity,
     )

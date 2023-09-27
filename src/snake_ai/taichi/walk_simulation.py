@@ -8,7 +8,8 @@ from snake_ai.taichi.geometry import Box2D, convert_rectangles
 from snake_ai.taichi.maths import lerp
 
 from abc import ABC, abstractmethod
-from typing import Dict, List, Tuple, Union
+from typing import Dict, List, Tuple, Union, Optional
+from pathlib import Path
 
 
 @ti.dataclass
@@ -44,7 +45,6 @@ class WalkerSimulation2D(ABC):
         raise NotImplementedError
 
 
-@ti.data_oriented
 class WalkerSimulationStoch2D(WalkerSimulation2D):
     def __init__(
         self,
@@ -184,26 +184,45 @@ class WalkerSimulationStoch2D(WalkerSimulation2D):
     def _obstacle_collision(self, n: int, t: int, o: int):
         for i in ti.static(range(2)):
             ## Collision on the min border
+
             if (self.states[n, t - 1].pos[i] < self.obstacles[o].min[i]) and (
                 self.states[n, t].pos[i] >= self.obstacles[o].min[i]
             ):
-                self.states[n, t].pos[i] = self.obstacles[o].min[i] - ti.abs(
-                    self.obstacles[o].min[i] - self.states[n, t].pos[i]
+                toi = (self.obstacles[o].min[i] - self.states[n, t - 1].pos[i]) / (
+                    self.states[n, t].pos[i] - self.states[n, t - 1].pos[i]
                 )
+                self.states[n, t].pos[i] = lerp(
+                    self.states[n, t - 1].pos[i], self.states[n, t].pos[i], toi
+                ) - ti.abs(self.obstacles[o].min[i] - self.states[n, t].pos[i])
+
+                # self.states[n, t].pos[i] = self.obstacles[o].min[i] - ti.abs(
+                #     self.obstacles[o].min[i] - self.states[n, t].pos[i]
+                # )
                 self.states[n, t].vel[i] = -self.states[n, t].vel[i]
             # Collision on the max border
             elif (self.states[n, t - 1].pos[i] > self.obstacles[o].max[i]) and (
                 self.states[n, t].pos[i] <= self.obstacles[o].max[i]
             ):
-                self.states[n, t].pos[i] = self.obstacles[o].max[i] + ti.abs(
-                    self.obstacles[o].max[i] - self.states[n, t].pos[i]
+                toi = (self.obstacles[o].max[i] - self.states[n, t - 1].pos[i]) / (
+                    self.states[n, t].pos[i] - self.states[n, t - 1].pos[i]
                 )
+                self.states[n, t].pos[i] = lerp(
+                    self.states[n, t - 1].pos[i], self.states[n, t].pos[i], toi
+                ) + ti.abs(self.obstacles[o].max[i] - self.states[n, t].pos[i])
+
+                # self.states[n, t].pos[i] = self.obstacles[o].max[i] + ti.abs(
+                #     self.obstacles[o].max[i] - self.states[n, t].pos[i]
+                # )
                 self.states[n, t].vel[i] = -self.states[n, t].vel[i]
 
     @ti.kernel
     def _update_force_field(self, lr: float):
         for i, j in self.force_field.values:
             self.force_field.values[i, j] -= lr * self.force_field.values.grad[i, j]
+            if tm.length(self.force_field.values[i, j]) > 1.0:
+                self.force_field.values[i, j] = self.force_field.values[
+                    i, j
+                ] / tm.length(self.force_field.values[i, j])
 
     ## Properties
     @property
@@ -213,6 +232,22 @@ class WalkerSimulationStoch2D(WalkerSimulation2D):
     @property
     def positions(self) -> np.ndarray:
         return self.states.pos.to_numpy()
+
+
+class WalkerDynamicSimulation2D(WalkerSimulationStoch2D):
+    @ti.kernel
+    def step(self, t: int):
+        for n in ti.ndrange(self.nb_walkers):
+            self.states[n, t].vel = (
+                self.states[n, t - 1].vel
+                + self.dt * self.force_field._at_2d(self.states[n, t - 1].pos)
+                + tm.sqrt(2 * self.dt * self.diffusivity) * self._noise[n, t]
+            )
+            self.states[n, t].pos = (
+                self.states[n, t - 1].pos + self.dt * self.states[n, t].vel
+            )
+
+            self.collision_handling(n, t)
 
 
 ## Dynamic case
@@ -228,11 +263,17 @@ def render(
     simulation: WalkerSimulationStoch2D,
     concentration: ScalarField,
     window_size: Tuple[int, int],
+    output_path: Optional[Path] = None,
 ):
-    gui = ti.GUI("Differentiable Simulation", window_size)
+    gui = ti.GUI("Dif0ferentiable Simulation", window_size)
     scale_vector = np.array(concentration.bounds.width(), concentration.bounds.height())
     trajectories = simulation.trajectories
     obstacles = simulation.obstacles.to_numpy()
+    # Write images in a directory
+    if output_path is not None:
+        output_path = Path(output_path).resolve()
+        if not output_path.exists():
+            output_path.mkdir(parents=True)
 
     for t in range(simulation.nb_steps):
         gui.contour(concentration.values, normalize=True)
@@ -244,46 +285,63 @@ def render(
                 bottomright=obs_max / scale_vector,
                 color=0xEEEEF0,
             )
-        gui.show()
+        if output_path is not None:
+            gui.show(str(output_path.joinpath(f"frame_{t:03d}.png")))
+        else:
+            gui.show()
 
 
 if __name__ == "__main__":
     from pathlib import Path
+
+    from snake_ai.utils.io import EnvLoader
+    from snake_ai.utils.converter import (
+        convert_free_space_to_point_cloud,
+        convert_obstacles_to_physical_space,
+        convert_goal_position,
+    )
     from snake_ai.taichi.field import ScalarField, spatial_gradient, log
     from snake_ai.taichi.geometry import Box2D
-
     import snake_ai.utils.visualization as vis
 
     ti.init(arch=ti.gpu)
     dirpath = Path("/home/rcremese/projects/snake-ai/simulations").resolve(strict=True)
-    filepath = dirpath.joinpath(
-        "Slot(20,20)_pixel_Tmax=800.0_D=1", "seed_10", "field.npz"
-    )
-    obj = np.load(filepath)
+    path = dirpath.joinpath("Slot(20,20)_pixel_Tmax=800.0_D=1", "seed_10")
+    loader = EnvLoader(path.joinpath("environment.json"))
+    env = loader.load()
+    env.reset()
+    env.close_entry()
+    env.render()
+
+    obj = np.load(path.joinpath("field.npz"))
 
     bounds = Box2D(obj["lower"], obj["upper"])
     concentration = ScalarField(obj["data"], bounds)
     log_concentration = log(concentration)
     # force_field = spatial_gradient(log_concentration, needs_grad=True)
-    starting_pos = np.array([[0.5, 0.5], [10.5, 10.5], [0.5, 10.5], [15.5, 10.5]])
+    starting_pos = convert_free_space_to_point_cloud(env, step=2)
 
+    # simulation = WalkerDynamicSimulation2D(
     simulation = WalkerSimulationStoch2D(
         starting_pos,
         log_concentration,
-        # obstacles=[Rectangle(0, 0, 1, 1)],
-        t_max=100,
-        diffusivity=0,
+        obstacles=convert_obstacles_to_physical_space(env),
+        t_max=1000,
+        diffusivity=0.01,
+        dt=0.1,
     )
     simulation.reset()
     simulation.run()
 
-    render(simulation, concentration, (500, 500))
-    vis.animate_walk_history(
-        simulation.positions,
-        log_concentration.values.to_numpy(),
-        bound_limits=obj["upper"],
-        output_path="test.gif",
-    )
+    render(simulation, concentration, (500, 500), output_path="./blocked_entry")
+    # vis.animate_walk_history(
+    #     simulation.positions,
+    #     log_concentration.values.to_numpy(),
+    #     bound_limits=obj["upper"],
+    #     output_path="test.gif",
+    # )
 
-    # simulation.optimize(np.array([10.5, 5.0]), max_iter=100, lr=1)
-    # render(simulation, concentration, (500, 500))
+    simulation.optimize(convert_goal_position(env), max_iter=200, lr=1)
+    render(
+        simulation, concentration, (500, 500), output_path="./optimized_blocked_entry"
+    )
