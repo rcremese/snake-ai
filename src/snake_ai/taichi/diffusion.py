@@ -1,6 +1,77 @@
 import taichi as ti
 import taichi.math as tm
 import numpy as np
+import matplotlib.pyplot as plt
+import numpy as np
+import scipy.sparse as sp
+import scipy.signal as sg
+
+
+def main():
+    row, col = 20, 20
+
+    def coord2index(i, j):
+        return i * col + j
+
+    source = np.zeros((row, col))
+    source[5, 0] = 100
+
+    index2delet = [(5, 5), (5, 6), (6, 5), (6, 6)]
+    indexes = [coord2index(i, j) for i, j in index2delet]
+
+    ones = np.ones(col)
+    # 5 stencil laplace matrix
+    datas = np.array([ones, ones, -4 * ones, ones, ones])
+    offsets = np.array([-col, -1, 0, 1, col])
+    # 9 stencil laplace matrix
+    # datas = np.array([ones, ones, ones, ones, -8 * ones, ones, ones, ones, ones])
+    # offsets = np.array([-n - 1, -n, -n + 1, -1, 0, 1, n - 1, n, n + 1])
+
+    ## Base blockconstruction
+    base_block = sp.diags(datas, offsets, shape=(col, col), dtype=np.float32)
+    laplace = sp.kron(sp.eye(row), base_block, format="lil")
+
+    outer_diag = np.ones(row * col)
+    laplace.setdiag(outer_diag, -col)
+    laplace.setdiag(outer_diag, col)
+    for idx in indexes:
+        laplace[idx, :] = 0
+        laplace[:, idx] = 0
+        laplace[idx, idx] = -4
+    ## lil_matrix construction
+    # laplace = sp.lil_matrix((row * col, row * col), dtype=np.float32)
+    # for data, offset in zip(datas, offsets):
+    #     laplace.setdiag(data, offset)
+    # for k in range(0, row * col, col):
+    #     laplace[::col, ::col] = 0
+
+    # laplace.setdiag(datas[0], offsets[0])
+
+    solver = sp.linalg.factorized(-laplace.tocsc())
+    solution = solver(source.flatten())
+    solution = solution.reshape(row, col)
+    # Five stencil laplace filter
+    laplace_filter = np.array([[0, 1, 0], [1, -4, 1], [0, 1, 0]])
+    # Nine stencil laplace filter
+    # laplace_filter = np.array([[1, 1, 1], [1, -8, 1], [1, 1, 1]])
+
+    # smoothed_sol = sg.convolve2d(solution, -laplace_filter, mode="same")
+    smoothed_sol = np.log(np.where(solution > 1e-6, solution, 1e-6))
+    gradx, grady = np.gradient(smoothed_sol)
+
+    fig, ax = plt.subplots(1, 4, figsize=(12, 4))
+
+    ax[0].imshow(source, cmap="inferno")
+    ax[0].set(title="source")
+    ax[1].imshow(laplace.toarray(), cmap="inferno")
+    ax[1].set(title="laplace matrix")
+    ax[2].imshow(solution, cmap="inferno")
+    ax[2].set(title="solution")
+    ax[3].imshow(smoothed_sol, cmap="inferno")
+    ax[3].quiver(grady, gradx, units="xy", angles="xy", scale=1)
+    ax[3].set(title="Solution in log scale")
+    plt.show()
+
 
 C0 = ti.Vector([0, 0, 0])
 C1 = ti.Vector([0, 1, 0])
@@ -131,7 +202,7 @@ class ExplicitDiffusion:
         gui.show()
 
 
-def main():
+def main2():
     from snake_ai.envs import SlotEnv
     import matplotlib.pyplot as plt
 
