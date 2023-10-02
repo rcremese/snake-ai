@@ -5,8 +5,8 @@
 # @copyright MIT License
 #
 from snake_ai.envs import RoomEscape, SlotEnv, RandomObstaclesEnv
-from snake_ai.physim.simulation import Simulation
-from snake_ai.physim import maths
+from snake_ai.phiflow.simulation import Simulation
+from snake_ai.phiflow import maths
 from snake_ai.utils.io import SimulationWritter, SimulationLoader
 from phi.jax import flow
 from pathlib import Path
@@ -157,7 +157,7 @@ def trajectory_optimization(
 
 
 def main(simulation_path: Union[str, Path]):
-    import snake_ai.physim.visualization as vis
+    import snake_ai.phiflow.visualization as vis
     import time
 
     loader = SimulationLoader(simulation_path)

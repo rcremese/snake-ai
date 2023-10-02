@@ -150,3 +150,128 @@ class Circle(Geometry):
     def __eq__(self, other: object) -> bool:
         assert isinstance(other, Circle), f"Can not compare circle with {type(other)}."
         return np.array_equal(self.center, other.center) and self.radius == other.radius
+
+
+class Cube(Geometry):
+    def __init__(
+        self, x: int, y: int, z: int, width: int = 1, height: int = 1, depth: int = 1
+    ) -> None:
+        assert (
+            isinstance(x, (int, np.int_))
+            and isinstance(y, (int, np.int_))
+            and isinstance(z, (int, np.int_))
+        ), "x, y and z must be integers"
+        self.x = x
+        self.y = y
+        self.z = z
+
+        assert (
+            width > 0 and height > 0 and depth > 0
+        ), "Width, height and depth must be positive integers"
+        self.width = width
+        self.height = height
+        self.depth = depth
+
+    def to_dict(self) -> Dict:
+        return {
+            "x": self.x,
+            "y": self.y,
+            "z": self.z,
+            "width": self.width,
+            "height": self.height,
+            "depth": self.depth,
+        }
+
+    def from_dict(cls, dictionary: Dict[str, int]):
+        return super().from_dict(dictionary)
+
+    def is_inside(self, other: Geometry) -> bool:
+        assert isinstance(other, Cube), f"Can not compare cube with {type(other)}."
+        return (
+            (self.x >= other.x)
+            and (self.y >= other.y)
+            and (self.z >= other.z)
+            and (self.x + self.width <= other.x + other.width)
+            and (self.y + self.height <= other.y + other.height)
+            and (self.z + self.depth <= other.z + other.depth)
+        )
+
+    def contains(self, other: Geometry) -> bool:
+        assert isinstance(other, Cube), f"Can not compare cube with {type(other)}."
+        return other.is_inside(self)
+
+    @property
+    def volume(self) -> int:
+        return self.width * self.height * self.depth
+
+    @property
+    def center(self) -> np.ndarray:
+        return (
+            np.array(
+                [self.x + self.width, self.y + self.height, self.z + self.depth],
+                dtype=float,
+            )
+            / 2
+        )
+
+    @property
+    def vertices(self) -> np.ndarray:
+        """Get the vertices of the cube.
+
+        The vertices are generated in the following order :\n
+        0: (x, y, z)\n
+        1: (x + width, y, z)\n
+        2: (x, y + height, z)\n
+        3: (x, y, z + depth)\n
+        4: (x + width, y + height, z)\n
+        5: (x + width, y, z + depth)\n
+        6: (x, y + height, z + depth)\n
+        7: (x + width, y + height, z + depth)\n
+        """
+        return np.array(
+            [
+                (self.x, self.y, self.z),
+                (self.x + self.width, self.y, self.z),
+                (self.x, self.y + self.height, self.z),
+                (self.x, self.y, self.z + self.depth),
+                (self.x + self.width, self.y + self.height, self.z),
+                (self.x + self.width, self.y, self.z + self.depth),
+                (self.x, self.y + self.height, self.z + self.depth),
+                (self.x + self.width, self.y + self.height, self.z + self.depth),
+            ]
+        )
+
+    @property
+    def edges(self) -> np.ndarray:
+        """Returns the edges of the cube.
+
+        The order of the edges is the following : \n
+        (0, 1)\n
+        (0, 2)\n
+        (0, 3)\n
+        (1, 4)\n
+        (1, 5)\n
+        (2, 4)\n
+        (2, 6)\n
+        (3, 5)\n
+        (3, 6)\n
+        (4, 7)\n
+        (5, 7)\n
+        (6, 7)\n
+        """
+        return np.array(
+            [
+                [0, 1],
+                [0, 2],
+                [0, 3],
+                [1, 4],
+                [1, 5],
+                [2, 4],
+                [2, 6],
+                [3, 5],
+                [3, 6],
+                [4, 7],
+                [5, 7],
+                [6, 7],
+            ]
+        )
