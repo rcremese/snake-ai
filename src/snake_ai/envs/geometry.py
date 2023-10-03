@@ -275,3 +275,17 @@ class Cube(Geometry):
                 [6, 7],
             ]
         )
+
+    @property
+    def min(self) -> np.ndarray:
+        return np.array([self.x, self.y, self.z])
+
+    @property
+    def max(self) -> np.ndarray:
+        return np.array(
+            [self.x + self.width, self.y + self.height, self.z + self.depth]
+        )
+
+    ## Dunder methods
+    def __repr__(self) -> str:
+        return f"{__class__.__name__}({self.x!r},{self.y!r},{self.z!r},{self.width!r},{self.height!r},{self.depth!r})"

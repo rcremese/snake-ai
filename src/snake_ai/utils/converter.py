@@ -1,7 +1,9 @@
 from snake_ai.envs import GridWorld, Rectangle
+from snake_ai.envs.geometry import Cube
+from snake_ai.envs.grid_world_3d import GridWorld3D
 import numpy as np
 
-from typing import Union, Tuple, List
+from typing import Union, Tuple, List, Optional
 
 
 def convert_free_space_to_point_cloud(env: GridWorld, step: int = 1) -> np.ndarray:
@@ -39,7 +41,7 @@ def convert_obstacles_to_physical_space(env: GridWorld) -> List[Rectangle]:
 
 
 def convert_obstacles_to_binary_map(env: GridWorld, res: str = "pixel") -> np.ndarray:
-    assert isinstance(env, GridWorld), "environmnent must be of type GridWorld"
+    assert isinstance(env, GridWorld), "Environmnent must be of type GridWorld"
     assert env.obstacles is not None, "Environment does not contain obstacles"
     assert res.lower() in [
         "pixel",
@@ -72,20 +74,93 @@ def convert_goal_position(env: GridWorld) -> np.ndarray:
     return np.array(env.goal.center) / np.array([env.pixel, env.pixel])
 
 
+class GridWorld3DConverter:
+    def __init__(self, env: GridWorld3D) -> None:
+        assert isinstance(
+            env, GridWorld3D
+        ), f"Environmnent must be of type GridWorld3D, not {type(env)}"
+        self.env = env
+
+    ## Public methods
+    def convert_3d_obstacles_to_binary_map(
+        self, resolution: Optional[Union[int, Tuple[int]]] = None
+    ) -> np.ndarray:
+        assert (
+            self.env._obstacles is not None
+        ), "Environment does not contain obstacles. Reset environment first."
+        resolution = self._check_resolution(resolution)
+
+        steps = self.convert_resolution_to_step(resolution)
+        # resolution = self._check_resolution(resolution)
+
+        binary_map = np.zeros(resolution, dtype=int)
+        if self.env.nb_obstacles == 0:
+            return binary_map
+
+        for obstacle in self.env.obstacles:
+            min_ind = np.floor(obstacle.min / steps).astype(int)
+            max_ind = np.ceil(obstacle.max / steps).astype(int)
+            binary_map[
+                min_ind[0] : max_ind[0],
+                min_ind[1] : max_ind[1],
+                min_ind[2] : max_ind[2],
+            ] = 1
+        return binary_map
+
+    def convert_resolution_to_step(self, resolution: Tuple[int]) -> np.ndarray:
+        assert (
+            len(resolution) == 3
+        ), f"Resolution must be a tuple of positive integers. Get {resolution}"
+        res = np.array(resolution, dtype=float)
+        assert np.all(res > 0), f"Resolutions must be a tuple of positive integers"
+        return (self.env.bounds.max - self.env.bounds.min) / (res - 1)
+
+    def _check_resolution(self, resolution: Union[int, Tuple[int]]) -> Tuple[int]:
+        """Convert an input resolution to a tuple of 3 integers
+
+        Args:
+            resolution (Union[int, Tuple[int]]): desired resolution for a force field
+
+        Raises:
+            TypeError: if the resolution is not None, an integer or a tuple of integers
+
+        Returns:
+            Tuple[int]: resolution e
+        """
+        if resolution is None:
+            res = (self.env.height, self.env.width, self.env.depth)
+        elif isinstance(resolution, int):
+            assert resolution > 0, "Resolution must be a positive integer"
+            res = (resolution, resolution, resolution)
+        elif isinstance(resolution, tuple):
+            assert len(resolution) == 3, "Resolution must be a tuple of length 3"
+            assert all(
+                isinstance(res, int) and res > 0 for res in resolution
+            ), f"Resolution must be a tuple of positive integers. Get {resolution}"
+            res = resolution
+        else:
+            raise TypeError(
+                "Resolution must be either an integer or a tuple of integers"
+            )
+        return res
+
+
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
-    from snake_ai.envs import RandomObstaclesEnv
+    from snake_ai.envs.random_obstacles_3d import RandomObstacles3D
 
-    env = RandomObstaclesEnv(width=20, height=10, pixel=10, nb_obs=10, max_obs_size=3)
+    N = 10
+
+    env = RandomObstacles3D(10, 10, 10, nb_obs=5, max_size=1)
     env.reset()
+    converter = GridWorld3DConverter(env)
+    binary_map = converter.convert_3d_obstacles_to_binary_map(N**2)
 
-    point_cloud = convert_free_space_to_point_cloud(env)
-    obstacles = convert_obstacles_to_binary_map(env)
-    agent_position = convert_agent_position(env)
-    goal_position = convert_goal_position(env)
-
-    plt.imshow(obstacles, extent=[0, env.width, env.height, 0])
-    plt.scatter(point_cloud[:, 0], point_cloud[:, 1], c="r")
-    plt.scatter(agent_position[0], agent_position[1], c="b")
-    plt.scatter(goal_position[0], goal_position[1], c="g")
+    fig, ax = plt.subplots(N, N)
+    for i in range(N):
+        for j in range(N):
+            z = i + N * j
+            ax[i, j].imshow(binary_map[:, :, z])
+            ax[i, j].set(title=f"z= {z}", xlabel="y", ylabel="x")
+    print(env.obstacles)
     plt.show()

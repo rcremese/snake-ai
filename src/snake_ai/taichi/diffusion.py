@@ -8,18 +8,19 @@ import scipy.signal as sg
 
 
 def main():
-    row, col = 20, 20
+    row, col = 10, 10
 
     def coord2index(i, j):
         return i * col + j
 
-    source = np.zeros((row, col))
+    source = np.zeros((row, col), dtype=np.float32)
     source[5, 0] = 100
 
     index2delet = [(5, 5), (5, 6), (6, 5), (6, 6)]
     indexes = [coord2index(i, j) for i, j in index2delet]
 
-    ones = np.ones(col)
+    ones = np.ones(col * row)
+    # ones = np.ones(col)
     # 5 stencil laplace matrix
     datas = np.array([ones, ones, -4 * ones, ones, ones])
     offsets = np.array([-col, -1, 0, 1, col])
@@ -27,17 +28,28 @@ def main():
     # datas = np.array([ones, ones, ones, ones, -8 * ones, ones, ones, ones, ones])
     # offsets = np.array([-n - 1, -n, -n + 1, -1, 0, 1, n - 1, n, n + 1])
 
-    ## Base blockconstruction
-    base_block = sp.diags(datas, offsets, shape=(col, col), dtype=np.float32)
-    laplace = sp.kron(sp.eye(row), base_block, format="lil")
+    laplace = sp.diags(
+        datas, offsets, shape=(col * row, col * row), dtype=np.float32
+    ).tolil()
+    laplace[0, row] = 0
+    laplace[row, 0] = 0
+    for idx in range(row, row * col, row):
+        laplace[idx - 1, idx] = 0
+        laplace[idx, idx - 1] = 0
 
-    outer_diag = np.ones(row * col)
-    laplace.setdiag(outer_diag, -col)
-    laplace.setdiag(outer_diag, col)
+    ## Base blockconstruction
+    # base_block = sp.diags(datas, offsets, shape=(col, col), dtype=np.float32)
+    # laplace = sp.kron(sp.eye(row), base_block, format="lil")
+
+    # outer_diag = np.ones(row * col)
+    # laplace.setdiag(outer_diag, -col)
+    # laplace.setdiag(outer_diag, col)
+
     for idx in indexes:
         laplace[idx, :] = 0
         laplace[:, idx] = 0
-        laplace[idx, idx] = -4
+        laplace[idx, idx] = 1
+
     ## lil_matrix construction
     # laplace = sp.lil_matrix((row * col, row * col), dtype=np.float32)
     # for data, offset in zip(datas, offsets):

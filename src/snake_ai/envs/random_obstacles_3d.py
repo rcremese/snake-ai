@@ -39,14 +39,14 @@ class RandomObstacles3D(GridWorld3D):
     def reset(self, seed: int = None):
         super().reset(seed)
         if self._nb_obs > 0:
-            self.obstacles = self._populate_grid_with_obstacles()
+            self._obstacles = self._populate_grid_with_obstacles()
         else:
-            self.obstacles = []
+            self._obstacles = []
 
     ## Private methods
     def _populate_grid_with_obstacles(self) -> List[Cube]:
         ## Get all available free positions
-        self._free_position_mask[self.agent.x, self.agent.y, self.agent.z] = False
+        self._free_position_mask[self._agent.x, self._agent.y, self._agent.z] = False
 
         obs_sizes = self._rng.integers(
             1, self._max_obs_size, size=(self._nb_obs, 3), endpoint=True
@@ -62,8 +62,8 @@ class RandomObstacles3D(GridWorld3D):
                 # Check if the obstacle is valid
                 if (
                     obstacle.is_inside(self.bounds)
-                    and not obstacle.contains(self.agent)
-                    and not obstacle.contains(self.goal)
+                    and not obstacle.contains(self._agent)
+                    and not obstacle.contains(self._goal)
                     and not any(obstacle.contains(obs) for obs in obstacles)
                 ):
                     break
@@ -77,7 +77,7 @@ class RandomObstacles3D(GridWorld3D):
             ] = False
             obstacles.append(obstacle)
 
-        self._free_position_mask[self.agent.x, self.agent.y, self.agent.z] = True
+        self._free_position_mask[self._agent.x, self._agent.y, self._agent.z] = True
         return obstacles
 
 

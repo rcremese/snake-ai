@@ -22,9 +22,9 @@ class GridWorld3D(gym.Env):
         self._free_position_mask = np.ones(
             (self.width, self.height, self.depth), dtype=bool
         )
-        self.agent = None
-        self.goal = None
-        self.obstacles = None
+        self._agent = None
+        self._goal = None
+        self._obstacles = None
 
     def reset(self, seed: int = None):
         if seed is not None:
@@ -33,24 +33,24 @@ class GridWorld3D(gym.Env):
         goal_position = self._rng.integers(
             0, high=[self.width, self.height, self.width], size=3
         )
-        self.goal = Cube(*goal_position, 1, 1, 1)
+        self._goal = Cube(*goal_position, 1, 1, 1)
         self._free_position_mask[tuple(goal_position)] = False
 
         agent_position = self._rng.choice(self.free_positions)
-        self.agent = Cube(*agent_position, 1, 1, 1)
-        self.obstacles = []
+        self._agent = Cube(*agent_position, 1, 1, 1)
+        self._obstacles = []
 
     def render(self, window_size: Tuple[int] = (1280, 720)):
         assert (
-            self.agent is not None
+            self._agent is not None
         ), "The agent is not initialised. Reset the environment first !"
 
         ti.init()
-        goal_vert, goal_ind = convert_cube_to_wireframe(self.agent)
-        agent_vert, agent_ind = convert_cube_to_wireframe(self.goal)
+        goal_vert, goal_ind = convert_cube_to_wireframe(self._agent)
+        agent_vert, agent_ind = convert_cube_to_wireframe(self._goal)
         bound_vert, bound_ind = convert_cube_to_wireframe(self.bounds)
         if self.nb_obstacles > 0:
-            obs_vert, obs_ind = convert_cubes_to_wireframe(self.obstacles)
+            obs_vert, obs_ind = convert_cubes_to_wireframe(self._obstacles)
 
         center = self.center
 
@@ -79,6 +79,37 @@ class GridWorld3D(gym.Env):
 
     ## Properties
     @property
+    def name(self) -> str:
+        return f"GridWorld3D({self.width},{self.height},{self.depth})"
+
+    @property
+    def agent(self) -> Cube:
+        """Current position of the agent, represented by a cube"""
+        if self._agent is None:
+            raise errors.InitialisationError(
+                "The position variable is not initialized. Reset the environment !"
+            )
+        return self._agent
+
+    @property
+    def goal(self) -> Cube:
+        """Current position of the goal, represented by a cube"""
+        if self._goal is None:
+            raise errors.InitialisationError(
+                "The goal variable is not initialized. Reset the environment !"
+            )
+        return self._goal
+
+    @property
+    def obstacles(self) -> List[Cube]:
+        """List of obstacles in the environment, represented by a list of cubes"""
+        if self._obstacles is None:
+            raise errors.InitialisationError(
+                "The obstacles variable is not initialized. Reset the environment !"
+            )
+        return self._obstacles
+
+    @property
     def seed(self):
         return self._seed
 
@@ -105,7 +136,7 @@ class GridWorld3D(gym.Env):
     @property
     def nb_obstacles(self):
         """Number of obstacles in the environment"""
-        return len(self.obstacles)
+        return len(self._obstacles)
 
 
 def convert_cube_to_wireframe(cube: Cube):
