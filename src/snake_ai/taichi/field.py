@@ -188,7 +188,7 @@ class VectorField(SampledField):
         ## Dimension and values
         dim = values.shape[0]
         assert (dim == 2 and values.ndim == 3) or (
-            dim == 3 and values.ndim == 3
+            dim == 3 and values.ndim == 4
         ), f"Expected sampled field to be 2D or 3D vector fields. Get {dim}D"
         self.dim = dim
         self.values = ti.Vector.field(

@@ -2,7 +2,7 @@ import numpy as np
 import taichi as ti
 import taichi.math as tm
 
-from snake_ai.envs import Rectangle
+from snake_ai.envs.geometry import Rectangle, Cube
 from typing import List
 
 
@@ -33,6 +33,26 @@ def convert_rectangles(rectangles: List[Rectangle]) -> ti.Field:
     max_values = np.array(
         [[rect.x + rect.width, rect.y + rect.height] for rect in rectangles]
     )
+    boxes.min.from_numpy(min_values)
+    boxes.max.from_numpy(max_values)
+    return boxes
+
+
+def convert_cube(cube: Cube):
+    return Box3D(tm.vec3(*cube.min), tm.vec3(*cube.max))
+
+
+def convert_cubes(cubes: List[Cube]) -> ti.Field:
+    if len(cubes) == 0:
+        raise ValueError("Expected at least one rectangle.")
+    assert all(
+        isinstance(cube, Cube) for cube in cubes
+    ), "Expected obstacles to be a list of Rectangle. Get {}".format(
+        [type(cube) for cube in cubes]
+    )
+    boxes = Box3D.field(shape=len(cubes))
+    min_values = np.array([cube.min for cube in cubes])
+    max_values = np.array([cube.max for cube in cubes])
     boxes.min.from_numpy(min_values)
     boxes.max.from_numpy(max_values)
     return boxes

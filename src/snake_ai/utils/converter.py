@@ -149,18 +149,23 @@ if __name__ == "__main__":
     import matplotlib.pyplot as plt
     from snake_ai.envs.random_obstacles_3d import RandomObstacles3D
 
-    N = 10
+    N = 2
 
-    env = RandomObstacles3D(10, 10, 10, nb_obs=5, max_size=1)
+    env = RandomObstacles3D(10, 10, 10, nb_obs=1, max_size=1)
     env.reset()
     converter = GridWorld3DConverter(env)
-    binary_map = converter.convert_3d_obstacles_to_binary_map(N**2)
+    # binary_map = converter.convert_3d_obstacles_to_binary_map(N**2)
+    binary_map = converter.convert_3d_obstacles_to_binary_map(None)
 
-    fig, ax = plt.subplots(N, N)
-    for i in range(N):
-        for j in range(N):
-            z = i + N * j
-            ax[i, j].imshow(binary_map[:, :, z])
-            ax[i, j].set(title=f"z= {z}", xlabel="y", ylabel="x")
+    ax = plt.figure().add_subplot(projection="3d")
+    ax.voxels(binary_map)
+
+    # fig, ax = plt.subplots(N, N)
+    # for i in range(N):
+    #     for j in range(N):
+    #         z = i + N * j
+    #         ax[i, j].imshow(binary_map[:, :, z])
+    #         ax[i, j].set(title=f"z= {z}", xlabel="y", ylabel="x")
+    print(np.argwhere(binary_map))
     print(env.obstacles)
     plt.show()

@@ -166,7 +166,7 @@ class Cube(Geometry):
         self.z = z
 
         assert (
-            width > 0 and height > 0 and depth > 0
+            width >= 0 and height >= 0 and depth >= 0
         ), "Width, height and depth must be positive integers"
         self.width = width
         self.height = height
@@ -206,12 +206,13 @@ class Cube(Geometry):
 
     @property
     def center(self) -> np.ndarray:
-        return (
-            np.array(
-                [self.x + self.width, self.y + self.height, self.z + self.depth],
-                dtype=float,
-            )
-            / 2
+        return np.array(
+            [
+                self.x + self.width / 2,
+                self.y + self.height / 2,
+                self.z + self.depth / 2,
+            ],
+            dtype=float,
         )
 
     @property

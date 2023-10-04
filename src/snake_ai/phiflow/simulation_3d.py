@@ -30,6 +30,18 @@ class Env3DConverter:
         obstacles = self.convert_obstacles_to_geometries()
         return flow.field.resample(flow.union(obstacles), grid)
 
+    def convert_free_space_to_point_cloud(self) -> flow.field.PointCloud:
+        points = []
+        for x, y, z in self.env.free_positions:
+            points.append(flow.vec(x=(x + 0.5), y=(y + 0.5), z=(z + 0.5)))
+        position = flow.tensor(points, flow.instance("walker"))
+        velocity = flow.math.zeros_like(position)
+        return flow.PointCloud(
+            position,
+            values=velocity,
+            bounds=flow.Box(x=self.env.width, y=self.env.height, z=self.env.depth),
+        )
+
     def convert_source_to_binary_map(
         self, resolution: Optional[Union[int, Tuple[int]]] = None, shape: str = "sphere"
     ) -> flow.field.SampledField:
@@ -71,8 +83,8 @@ class Env3DConverter:
         )
 
     def convert_source_to_sphere(self) -> flow.Sphere:
-        center = self.env.center
-        min_dist = min(self.env.width, self.env.height, self.env.depth)
+        center = self.env.goal.center
+        min_dist = min(self.env.goal.width, self.env.goal.height, self.env.goal.depth)
 
         return flow.Sphere(
             x=center[0],
@@ -128,7 +140,7 @@ class DiffusionSolver:
         converter = Env3DConverter(self.env)
 
         obstacle_mask = converter.convert_obstacles_to_binary_map(resolution)
-        source = converter.convert_source_to_binary_map(resolution, shape="sphere")
+        source = converter.convert_source_to_binary_map(resolution, shape="box")
 
         laplace = DiffusionSolver.get_laplace_matrix(
             obstacle_mask.values.numpy("x,y,z")
@@ -147,33 +159,33 @@ class DiffusionSolver:
         assert (
             obstacle_mask.ndim == 3
         ), f"Obstacle mask must be a 3D array, not {obstacle_mask.ndim}D"
-        resolution = obstacle_mask.shape
-        N = np.multiply.reduce(resolution)
+        I, J, K = obstacle_mask.shape
+        N = I * J * K
 
         def pos_to_index(i, j, k) -> int:
-            return i + j * resolution[0] + k * resolution[0] * resolution[1]
+            return i * J * K + j * K + k
 
         ones = np.ones(N)
         diags = [ones, ones, ones, -6 * ones, ones, ones, ones]
         offsets = [
-            -resolution[0] * resolution[1],
-            -resolution[0],
+            -(J * K),
+            -K,
             -1,
             0,
             1,
-            resolution[0],
-            resolution[0] * resolution[1],
+            K,
+            J * K,
         ]
         laplace = sp.dia_matrix((diags, offsets), shape=(N, N))
         laplace: sp.lil_matrix = laplace.tolil()
 
         ## Remove the positions that are on the edge of the grid
-        for index in range(resolution[0], N, resolution[0]):
-            laplace[index - 1, index] = 0
-            laplace[index, index - 1] = 0
-            if index % resolution[1] == 0:
-                laplace[index - resolution[0], index] = 0
-                laplace[index, index - resolution[0]] = 0
+        for ind in range(K, N, K):
+            laplace[ind - 1, ind] = 0
+            laplace[ind, ind - 1] = 0
+            if ind % (J * K) == 0:
+                laplace[ind - J, ind] = 0
+                laplace[ind, ind - J] = 0
         ## Set the laplace matrix to identity for the obstacle positions
         positions = np.argwhere(obstacle_mask)
         for i, j, k in positions:
@@ -189,18 +201,20 @@ if __name__ == "__main__":
     from snake_ai.envs.random_obstacles_3d import RandomObstacles3D
     import matplotlib.pyplot as plt
 
-    env = RandomObstacles3D(10, 10, 10, nb_obs=10, max_size=2)
+    env = RandomObstacles3D(10, 10, 10, nb_obs=5, max_size=2)
 
     converter = Env3DConverter(env)
     env.reset()
     binary_map = converter.convert_obstacles_to_binary_map(10)
     source = converter.convert_source_to_binary_map(10, shape="sphere")
 
-    # laplace = DiffusionSolver.get_laplace_matrix(binary_map.values.numpy("x,y,z"))
+    laplace = DiffusionSolver.get_laplace_matrix(binary_map.values.numpy("x,y,z"))
+    plt.imshow(laplace.todense())
     solver = DiffusionSolver(env)
-    # concentration = solver.solve()
-    concentration = solve_diffusion(10 * source, binary_map)
-    force_field = flow.field.spatial_gradient(concentration)
+    concentration = solver.solve(20)
+    # concentration = solve_diffusion(10 * source, binary_map)
+    log_concentration = flow.math.log(concentration + 1e-5)
+    force_field = flow.field.spatial_gradient(log_concentration)
     # vmin, vmax = concentration.min(), concentration.max()
     print(env.obstacles)
     print(concentration.shape)
@@ -219,6 +233,8 @@ if __name__ == "__main__":
     #     ax2[i // 5, i % 5].set(title=f"z = {i}")
 
     # concentration = solve_diffusion(env)
-    flow.vis.plot(binary_map, concentration, force_field)
-
+    flow.vis.plot(binary_map, concentration, log_concentration, force_field)
+    print(env.obstacles)
+    print(np.argwhere(concentration.values.numpy("x,y,z") == 0))
+    print(env.goal)
     plt.show()
