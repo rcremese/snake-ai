@@ -4,64 +4,129 @@ import numpy as np
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy.sparse as sp
-import scipy.signal as sg
+from typing import Tuple, List
+from matplotlib import animation
+
+
+def get_obstacle_free_laplacian_matrix(*resolution: Tuple[int]) -> sp.lil_matrix:
+    assert len(resolution) in [2, 3], "The resolution must be a tuple of length 2 or 3"
+    assert all(
+        isinstance(r, int) and r > 0 for r in resolution
+    ), "The resolution must be a tuple of positive integers"
+    ex = np.ones(resolution[0])
+    ey = np.ones(resolution[1])
+    Dxx = sp.diags([ex, -2 * ex, ex], [-1, 0, 1], shape=(resolution[0], resolution[0]))
+    Dyy = sp.diags([ey, -2 * ey, ey], [-1, 0, 1], shape=(resolution[1], resolution[1]))
+    laplace_2d = sp.kronsum(Dyy, Dxx, format="lil")
+    if len(resolution) == 2:
+        return laplace_2d
+
+    ez = np.ones(resolution[2])
+    Dzz = sp.diags([ez, -2 * ez, ez], [-1, 0, 1], shape=(resolution[2], resolution[2]))
+    return sp.kronsum(Dzz, laplace_2d, format="lil")
+
+
+def get_absorbing_obstacles_laplacian_matrix(binary_map: np.ndarray) -> sp.lil_matrix:
+    """Compute the laplacian matrix associated with an environment with obstacles and absobing boundary conditions
+
+    Args:
+        binary_map (np.ndarray): 2d or 3D array of shape with 1 for obstacles and 0 for free space. Set the resolution of the environment.
+
+    Returns:
+        sp.lil_matrix: NxN laplacian matrix where N is the number of cells in the environment
+    """
+    assert binary_map.ndim in [2, 3], "The binary map must be 2D or 3D"
+    resolution = binary_map.shape
+
+    def coord2ind(coord: Tuple[int]):
+        assert len(coord) == len(
+            resolution
+        ), "The coordinate must have the same dimension as the resolution"
+        if len(resolution) == 2:
+            i, j = coord
+            return i * resolution[1] + j
+        elif len(resolution) == 3:
+            i, j, k = coord
+            return i * resolution[1] * resolution[2] + j * resolution[2] + k
+        else:
+            raise ValueError("The resolution must be 2D or 3D")
+
+    laplace = get_obstacle_free_laplacian_matrix(*resolution)
+    # Remove the positions that are on the obstacles
+    positions = np.argwhere(binary_map)
+
+    for pos in positions:
+        ind = coord2ind(pos)
+        laplace[:, ind] = 0
+        laplace[ind, :] = 0
+        laplace[ind, ind] = -2 * binary_map.ndim
+    return laplace
+
+
+def animate_volume(
+    concentration: np.ndarray,
+    axis: int = 2,
+    title: str = "Concentration",
+):
+    assert concentration.ndim == 3, "The concentration must be a 3D array"
+    assert axis in [0, 1, 2], "The axis must be 0, 1 or 2"
+    # Compute the gradient
+    if axis == 0:
+        concentration = concentration.transpose((0, 1, 2))
+        labels = ["x", "y", "z"]
+    elif axis == 1:
+        concentration = concentration.transpose((1, 2, 0))
+        labels = ["y", "z", "x"]
+    else:
+        concentration = concentration.transpose((2, 0, 1))
+        labels = ["z", "x", "y"]
+    force = np.gradient(concentration)
+    # Create colormap
+    fig, ax = plt.subplots(1, 1, figsize=(8, 8))
+    z_max = concentration.shape[0]
+    vmin, vmax = np.min(concentration), np.max(concentration)
+
+    def update(frame):
+        # read new points
+        if frame >= z_max:
+            z = 2 * z_max - frame - 1
+        else:
+            z = frame
+        # z = frame % z_max
+        ax.clear()
+        ax.set(xlabel=labels[1], ylabel=labels[2], title=f"{title} - {labels[0]}={z}")
+        ax.imshow(concentration[z], cmap="inferno", vmax=vmax, vmin=vmin)
+        ax.quiver(
+            force[2][z],
+            force[1][z],
+            units="xy",
+            angles="xy",
+            scale=1,
+        )
+
+    anim = animation.FuncAnimation(fig, update, frames=range(2 * z_max), interval=200)
+    return anim
 
 
 def main():
-    row, col = 10, 10
+    row, col, depth = 10, 20, 40
 
-    def coord2index(i, j):
-        return i * col + j
+    def coord2index(i, j, k):
+        return i * col * depth + j * depth + k
 
-    source = np.zeros((row, col), dtype=np.float32)
-    source[5, 0] = 100
+    source = np.zeros((row, col, depth), dtype=np.float32)
+    source[5, 10, 15] = 100
 
-    index2delet = [(5, 5), (5, 6), (6, 5), (6, 6)]
-    indexes = [coord2index(i, j) for i, j in index2delet]
+    obstacles = np.zeros((row, col, depth), dtype=np.float32)
+    obstacles[4:6, 4:6, 4:6] = 1
+    obstacles[0:2, 10:12, 10:12] = 1
+    obstacles[7:, 15:17, 15:17] = 1
 
-    ones = np.ones(col * row)
-    # ones = np.ones(col)
-    # 5 stencil laplace matrix
-    datas = np.array([ones, ones, -4 * ones, ones, ones])
-    offsets = np.array([-col, -1, 0, 1, col])
-    # 9 stencil laplace matrix
-    # datas = np.array([ones, ones, ones, ones, -8 * ones, ones, ones, ones, ones])
-    # offsets = np.array([-n - 1, -n, -n + 1, -1, 0, 1, n - 1, n, n + 1])
-
-    laplace = sp.diags(
-        datas, offsets, shape=(col * row, col * row), dtype=np.float32
-    ).tolil()
-    laplace[0, row] = 0
-    laplace[row, 0] = 0
-    for idx in range(row, row * col, row):
-        laplace[idx - 1, idx] = 0
-        laplace[idx, idx - 1] = 0
-
-    ## Base blockconstruction
-    # base_block = sp.diags(datas, offsets, shape=(col, col), dtype=np.float32)
-    # laplace = sp.kron(sp.eye(row), base_block, format="lil")
-
-    # outer_diag = np.ones(row * col)
-    # laplace.setdiag(outer_diag, -col)
-    # laplace.setdiag(outer_diag, col)
-
-    for idx in indexes:
-        laplace[idx, :] = 0
-        laplace[:, idx] = 0
-        laplace[idx, idx] = 1
-
-    ## lil_matrix construction
-    # laplace = sp.lil_matrix((row * col, row * col), dtype=np.float32)
-    # for data, offset in zip(datas, offsets):
-    #     laplace.setdiag(data, offset)
-    # for k in range(0, row * col, col):
-    #     laplace[::col, ::col] = 0
-
-    # laplace.setdiag(datas[0], offsets[0])
+    laplace = get_absorbing_obstacles_laplacian_matrix(obstacles)
 
     solver = sp.linalg.factorized(-laplace.tocsc())
     solution = solver(source.flatten())
-    solution = solution.reshape(row, col)
+    solution = solution.reshape(row, col, depth)
     # Five stencil laplace filter
     laplace_filter = np.array([[0, 1, 0], [1, -4, 1], [0, 1, 0]])
     # Nine stencil laplace filter
@@ -69,180 +134,22 @@ def main():
 
     # smoothed_sol = sg.convolve2d(solution, -laplace_filter, mode="same")
     smoothed_sol = np.log(np.where(solution > 1e-6, solution, 1e-6))
-    gradx, grady = np.gradient(smoothed_sol)
+    # gradx, grady = np.gradient(smoothed_sol)
 
-    fig, ax = plt.subplots(1, 4, figsize=(12, 4))
+    anim = animate_volume(smoothed_sol, axis=2)
+    # anim = animate_volume(solution, axis=2)
 
-    ax[0].imshow(source, cmap="inferno")
-    ax[0].set(title="source")
-    ax[1].imshow(laplace.toarray(), cmap="inferno")
-    ax[1].set(title="laplace matrix")
-    ax[2].imshow(solution, cmap="inferno")
-    ax[2].set(title="solution")
-    ax[3].imshow(smoothed_sol, cmap="inferno")
-    ax[3].quiver(grady, gradx, units="xy", angles="xy", scale=1)
-    ax[3].set(title="Solution in log scale")
-    plt.show()
+    # fig, ax = plt.subplots(1, 4, figsize=(12, 4))
 
-
-C0 = ti.Vector([0, 0, 0])
-C1 = ti.Vector([0, 1, 0])
-
-
-@ti.func
-def laplacian(field, i: int, j: int):
-    return (
-        field[i + 1, j]
-        + field[i - 1, j]
-        + field[i, j + 1]
-        + field[i, j - 1]
-        - 4.0 * field[i, j]
-    )
-
-
-@ti.data_oriented
-class ExplicitDiffusion:
-    def __init__(
-        self,
-        initial_concentration: np.ndarray,
-        obstacles: np.ndarray,
-        diffusivity: float = 1,
-        dt: float = 1,
-        eps: float = 1e-5,
-    ) -> None:
-        """_summary_
-
-        Args:
-            initial_concentration (np.ndarray): Map of values that represent the initial concentration of the diffusing substance
-            obstacles (np.ndarray): Binary map of obstacles
-            diffusivity (float, optional): Diffusivity coefficient of the simulation. Defaults to 1.
-            dt (float, optional): Step size in time. Defaults to 1.
-        """
-        self.width, self.height = initial_concentration.shape
-        self.diffusivity = diffusivity
-        self.dt = dt
-        assert eps > 0
-        self.eps = eps
-        # Define initial concentration map in numpy
-        assert initial_concentration.shape == obstacles.shape
-        self._initial_concentration = ti.field(
-            dtype=float, shape=initial_concentration.shape
-        )
-        self._initial_concentration.from_numpy(initial_concentration)
-
-        # Define obstacle map in numpy
-        self._obstacles = ti.field(dtype=float, shape=obstacles.shape)
-        self._obstacles.from_numpy(obstacles)
-
-        self._concentration = ti.field(
-            dtype=ti.f32, shape=(2, *initial_concentration.shape)
-        )
-        self._pixel = ti.field(dtype=ti.f32, shape=initial_concentration.shape)
-
-    @ti.kernel
-    def reset(self):
-        for i, j in ti.ndrange(self.width, self.height):
-            self._concentration[0, i, j] = self._initial_concentration[i, j]
-            # self._concentration[1, i, j] = self._initial_concentration[i, j]
-
-    @property
-    def concentration(self) -> ti.Field:
-        return self._concentration.to_numpy()[1, :, :]
-
-    @ti.kernel
-    def update(self, phase: int, dt: float):
-        # assert phase in (0,1)
-        for i, j in ti.ndrange((1, self.width - 1), (1, self.height - 1)):
-            if self._obstacles[i, j] == 1:
-                self._concentration[phase, i, j] = 0
-            else:
-                center = self._concentration[1 - phase, i, j]
-                laplacian = (
-                    self._concentration[1 - phase, i - 1, j]
-                    + self._concentration[1 - phase, i + 1, j]
-                    + self._concentration[1 - phase, i, j - 1]
-                    + self._concentration[1 - phase, i, j + 1]
-                    - 4 * center
-                )
-                self._concentration[phase, i, j] = (
-                    center
-                    + dt * laplacian * self.diffusivity
-                    + self._initial_concentration[i, j]
-                )  # Add stationary condition
-            # center = self._concentration[i, j][1 - phase]
-            # laplacian = (
-            #     self._concentration[i - 1, j][1 - phase]
-            #     + self._concentration[i + 1, j][1 - phase]
-            #     + self._concentration[i, j - 1][1 - phase]
-            #     + self._concentration[i, j + 1][1 - phase]
-            #     - 4 * center
-            # )
-            # self._concentration[i, j][phase] = (
-            #     center
-            #     + dt * laplacian * self.diffusivity
-            #     + self._initial_concentration[i, j]
-            # )  # Add stationary condition
-
-    @ti.kernel
-    def render(self):
-        for i, j in ti.ndrange(self.width, self.height):
-            self._pixel[i, j] = self._concentration[1, i, j]
-
-    @ti.kernel
-    def is_stationary(self) -> bool:
-        is_stationary = True
-        for i, j in ti.ndrange(self.width, self.height):
-            if self._concentration[1, i, j] < self.eps and (self._obstacles[i, j] != 1):
-                is_stationary = False
-        return is_stationary
-
-    def run(self):
-        self.reset()
-
-        gui = ti.GUI("Concentration evolution", res=(self.height, self.width))
-        # Sets the window title and the resolution
-        substeps = 2
-        i = 0
-        t = 0
-        while not self.is_stationary():
-            for i in range(substeps):
-                self.update(i % 2, self.dt / substeps)
-            t += 1
-        print(f"final time : {t * self.dt}")
-        self.render()
-        gui.contour(self._pixel, normalize=True)
-        gui.show()
-
-
-def main2():
-    from snake_ai.envs import SlotEnv
-    import matplotlib.pyplot as plt
-
-    ti.init(arch=ti.gpu, device_memory_GB=4)
-    WIDTH, HEIGHT = 20, 20
-    PIXEL = 10
-    FPS = 60
-
-    env = SlotEnv(width=WIDTH, height=HEIGHT, pixel=PIXEL)
-    env.reset()
-    initial_concentration = np.zeros(env.window_size, dtype=float)
-    initial_concentration[
-        env.goal.centerx : env.goal.centerx + PIXEL,
-        env.goal.centery : env.goal.centery + PIXEL,
-    ] = 1e3
-
-    obstacles = np.zeros(env.window_size, dtype=float)
-    for obs in env.obstacles:
-        obstacles[obs.x : obs.x + obs.width, obs.y : obs.y + obs.height] = 1
-
-    plt.show()
-    solver = ExplicitDiffusion(
-        initial_concentration, obstacles, diffusivity=1, dt=1 / 10
-    )
-    solver.run()
-    fig, ax = plt.subplots(1, 1)
-    ax.imshow(solver.concentration)
-    # ax[1].imshow(obstacles)
+    # ax[0].imshow(source, cmap="inferno")
+    # ax[0].set(title="source")
+    # ax[1].imshow(laplace.toarray(), cmap="inferno")
+    # ax[1].set(title="laplace matrix")
+    # ax[2].imshow(solution, cmap="inferno")
+    # ax[2].set(title="solution")
+    # ax[3].imshow(smoothed_sol, cmap="inferno")
+    # ax[3].quiver(grady, gradx, units="xy", angles="xy", scale=1)
+    # ax[3].set(title="Solution in log scale")
     plt.show()
 
 

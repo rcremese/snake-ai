@@ -201,7 +201,7 @@ if __name__ == "__main__":
     from snake_ai.envs.random_obstacles_3d import RandomObstacles3D
     import matplotlib.pyplot as plt
 
-    env = RandomObstacles3D(10, 10, 10, nb_obs=5, max_size=2)
+    env = RandomObstacles3D(10, 10, 10, nb_obs=0, max_size=2)
 
     converter = Env3DConverter(env)
     env.reset()

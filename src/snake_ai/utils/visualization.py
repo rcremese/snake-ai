@@ -178,6 +178,51 @@ def animate_walk_history(
     plt.close(fig)
 
 
+def animate_volume(
+    concentration: np.ndarray,
+    axis: int = 2,
+    title: str = "Concentration",
+):
+    assert concentration.ndim == 3, "The concentration must be a 3D array"
+    assert axis in [0, 1, 2], "The axis must be 0, 1 or 2"
+    # Compute the gradient
+    if axis == 0:
+        concentration = concentration.transpose((0, 1, 2))
+        labels = ["x", "y", "z"]
+    elif axis == 1:
+        concentration = concentration.transpose((1, 2, 0))
+        labels = ["y", "z", "x"]
+    else:
+        concentration = concentration.transpose((2, 0, 1))
+        labels = ["z", "x", "y"]
+    force = np.gradient(concentration)
+    # Create colormap
+    fig, ax = plt.subplots(1, 1, figsize=(8, 8))
+    z_max = concentration.shape[0]
+    vmin, vmax = np.min(concentration), np.max(concentration)
+
+    def update(frame):
+        # read new points
+        if frame >= z_max:
+            z = 2 * z_max - frame - 1
+        else:
+            z = frame
+        # z = frame % z_max
+        ax.clear()
+        ax.set(xlabel=labels[1], ylabel=labels[2], title=f"{title} - {labels[0]}={z}")
+        ax.imshow(concentration[z], cmap="inferno", vmax=vmax, vmin=vmin)
+        ax.quiver(
+            force[2][z],
+            force[1][z],
+            units="xy",
+            angles="xy",
+            scale=1,
+        )
+
+    anim = animation.FuncAnimation(fig, update, frames=range(2 * z_max), interval=200)
+    return anim
+
+
 def plot_loss(loss: List[float], output: Optional[str] = None):
     fig, ax = plt.subplots(1, 1, dpi=300)
     ax.plot(loss)

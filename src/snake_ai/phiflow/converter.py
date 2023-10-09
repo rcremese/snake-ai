@@ -11,8 +11,14 @@ from abc import ABCMeta, abstractmethod
 from snake_ai.utils import errors
 from typing import Optional, Tuple, List, Union
 
-def convert_position_to_point(position : Rectangle, div_factor : int = 1) -> flow.geom.Point:
-    return flow.geom.Point(flow.vec(x=position.centerx // div_factor, y=position.centery // div_factor)) 
+
+def convert_position_to_point(
+    position: Rectangle, div_factor: int = 1
+) -> flow.geom.Point:
+    return flow.geom.Point(
+        flow.vec(x=position.centerx // div_factor, y=position.centery // div_factor)
+    )
+
 
 def convert_obstacles_to_geometry(
     obstacles: List[Rectangle], div_factor: int = 1
@@ -98,12 +104,20 @@ class ObstacleConverter(Converter):
     def to_geometry(self, env: GridWorld) -> List[flow.Box]:
         return convert_obstacles_to_geometry(env.obstacles, env.pixel)
 
+
 class PointCloudConverter(Converter):
     def __call__(self, env: GridWorld) -> flow.PointCloud:
         points = []
         for x, y in env.free_positions:
             points.append(flow.vec(x=(x + 0.5), y=(y + 0.5)))
-        position = flow.tensor(points, flow.instance("walker"))
+        # position = flow.tensor(points, flow.instance("walker"))
+        position = flow.tensor(
+            5
+            * [
+                flow.vec(x=(env.agent.position.centerx), y=(env.agent.position.centery))
+            ],
+            flow.instance("walker"),
+        )
         velocity = flow.math.zeros_like(position)
         return flow.PointCloud(
             position, values=velocity, bounds=flow.Box(x=env.width, y=env.height)

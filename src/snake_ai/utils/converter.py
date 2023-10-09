@@ -58,6 +58,25 @@ def convert_obstacles_to_binary_map(env: GridWorld, res: str = "pixel") -> np.nd
     return binary_map
 
 
+def test_2d(obstacles: List[Rectangle], res, bounds):
+    resolution = (res, res)
+    x_max, y_max = bounds
+
+    binary_map = np.zeros(resolution)
+    x = np.linspace(0, x_max, resolution[0], endpoint=False)
+    y = np.linspace(0, y_max, resolution[1], endpoint=False)
+    X, Y = np.meshgrid(x, y, indexing="ij")
+    for obs in obstacles:
+        cond = (
+            (obs.x <= X)
+            & (X < obs.x + obs.width)
+            & (obs.y <= Y)
+            & (Y < obs.y + obs.height)
+        )
+        binary_map[cond] = 1
+    return binary_map
+
+
 def convert_agent_position(env: GridWorld) -> np.ndarray:
     assert isinstance(env, GridWorld), "environmnent must be of type GridWorld"
     assert (
@@ -75,87 +94,182 @@ def convert_goal_position(env: GridWorld) -> np.ndarray:
 
 
 class GridWorld3DConverter:
-    def __init__(self, env: GridWorld3D) -> None:
+    def __init__(
+        self, env: GridWorld3D, resolution: Optional[Union[int, Tuple[int]]] = None
+    ):
         assert isinstance(
             env, GridWorld3D
         ), f"Environmnent must be of type GridWorld3D, not {type(env)}"
         self.env = env
+        # Set the resolution of the converter
+        if resolution is None:
+            resolution = (env.height, env.width, env.depth)
+        self.resolution = resolution
 
     ## Public methods
-    def convert_3d_obstacles_to_binary_map(
-        self, resolution: Optional[Union[int, Tuple[int]]] = None
-    ) -> np.ndarray:
+    def convert_3d_obstacles_to_binary_map(self) -> np.ndarray:
         assert (
             self.env._obstacles is not None
         ), "Environment does not contain obstacles. Reset environment first."
-        resolution = self._check_resolution(resolution)
 
-        steps = self.convert_resolution_to_step(resolution)
-        # resolution = self._check_resolution(resolution)
-
-        binary_map = np.zeros(resolution, dtype=int)
+        binary_map = np.zeros(self.resolution, dtype=bool)
         if self.env.nb_obstacles == 0:
             return binary_map
 
+        x = np.linspace(
+            self.env.bounds.min[0],
+            self.env.bounds.max[0],
+            self.resolution[0],
+            endpoint=False,
+        )
+        y = np.linspace(
+            self.env.bounds.min[1],
+            self.env.bounds.max[1],
+            self.resolution[1],
+            endpoint=False,
+        )
+        z = np.linspace(
+            self.env.bounds.min[2],
+            self.env.bounds.max[2],
+            self.resolution[2],
+            endpoint=False,
+        )
+        X, Y, Z = np.meshgrid(x, y, z, indexing="ij")
+
         for obstacle in self.env.obstacles:
-            min_ind = np.floor(obstacle.min / steps).astype(int)
-            max_ind = np.ceil(obstacle.max / steps).astype(int)
             binary_map[
-                min_ind[0] : max_ind[0],
-                min_ind[1] : max_ind[1],
-                min_ind[2] : max_ind[2],
+                (X >= obstacle.x)
+                & (X < obstacle.max[0])
+                & (Y >= obstacle.y)
+                & (Y < obstacle.max[1])
+                & (Z >= obstacle.z)
+                & (Z < obstacle.max[2])
             ] = 1
         return binary_map
 
-    def convert_resolution_to_step(self, resolution: Tuple[int]) -> np.ndarray:
+    def convert_goal_to_binary_map(self) -> np.ndarray:
         assert (
-            len(resolution) == 3
-        ), f"Resolution must be a tuple of positive integers. Get {resolution}"
-        res = np.array(resolution, dtype=float)
-        assert np.all(res > 0), f"Resolutions must be a tuple of positive integers"
-        return (self.env.bounds.max - self.env.bounds.min) / (res - 1)
+            self.env.goal is not None
+        ), "Environment does not contain obstacles. Reset environment first."
 
-    def _check_resolution(self, resolution: Union[int, Tuple[int]]) -> Tuple[int]:
-        """Convert an input resolution to a tuple of 3 integers
+        binary_map = np.zeros(self.resolution, dtype=bool)
 
-        Args:
-            resolution (Union[int, Tuple[int]]): desired resolution for a force field
+        x = np.linspace(
+            self.env.bounds.min[0],
+            self.env.bounds.max[0],
+            self.resolution[0],
+            endpoint=False,
+        )
+        y = np.linspace(
+            self.env.bounds.min[1],
+            self.env.bounds.max[1],
+            self.resolution[1],
+            endpoint=False,
+        )
+        z = np.linspace(
+            self.env.bounds.min[2],
+            self.env.bounds.max[2],
+            self.resolution[2],
+            endpoint=False,
+        )
+        X, Y, Z = np.meshgrid(x, y, z, indexing="ij")
+        binary_map[
+            (X >= self.env.goal.x)
+            & (X < self.env.goal.max[0])
+            & (Y >= self.env.goal.y)
+            & (Y < self.env.goal.max[1])
+            & (Z >= self.env.goal.z)
+            & (Z < self.env.goal.max[2])
+        ] = 1
+        return binary_map
 
-        Raises:
-            TypeError: if the resolution is not None, an integer or a tuple of integers
+    @property
+    def resolution(self) -> Tuple[int]:
+        return self._resolution
 
-        Returns:
-            Tuple[int]: resolution e
-        """
-        if resolution is None:
-            res = (self.env.height, self.env.width, self.env.depth)
-        elif isinstance(resolution, int):
+    @resolution.setter
+    def resolution(self, resolution: Union[int, Tuple[int]]):
+        if isinstance(resolution, int):
             assert resolution > 0, "Resolution must be a positive integer"
-            res = (resolution, resolution, resolution)
+            self._resolution = (resolution, resolution, resolution)
         elif isinstance(resolution, tuple):
             assert len(resolution) == 3, "Resolution must be a tuple of length 3"
             assert all(
                 isinstance(res, int) and res > 0 for res in resolution
             ), f"Resolution must be a tuple of positive integers. Get {resolution}"
-            res = resolution
+            self._resolution = resolution
         else:
             raise TypeError(
                 "Resolution must be either an integer or a tuple of integers"
             )
-        return res
+
+    @property
+    def steps(self) -> np.ndarray:
+        return (self.env.bounds.max - self.env.bounds.min) / np.array(self.resolution)
+
+    # def convert_resolution_to_step(self, resolution: Tuple[int]) -> np.ndarray:
+    #     assert (
+    #         len(resolution) == 3
+    #     ), f"Resolution must be a tuple of positive integers. Get {resolution}"
+    #     res = np.array(resolution, dtype=float)
+    #     assert np.all(res > 0), f"Resolutions must be a tuple of positive integers"
+    #     return (self.env.bounds.max - self.env.bounds.min) / (res - 1)
+
+    # def _check_resolution(self, resolution: Union[int, Tuple[int]]) -> Tuple[int]:
+    #     """Convert an input resolution to a tuple of 3 integers
+
+    #     Args:
+    #         resolution (Union[int, Tuple[int]]): desired resolution for a force field
+
+    #     Raises:
+    #         TypeError: if the resolution is not None, an integer or a tuple of integers
+
+    #     Returns:
+    #         Tuple[int]: resolution e
+    #     """
+    #     if resolution is None:
+    #         res = (self.env.height, self.env.width, self.env.depth)
+    #     elif isinstance(resolution, int):
+    #         assert resolution > 0, "Resolution must be a positive integer"
+    #         res = (resolution, resolution, resolution)
+    #     elif isinstance(resolution, tuple):
+    #         assert len(resolution) == 3, "Resolution must be a tuple of length 3"
+    #         assert all(
+    #             isinstance(res, int) and res > 0 for res in resolution
+    #         ), f"Resolution must be a tuple of positive integers. Get {resolution}"
+    #         res = resolution
+    #     else:
+    #         raise TypeError(
+    #             "Resolution must be either an integer or a tuple of integers"
+    #         )
+    #     return res
 
 
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
     from snake_ai.envs.random_obstacles_3d import RandomObstacles3D
 
+    # bounds = (10, 10)
+    # obstacles = [Rectangle(0, 0, 1, 1), Rectangle(9, 0, 1, 1), Rectangle(0, 9, 1, 1)]
+    # b_map = test_2d(obstacles, 40, bounds)
+    # print(np.argwhere(b_map))
+    # plt.imshow(b_map, extent=[0, 10, 10, 0])
+    # plt.show()
+
     N = 2
 
     env = RandomObstacles3D(10, 10, 10, nb_obs=1, max_size=1)
     env.reset()
-    converter = GridWorld3DConverter(env)
-    # binary_map = converter.convert_3d_obstacles_to_binary_map(N**2)
-    binary_map = converter.convert_3d_obstacles_to_binary_map(None)
+    converter = GridWorld3DConverter(env, 60)
+
+    env._obstacles = [
+        Cube(0, 0, 0, 1, 1, 1),
+        Cube(9, 0, 0, 1, 1, 1),
+        Cube(0, 9, 0, 1, 1, 1),
+        Cube(0, 0, 9, 1, 1, 1),
+    ]
+    # binary_map = converter.convert_3d_obstacles_to_binary_map()
+    binary_map = converter.convert_goal_to_binary_map()
 
     ax = plt.figure().add_subplot(projection="3d")
     ax.voxels(binary_map)
