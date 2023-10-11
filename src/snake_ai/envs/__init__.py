@@ -1,5 +1,6 @@
 from .snake import Snake, BidirectionalSnake, SnakeHuman
 from .walker import Walker2D
+from .grid_world_3d import GridWorld3D
 from .geometry import Rectangle, Circle
 from .grid_world import GridWorld
 from .random_obstacles_env import RandomObstaclesEnv

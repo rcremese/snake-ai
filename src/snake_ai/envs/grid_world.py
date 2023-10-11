@@ -58,6 +58,7 @@ class GridWorld(gym.Env):
             )
         self.width, self.height, self.pixel = int(width), int(height), int(pixel)
         self.window_size = (self.width * self.pixel, self.height * self.pixel)
+        self.bounds = Rectangle(0, 0, self.width, self.height)
         self._free_position_mask = np.ones((self.width, self.height))
 
         # Initialise the render mode

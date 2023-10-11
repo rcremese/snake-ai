@@ -1,10 +1,15 @@
-import taichi as ti
-import taichi.math as tm
-import numpy as np
-import matplotlib.pyplot as plt
-import numpy as np
+from snake_ai.envs import GridWorld3D, GridWorld
+from snake_ai.utils.converter import Env2DConverter, Env3DConverter
+from snake_ai.taichi.field import ScalarField
+
 import scipy.sparse as sp
-from typing import Tuple, List
+import scipy.sparse.linalg as spl
+import numpy as np
+
+from typing import Optional, Tuple, List, Union
+import logging, copy
+
+import matplotlib.pyplot as plt
 from matplotlib import animation
 
 
@@ -26,11 +31,13 @@ def get_obstacle_free_laplacian_matrix(*resolution: Tuple[int]) -> sp.lil_matrix
     return sp.kronsum(Dzz, laplace_2d, format="lil")
 
 
-def get_absorbing_obstacles_laplacian_matrix(binary_map: np.ndarray) -> sp.lil_matrix:
+def get_laplacian_matrix_from_obstacle_binary_map(
+    binary_map: np.ndarray,
+) -> sp.lil_matrix:
     """Compute the laplacian matrix associated with an environment with obstacles and absobing boundary conditions
 
     Args:
-        binary_map (np.ndarray): 2d or 3D array of shape with 1 for obstacles and 0 for free space. Set the resolution of the environment.
+        binary_map (np.ndarray): 2D or 3D array of shape with 1 for obstacles and 0 for free space. Set the resolution of the environment.
 
     Returns:
         sp.lil_matrix: NxN laplacian matrix where N is the number of cells in the environment
@@ -38,29 +45,111 @@ def get_absorbing_obstacles_laplacian_matrix(binary_map: np.ndarray) -> sp.lil_m
     assert binary_map.ndim in [2, 3], "The binary map must be 2D or 3D"
     resolution = binary_map.shape
 
-    def coord2ind(coord: Tuple[int]):
-        assert len(coord) == len(
-            resolution
-        ), "The coordinate must have the same dimension as the resolution"
-        if len(resolution) == 2:
-            i, j = coord
-            return i * resolution[1] + j
-        elif len(resolution) == 3:
-            i, j, k = coord
-            return i * resolution[1] * resolution[2] + j * resolution[2] + k
-        else:
-            raise ValueError("The resolution must be 2D or 3D")
-
     laplace = get_obstacle_free_laplacian_matrix(*resolution)
     # Remove the positions that are on the obstacles
     positions = np.argwhere(binary_map)
+    indices = np.ravel_multi_index(positions.T, resolution)
 
-    for pos in positions:
-        ind = coord2ind(pos)
+    for ind in indices:
+        # ind = coord2ind(pos)
         laplace[:, ind] = 0
         laplace[ind, :] = 0
         laplace[ind, ind] = -2 * binary_map.ndim
     return laplace
+
+
+def get_laplacian_matrix_from_obstacle_positions(
+    positions: np.ndarray, resolution: Tuple[int]
+) -> sp.lil_matrix:
+    """Compute the laplacian matrix associated with an environment with obstacles and absorbing boundary conditions from positions of positive values
+
+    Args:
+        positions (np.ndarray): positions in the environment of obstacles at a given resolution.
+        2D array of shape (N, 2) or (N, 3) with N the number of points in obstacles
+        resolution (Tuple[int]): shape of the matrix
+
+    Returns:
+        sp.lil_matrix: Matrix associated with the environment
+    """
+    assert positions.ndim == 2, "The positions must be a 2D array"
+    assert positions.shape[1] == len(
+        resolution
+    ), "The positions must have the same dimension as the resolution"
+
+    laplace = get_obstacle_free_laplacian_matrix(*resolution)
+    indices = np.ravel_multi_index(positions.T, resolution)
+    for ind in indices:
+        laplace[:, ind] = 0
+        laplace[ind, :] = 0
+        laplace[ind, ind] = -2 * positions.shape[1]
+    return laplace
+
+
+class DiffusionSolver:
+    def __init__(
+        self,
+        env: Union[GridWorld, GridWorld3D],
+        resolution: Optional[Union[int, Tuple[int]]] = None,
+    ) -> None:
+        assert isinstance(
+            env, (GridWorld, GridWorld3D)
+        ), "The environment must be a GridWorld or GridWorld3D instance"
+        if isinstance(env, GridWorld):
+            self.converter = Env2DConverter(env, resolution)
+        elif isinstance(env, GridWorld3D):
+            self.converter = Env3DConverter(env, resolution)
+        self._obstacles = copy.deepcopy(env.obstacles)
+        self._update_solver()
+
+    def solve(self, shape="box", init_value: float = 1.0) -> np.ndarray:
+        if shape.lower() not in [
+            "box",
+            "point",
+        ]:
+            raise ValueError("Shape must be either 'box' or 'point'.")
+        assert init_value > 0, "The initial value must be positive"
+
+        if self.converter.env.obstacles != self._obstacles:
+            self._update_solver()
+            self._obstacles = copy.deepcopy(self.converter.env.obstacles)
+        # goal = self.converter.convert_goal_to_binary_map(shape)
+
+        positions = self.converter.convert_goal_to_indices(shape)
+
+        indices = np.ravel_multi_index(positions.T, self.resolution)
+        init_values = init_value * np.ones_like(indices)
+        logging.debug("Solving the stationnary diffusion equation")
+        values = self._solver(
+            sp.csc_array(
+                (init_values, (indices, np.zeros_like(indices))),
+                shape=(np.prod(self.resolution), 1),
+            )
+        )
+        return values.reshape(self.resolution)
+
+    ## Properties
+    @property
+    def resolution(self) -> Tuple[int]:
+        return self.converter.resolution
+
+    @resolution.setter
+    def resolution(self, resolution: Union[int, Tuple[int]]):
+        try:
+            self.converter.resolution = resolution
+        except (ValueError, TypeError) as exception:
+            raise ValueError(exception) from exception
+        self._update_solver()
+
+    ## Private methods
+    def _update_solver(self):
+        logging.debug("Updating the solver")
+        binary_map = self.converter.convert_obstacles_to_binary_map()
+        # positions = self.converter.convert_obstacles_to_indices()
+        # laplace = get_absorbing_obstacles_laplacian_matrix_from_positions(
+        #     positions, self.resolution
+        # )
+        laplace = get_laplacian_matrix_from_obstacle_binary_map(binary_map)
+        self._solver = spl.factorized(-laplace.tocsc())
 
 
 def animate_volume(
@@ -108,25 +197,90 @@ def animate_volume(
     return anim
 
 
+def plot_volume(concentration: np.ndarray):
+    fig, ax = plt.subplots(1, 3, figsize=(8, 8))
+    ind = np.argmax(concentration)
+    i, j, k = np.unravel_index(ind, concentration.shape)
+
+    ax[0].imshow(concentration[i], cmap="inferno")
+    ax[0].scatter(k, j, color="red", marker="x")
+    ax[0].set(title=f"max x = {i}", xlabel="z", ylabel="y")
+    ax[1].imshow(concentration[:, j, :], cmap="inferno")
+    ax[1].scatter(k, i, color="red", marker="x")
+    ax[1].set(title=f"max y = {j}", xlabel="z", ylabel="x")
+    ax[2].imshow(concentration[:, :, k], cmap="inferno")
+    ax[2].scatter(j, i, color="red", marker="x")
+    ax[2].set(title=f"max z = {k}", xlabel="y", ylabel="x")
+    plt.show()
+
+
 def main():
-    row, col, depth = 10, 20, 40
+    from snake_ai.envs.random_obstacles_3d import RandomObstacles3D
+    import time
 
-    def coord2index(i, j, k):
-        return i * col * depth + j * depth + k
+    row, col, depth = 10, 10, 10
+    env = RandomObstacles3D(row, col, depth, nb_obs=10, max_size=2)
+    env.reset()
+    converter = Env3DConverter(env, resolution=20)
+    diff_solver = DiffusionSolver(env, resolution=20)
+    solution = diff_solver.solve()
+    plot_volume(smoothed_sol)
+    anim = animate_volume(smoothed_sol, axis=2)
 
-    source = np.zeros((row, col, depth), dtype=np.float32)
-    source[5, 10, 15] = 100
+    plt.show()
 
-    obstacles = np.zeros((row, col, depth), dtype=np.float32)
-    obstacles[4:6, 4:6, 4:6] = 1
-    obstacles[0:2, 10:12, 10:12] = 1
-    obstacles[7:, 15:17, 15:17] = 1
+    source = converter.convert_goal_to_binary_map("point")
 
-    laplace = get_absorbing_obstacles_laplacian_matrix(obstacles)
+    tic = time.perf_counter()
+    binary_map = converter.convert_obstacles_to_binary_map()
+    laplace = get_laplacian_matrix_from_obstacle_binary_map(binary_map)
+    toc = time.perf_counter()
+    print(
+        f"Time to compute the {laplace.shape} laplacian matrix with dense matrix: {toc - tic:0.5f} seconds"
+    )
 
-    solver = sp.linalg.factorized(-laplace.tocsc())
+    tic = time.perf_counter()
+    positions = converter.convert_obstacles_to_indices()
+    laplace = get_laplacian_matrix_from_obstacle_positions(
+        positions, converter.resolution
+    )
+    toc = time.perf_counter()
+    print(
+        f"Time to compute the {laplace.shape} laplacian matrix with position vector : {toc - tic:0.5f} seconds"
+    )
+
+    tic = time.perf_counter()
+    solver = spl.factorized(-laplace.tocsc())
+    toc = time.perf_counter()
+    print(f"Time to factorize the laplacian matrix: {toc - tic:0.5f} seconds")
+
+    tic = time.perf_counter()
     solution = solver(source.flatten())
-    solution = solution.reshape(row, col, depth)
+    toc = time.perf_counter()
+    print(f"Time to solve the equation with factorisation : {toc - tic:0.5f} seconds")
+
+    tic = time.perf_counter()
+    solution = spl.spsolve(-laplace, source.flatten())
+    toc = time.perf_counter()
+    print(
+        f"Time to solve the equation without factorisation : {toc - tic:0.5f} seconds"
+    )
+    solution = solution.reshape(converter.resolution)
+    # solution = solver.solve()
+
+    # source = np.zeros((row, col, depth), dtype=np.float32)
+    # source[5, 10, 15] = 100
+
+    # obstacles = np.zeros((row, col, depth), dtype=np.float32)
+    # obstacles[4:6, 4:6, 4:6] = 1
+    # obstacles[0:2, 10:12, 10:12] = 1
+    # obstacles[7:, 15:17, 15:17] = 1
+
+    # laplace = get_absorbing_obstacles_laplacian_matrix(obstacles)
+
+    # solver = sp.linalg.factorized(-laplace.tocsc())
+    # solution = solver(source.flatten())
+    # solution = solution.reshape(row, col, depth)
     # Five stencil laplace filter
     laplace_filter = np.array([[0, 1, 0], [1, -4, 1], [0, 1, 0]])
     # Nine stencil laplace filter
@@ -134,22 +288,10 @@ def main():
 
     # smoothed_sol = sg.convolve2d(solution, -laplace_filter, mode="same")
     smoothed_sol = np.log(np.where(solution > 1e-6, solution, 1e-6))
-    # gradx, grady = np.gradient(smoothed_sol)
 
+    plot_volume(smoothed_sol)
     anim = animate_volume(smoothed_sol, axis=2)
-    # anim = animate_volume(solution, axis=2)
 
-    # fig, ax = plt.subplots(1, 4, figsize=(12, 4))
-
-    # ax[0].imshow(source, cmap="inferno")
-    # ax[0].set(title="source")
-    # ax[1].imshow(laplace.toarray(), cmap="inferno")
-    # ax[1].set(title="laplace matrix")
-    # ax[2].imshow(solution, cmap="inferno")
-    # ax[2].set(title="solution")
-    # ax[3].imshow(smoothed_sol, cmap="inferno")
-    # ax[3].quiver(grady, gradx, units="xy", angles="xy", scale=1)
-    # ax[3].set(title="Solution in log scale")
     plt.show()
 
 
