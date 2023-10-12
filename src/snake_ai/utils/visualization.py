@@ -178,6 +178,24 @@ def animate_walk_history(
     plt.close(fig)
 
 
+def plot_3D_trajectory(
+    positions: np.ndarray,
+    goal: np.ndarray,
+    obstacle_mask: np.ndarray,
+    title: str = "3D trajectory",
+):
+    colormap = plt.get_cmap("viridis")
+    cloud_colors = colormap(np.linspace(0, 1, positions.shape[0]))
+
+    ax = plt.figure(dpi=300).add_subplot(projection="3d")
+    ax.set(title=title, xlabel="x", ylabel="y", zlabel="z", xlim=(0, 10), ylim=(0, 10))
+    for color, pos in zip(cloud_colors, positions):
+        ax.scatter(pos[:, 0], pos[:, 1], pos[:, 2], color=color, s=5)
+    ax.voxels(obstacle_mask, facecolor="red", edgecolor="k")
+    ax.scatter(*goal, s=10, c="green")
+    plt.show()
+
+
 def animate_volume(
     concentration: np.ndarray,
     axis: int = 2,

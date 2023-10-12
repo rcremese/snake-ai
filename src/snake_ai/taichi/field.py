@@ -2,7 +2,8 @@ import taichi as ti
 import taichi.math as tm
 import numpy as np
 
-from snake_ai.taichi.geometry import Box2D, Box3D
+from snake_ai.envs.geometry import Rectangle, Cube
+from snake_ai.taichi.boxes import Box2D, Box3D, convert_cube, convert_rectangle
 from snake_ai.taichi.maths import lerp
 
 from typing import Union
@@ -41,14 +42,14 @@ def map_value_to_idx(value: float, x_min: float, x_max: float, step_size: float)
 @ti.data_oriented
 class SampledField(ABC):
     values: ti.Field
-    bounds: Union[Box2D, Box3D]
+    bounds: Union[Rectangle, Cube]
     _step_sizes: list[float]
 
     @abstractmethod
     def __init__(
         self,
         values: np.ndarray,
-        bounds: Union[Box2D, Box3D],
+        bounds: Union[Rectangle, Cube],
         extrapolation: Extrapolation = Extrapolation.ZERO,
         needs_grad: bool = False,
     ) -> None:
@@ -147,7 +148,7 @@ class ScalarField(SampledField):
     def __init__(
         self,
         values: np.ndarray,
-        bounds: Union[Box2D, Box3D],
+        bounds: Union[Rectangle, Cube],
         extrapolation: Extrapolation = Extrapolation.ZERO,
         needs_grad: bool = False,
     ) -> None:
@@ -159,10 +160,16 @@ class ScalarField(SampledField):
         self.values.from_numpy(values)
         self.dim = values.ndim
         ## Bounds and step sizes
-        # assert (isinstance(bounds, Box2D) and self.dim == 2) or (
-        #     isinstance(bounds, Box3D) and self.dim == 3
-        # ), f"Expected bounds to be an instance of Box{self.dim}D. Get {type(bounds)}"
-        self.bounds = bounds
+        if isinstance(bounds, Rectangle):
+            assert self.dim == 2, f"Expected bounds to be {self.dim}D. Get 2D bounds"
+            self.bounds = convert_rectangle(bounds)
+        elif isinstance(bounds, Cube):
+            assert self.dim == 3, f"Expected bounds to be {self.dim}D. Get 3D bounds"
+            self.bounds = convert_cube(bounds)
+        else:
+            ## Case where bounds is a Box2D or Box3D
+            self.bounds = bounds
+            # raise TypeError("Expected bounds to be an instance of Rectangle or Cube")
 
         self._step_sizes = [
             (self.bounds.max[i] - self.bounds.min[i]) / (self.values.shape[i] - 1)
@@ -197,10 +204,17 @@ class VectorField(SampledField):
         self.values.from_numpy(np.moveaxis(values, 0, -1))
 
         ## Bounds and step sizes
-        # assert (isinstance(bounds, Box2D) and self.dim == 2) or (
-        #     isinstance(bounds, Box3D) and self.dim == 3
-        # ), f"Expected bounds to be an instance of Box{self.dim}D. Get {type(bounds)}"
-        self.bounds = bounds
+        if isinstance(bounds, Rectangle):
+            assert self.dim == 2, f"Expected bounds to be {self.dim}D. Get 2D bounds"
+            self.bounds = convert_rectangle(bounds)
+        elif isinstance(bounds, Cube):
+            assert self.dim == 3, f"Expected bounds to be {self.dim}D. Get 3D bounds"
+            self.bounds = convert_cube(bounds)
+        else:
+            ## Case where bounds is a Box2D or Box3D
+            self.bounds = bounds
+            # raise TypeError("Expected bounds to be an instance of Rectangle or Cube")
+
         self._step_sizes = [
             (self.bounds.max[i] - self.bounds.min[i]) / (self.values.shape[i] - 1)
             for i in range(self.dim)
@@ -208,70 +222,6 @@ class VectorField(SampledField):
 
         assert isinstance(extrapolation, Extrapolation)
         self._extrapolation = extrapolation
-
-    # def at(self, pos: ti.template()) -> ti.template():
-    #     if self.dim == 2:
-    #         value = self._at_2d(pos)
-    #     elif self.dim == 3:
-    #         value = self._at_3d(pos)
-    #     else:
-    #         raise NotImplementedError
-    #     return value
-
-    # @ti.func
-    # def _at_2d(self, pos: tm.vec2) -> tm.vec2:
-    #     idx = tm.ivec2([0, 0])
-    #     toi = tm.vec2([0, 0])
-    #     for i in ti.static(range(2)):
-    #         idx[i] = map_value_to_idx(
-    #             pos[i], self._bounds.min[i], self._bounds.max[i], self._step_sizes[i]
-    #         )
-    #         toi[i] = pos[i] - self._bounds.min[i] - idx[i] * self._step_sizes[i]
-    #     # Interpolation along x-axis
-    #     s0 = lerp(self.values[idx], self.values[idx + tm.ivec2([1, 0])], toi[0])
-    #     s1 = lerp(
-    #         self.values[idx + tm.ivec2([0, 1])],
-    #         self.values[idx + tm.ivec2([1, 1])],
-    #         toi[0],
-    #     )
-    #     # Interpolation along y-axis
-    #     return lerp(s0, s1, toi[1])
-
-    # @ti.func
-    # def _at_3d(self, pos: tm.vec3) -> tm.vec3:
-    #     idx = tm.ivec3([0, 0, 0])
-    #     toi = tm.vec3([0, 0, 0])
-    #     for i in ti.static(range(3)):
-    #         idx[i] = map_value_to_idx(
-    #             pos[i], self._bounds.min[i], self._bounds.max[i], self._step_sizes[i]
-    #         )
-    #         toi[i] = pos[i] - self._bounds.min[i] - idx[i] * self._step_sizes[i]
-    #     # Interpolation along x-axis
-    #     s0 = lerp(
-    #         self.values[idx],
-    #         self.values[idx + tm.ivec3([1, 0, 0])],
-    #         toi[0],
-    #     )
-    #     s1 = lerp(
-    #         self.values[idx + tm.ivec3([0, 1, 0])],
-    #         self.values[idx + tm.ivec3([1, 1, 0])],
-    #         toi[0],
-    #     )
-    #     s2 = lerp(
-    #         self.values[idx + tm.ivec3([0, 0, 1])],
-    #         self.values[idx + tm.ivec3([1, 0, 1])],
-    #         toi[0],
-    #     )
-    #     s3 = lerp(
-    #         self.values[idx + tm.ivec3([0, 1, 1])],
-    #         self.values[idx + tm.ivec3([1, 1, 1])],
-    #         toi[0],
-    #     )
-    #     # Interpolation along y-axis
-    #     s4 = lerp(s0, s1, toi[1])
-    #     s5 = lerp(s2, s3, toi[1])
-    #     # Interpolation along z-axis
-    #     return lerp(s4, s5, toi[2])
 
     @property
     @ti.kernel

@@ -1,5 +1,5 @@
 from snake_ai.envs import GridWorld3D, GridWorld
-from snake_ai.utils.converter import Env2DConverter, Env3DConverter
+from snake_ai.envs.converter import Env2DConverter, Env3DConverter
 from snake_ai.taichi.field import ScalarField
 
 import scipy.sparse as sp
@@ -114,18 +114,9 @@ class DiffusionSolver:
             self._obstacles = copy.deepcopy(self.converter.env.obstacles)
         # goal = self.converter.convert_goal_to_binary_map(shape)
 
-        positions = self.converter.convert_goal_to_indices(shape)
-
-        indices = np.ravel_multi_index(positions.T, self.resolution)
-        init_values = init_value * np.ones_like(indices)
-        logging.debug("Solving the stationnary diffusion equation")
-        values = self._solver(
-            sp.csc_array(
-                (init_values, (indices, np.zeros_like(indices))),
-                shape=(np.prod(self.resolution), 1),
-            )
-        )
-        return values.reshape(self.resolution)
+        source = self.converter.convert_goal_to_binary_map(shape)
+        values = self._solver(source.flatten())
+        return ScalarField(values.reshape(self.resolution), self.converter.env.bounds)
 
     ## Properties
     @property
@@ -221,11 +212,7 @@ def main():
     row, col, depth = 10, 10, 10
     env = RandomObstacles3D(row, col, depth, nb_obs=10, max_size=2)
     env.reset()
-    converter = Env3DConverter(env, resolution=20)
-    diff_solver = DiffusionSolver(env, resolution=20)
-    solution = diff_solver.solve()
-    plot_volume(smoothed_sol)
-    anim = animate_volume(smoothed_sol, axis=2)
+    converter = Env3DConverter(env, resolution=40)
 
     plt.show()
 

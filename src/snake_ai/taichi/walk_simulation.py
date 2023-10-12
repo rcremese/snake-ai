@@ -4,7 +4,7 @@ import numpy as np
 
 from snake_ai.envs.geometry import Rectangle, Cube
 from snake_ai.taichi.field import ScalarField, VectorField, spatial_gradient
-from snake_ai.taichi.geometry import Box2D, convert_rectangles, convert_cubes
+from snake_ai.taichi.boxes import Box2D, convert_rectangles, convert_cubes
 from snake_ai.taichi.maths import lerp
 
 from abc import ABC, abstractmethod
@@ -269,7 +269,7 @@ class WalkerSimulationStoch3D(WalkerSimulation):
         ## Initialisation of the walkers positions
         assert (
             positions.ndim == 2 and positions.shape[1] == 3
-        ), "Expected position to be a (n, 2)-array of position vectors. Get {}".format(
+        ), "Expected position to be a (n, 3)-array of position vectors. Get {}".format(
             positions.shape
         )
         self.nb_walkers = positions.shape[0]
@@ -492,13 +492,13 @@ if __name__ == "__main__":
     from pathlib import Path
 
     from snake_ai.utils.io import EnvLoader
-    from snake_ai.utils.converter import (
+    from snake_ai.envs.converter import (
         convert_free_space_to_point_cloud,
         convert_obstacles_to_physical_space,
         convert_goal_position,
     )
     from snake_ai.taichi.field import ScalarField, spatial_gradient, log
-    from snake_ai.taichi.geometry import Box2D
+    from snake_ai.taichi.boxes import Box2D
     import snake_ai.utils.visualization as vis
 
     ti.init(arch=ti.gpu)

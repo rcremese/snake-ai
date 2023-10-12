@@ -126,8 +126,45 @@ class EnvConverter(ABC):
 
 
 class Env2DConverter(EnvConverter):
-    def __init__(self) -> None:
+    def __init__(
+        self, env: GridWorld, resolution: Optional[Union[int, Tuple[int]]] = None
+    ) -> None:
+        assert isinstance(
+            env, GridWorld3D
+        ), f"Environmnent must be of type GridWorld3D, not {type(env)}"
+        self.env = env
+        # Set the resolution of the converter
+        if resolution is None:
+            resolution = (env.height, env.width, env.depth)
+        self.resolution = resolution
+
+    ## Public methods
+    def convert_obstacles_to_binary_map(self) -> np.ndarray:
         pass
+
+    ## Properties
+    @EnvConverter.resolution.getter
+    def resolution(self) -> Tuple[int]:
+        return super().resolution
+
+    @resolution.setter
+    def resolution(self, resolution: Union[int, Tuple[int]]):
+        if isinstance(resolution, int):
+            if resolution <= 0:
+                raise ValueError("Resolution must be a positive integer")
+            self._resolution = (resolution, resolution, resolution)
+        elif isinstance(resolution, tuple):
+            if len(resolution) != 2:
+                raise ValueError("Resolution must be a tuple of length 3")
+            if not all(isinstance(res, int) and res > 0 for res in resolution):
+                raise ValueError(
+                    f"Resolution must be a tuple of positive integers. Get {resolution}"
+                )
+            self._resolution = resolution
+        else:
+            raise TypeError(
+                "Resolution must be either an integer or a tuple of integers"
+            )
 
 
 class Env3DConverter(EnvConverter):
@@ -240,13 +277,13 @@ class Env3DConverter(EnvConverter):
             raise ValueError("Shape must be either 'box' or 'point'")
 
     def convert_free_positions_to_point_cloud(self) -> np.ndarray:
-        return np.array(env.free_positions) + 0.5
+        return np.array(self.env.free_positions) + 0.5
 
-    def get_agent_position(self) -> np.ndarray:
-        return np.array(self.env.agent.center)
+    def get_agent_position(self, repeats: int = 1) -> np.ndarray:
+        return np.repeat(self.env.agent.center[None], axis=0, repeats=repeats)
 
     def get_goal_position(self) -> np.ndarray:
-        return np.array(self.env.goal.center)
+        return self.env.goal.center
 
     ## Properties
     @property
