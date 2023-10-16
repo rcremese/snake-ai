@@ -6,23 +6,28 @@
 #
 from snake_ai.envs import (
     GridWorld,
+    GridWorld3D,
     RandomObstaclesEnv,
+    RandomObstacles3D,
     RoomEscape,
     MazeGrid,
     SnakeEnv,
     SlotEnv,
 )
 from snake_ai.phiflow.simulation import Simulation, DiffusionSimulation
+from snake_ai.taichi.field import ScalarField, VectorField, SampledField
+from snake_ai.taichi.boxes import Box2D, Box3D
 import snake_ai.phiflow.visualization as vis
 
 from abc import ABCMeta, abstractmethod
 from typing import Union, Any, Dict
 from pathlib import Path
 from phi import flow
+import numpy as np
 import json
 
 
-class Writter(metaclass=ABCMeta):
+class Writer(metaclass=ABCMeta):
     def __init__(self, path: Union[Path, str]):
         self.path = Path(path).resolve()
 
@@ -36,7 +41,7 @@ class Writter(metaclass=ABCMeta):
         raise NotImplementedError()
 
 
-class EnvWritter(Writter):
+class EnvWritter(Writer):
     def write(self, env: GridWorld):
         dictionary = self.convert_to_dict(env)
         with open(self.path, "w") as f:
@@ -62,7 +67,54 @@ class EnvWritter(Writter):
         return dictionary
 
 
-class SimulationWritter(Writter):
+class EnvWriter3D(Writer):
+    def write(self, env: GridWorld):
+        dictionary = self.convert_to_dict(env)
+        with open(self.path, "w") as f:
+            json.dump(dictionary, f, indent=2)
+
+    @staticmethod
+    def convert_to_dict(env: GridWorld3D) -> Dict[str, Any]:
+        dictionary = {
+            "name": env.__class__.__name__,
+            "width": env.width,
+            "height": env.height,
+            "depth": env.depth,
+            "seed": env._seed,
+        }
+        if isinstance(env, RandomObstaclesEnv):
+            dictionary["nb_obs"] = env._nb_obs
+            dictionary["max_obs_size"] = env._max_obs_size
+        return dictionary
+
+
+class FieldWriter(Writer):
+    def write(self, field: SampledField):
+        dictionary = self.convert_to_dict(field)
+        np.savez_compressed(self.path, **dictionary)
+
+    @staticmethod
+    def convert_to_dict(field: SampledField) -> Dict[str, Any]:
+        assert isinstance(
+            field, (ScalarField, VectorField)
+        ), f"Unknown field type {type(field)}"
+        dictionary = {
+            "values": field.values.to_numpy(),
+            "upper": field.bounds.min,
+            "lower": field.bounds.max,
+            "dim": len(field.values.shape),
+        }
+        if isinstance(field, ScalarField):
+            dictionary["type"] = "scalar"
+        elif isinstance(field, VectorField):
+            dictionary["type"] = "vector"
+        else:
+            raise ValueError(f"Unknown field type {type(field)}")
+
+        return dictionary
+
+
+class SimulationWriter(Writer):
     def __init__(self, path: Union[Path, str]):
         super().__init__(path)
 
@@ -145,6 +197,61 @@ class EnvLoader(Loader):
         else:
             raise NotImplementedError(
                 f"Environment {dictionary['name']} is not implemented"
+            )
+
+
+class EnvLoader3D(Loader):
+    def load(self) -> GridWorld3D:
+        with open(self.path, "r") as file:
+            dictionary = json.load(file)
+        return self.load_from_dict(dictionary)
+
+    def load_from_dict(dictionary: dict) -> GridWorld3D:
+        keys = {"name", "width", "height", "depth", "seed"}
+        assert keys.issubset(
+            dictionary.keys()
+        ), f"One of the following keys is not in the input dictionary : {keys}"
+
+        if dictionary["name"] == "GridWorld3D":
+            return GridWorld3D(**dictionary)
+        elif dictionary["name"] == "RandomObstacles3D":
+            keys = {"nb_obs", "max_obs_size"}
+            assert keys.issubset(
+                dictionary.keys()
+            ), f"One of the following keys is not in the input dictionary : {keys}"
+            return RandomObstacles3D(**dictionary)
+        else:
+            raise NotImplementedError(
+                f"Environment {dictionary['name']} is not implemented"
+            )
+
+
+class FieldLoader(Loader):
+    def load(self) -> SampledField:
+        with np.load(self.path) as file:
+            field = self.load_from_dict(file)
+        return field
+
+    @staticmethod
+    def load_from_dict(dictionary: dict) -> SampledField:
+        keys = {"type", "values", "upper", "lower", "dim"}
+        assert keys.issubset(
+            dictionary.keys()
+        ), f"One of the following keys is not in the input dictionary : {keys}"
+        if dictionary["dim"] == 2:
+            bounds = Box2D(dictionary["upper"], dictionary["lower"])
+        elif dictionary["dim"] == 3:
+            bounds = Box3D(dictionary["upper"], dictionary["lower"])
+        else:
+            raise ValueError(f"Unknown dimension {dictionary['dim']}")
+
+        if dictionary["type"] == "scalar":
+            return ScalarField(dictionary["values"], bounds=bounds)
+        elif dictionary["type"] == "vector":
+            return VectorField(dictionary["values"], bounds=bounds)
+        else:
+            raise NotImplementedError(
+                f"Field type {dictionary['type']} is not implemented"
             )
 
 

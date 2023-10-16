@@ -76,13 +76,23 @@ def convert_goal_position(env: GridWorld) -> np.ndarray:
 
 
 class EnvConverter(ABC):
-    @abstractmethod
     def __init__(
         self,
         env: Union[GridWorld, GridWorld3D],
         resolution: Optional[Union[int, Tuple[int]]] = None,
     ) -> None:
-        raise NotImplementedError
+        assert isinstance(
+            env, (GridWorld, GridWorld3D)
+        ), f"Environmnent must be of type GridWorld or GridWorld3D, not {type(env)}"
+        self.env = env
+        self.dim = 2 if isinstance(env, GridWorld) else 3
+        # Set the resolution of the converter
+        if resolution is None:
+            if self.dim == 2:
+                resolution = (env.height, env.width)
+            else:
+                resolution = (env.height, env.width, env.depth)
+        self.resolution = resolution
 
     @abstractmethod
     def convert_obstacles_to_binary_map(self) -> np.ndarray:
@@ -104,58 +114,20 @@ class EnvConverter(ABC):
     def get_goal_position(self) -> np.ndarray:
         raise NotImplementedError
 
-    @property
-    @abstractmethod
-    def steps(self) -> np.ndarray:
-        raise NotImplementedError
-
-    @property
-    @abstractmethod
-    def resolution(self) -> Tuple[int]:
-        raise NotImplementedError
-
-    @property
-    @abstractmethod
-    def meshgrid(self) -> List[np.ndarray]:
-        raise NotImplementedError
-
-    @property
-    @abstractmethod
-    def linspace(self) -> List[np.ndarray]:
-        raise NotImplementedError
-
-
-class Env2DConverter(EnvConverter):
-    def __init__(
-        self, env: GridWorld, resolution: Optional[Union[int, Tuple[int]]] = None
-    ) -> None:
-        assert isinstance(
-            env, GridWorld3D
-        ), f"Environmnent must be of type GridWorld3D, not {type(env)}"
-        self.env = env
-        # Set the resolution of the converter
-        if resolution is None:
-            resolution = (env.height, env.width, env.depth)
-        self.resolution = resolution
-
-    ## Public methods
-    def convert_obstacles_to_binary_map(self) -> np.ndarray:
-        pass
-
     ## Properties
-    @EnvConverter.resolution.getter
+    @property
     def resolution(self) -> Tuple[int]:
-        return super().resolution
+        return self._resolution
 
     @resolution.setter
     def resolution(self, resolution: Union[int, Tuple[int]]):
         if isinstance(resolution, int):
             if resolution <= 0:
                 raise ValueError("Resolution must be a positive integer")
-            self._resolution = (resolution, resolution, resolution)
+            self._resolution = self.dim * (resolution,)
         elif isinstance(resolution, tuple):
-            if len(resolution) != 2:
-                raise ValueError("Resolution must be a tuple of length 3")
+            if len(resolution) != self.dim:
+                raise ValueError(f"Resolution must be a tuple of length {self.dim}")
             if not all(isinstance(res, int) and res > 0 for res in resolution):
                 raise ValueError(
                     f"Resolution must be a tuple of positive integers. Get {resolution}"
@@ -166,41 +138,176 @@ class Env2DConverter(EnvConverter):
                 "Resolution must be either an integer or a tuple of integers"
             )
 
+    @property
+    def linspace(self) -> List[np.ndarray]:
+        """Linspace of the environment as returned by np.linspace"""
+        linspaces = []
+        for i in range(self.dim):
+            linspaces.append(
+                np.linspace(
+                    self.env.bounds.min[i],
+                    self.env.bounds.max[i],
+                    self.resolution[i],
+                    endpoint=True,
+                )
+            )
+        return linspaces
+        # x = np.linspace(
+        #     self.env.bounds.min[0],
+        #     self.env.bounds.max[0],
+        #     self.resolution[0],
+        #     endpoint=True,
+        # )
+        # y = np.linspace(
+        #     self.env.bounds.min[1],
+        #     self.env.bounds.max[1],
+        #     self.resolution[1],
+        #     endpoint=True,
+        # )
+        # z = np.linspace(
+        #     self.env.bounds.min[2],
+        #     self.env.bounds.max[2],
+        #     self.resolution[2],
+        #     endpoint=True,
+        # )
+        # return x, y, z
 
-class Env3DConverter(EnvConverter):
-    def __init__(
-        self, env: GridWorld3D, resolution: Optional[Union[int, Tuple[int]]] = None
-    ):
-        assert isinstance(
-            env, GridWorld3D
-        ), f"Environmnent must be of type GridWorld3D, not {type(env)}"
-        self.env = env
-        # Set the resolution of the converter
-        if resolution is None:
-            resolution = (env.height, env.width, env.depth)
-        self.resolution = resolution
+    @property
+    def meshgrid(self) -> List[np.ndarray]:
+        """Meshgrid of the environment as returned by np.meshgrid"""
+        return np.meshgrid(*self.linspace, indexing="ij")
 
+    @property
+    def steps(self) -> np.ndarray:
+        return (self.env.bounds.max - self.env.bounds.min) / np.array(self.resolution)
+
+
+class Env2DConverter(EnvConverter):
     ## Public methods
     def convert_obstacles_to_binary_map(self) -> np.ndarray:
         assert (
-            self.env._obstacles is not None
+            self.env.obstacles is not None
         ), "Environment does not contain obstacles. Reset environment first."
 
         binary_map = np.zeros(self.resolution, dtype=bool)
         if self.env.nb_obstacles == 0:
             return binary_map
-        X, Y, Z = self.meshgrid
-
-        for obstacle in self.env.obstacles:
-            binary_map[
-                (X >= obstacle.x)
-                & (X < obstacle.max[0])
-                & (Y >= obstacle.y)
-                & (Y < obstacle.max[1])
-                & (Z >= obstacle.z)
-                & (Z < obstacle.max[2])
-            ] = 1
+        indices = self.convert_obstacles_to_indices()
+        binary_map[indices[:, 0], indices[:, 1]] = 1
         return binary_map
+
+    def convert_obstacles_to_indices(self) -> np.ndarray:
+        indices = []
+        for obstacle in self.env.obstacles:
+            pixel_min = np.floor(obstacle.min / (self.steps * self.env.pixel)).astype(
+                int
+            )
+            pixel_max = np.ceil(obstacle.max / (self.steps * self.env.pixel)).astype(
+                int
+            )
+            indices.extend(
+                [
+                    (i, j)
+                    for i in range(pixel_min[0], pixel_max[0])
+                    for j in range(pixel_min[1], pixel_max[1])
+                ]
+            )
+        return np.array(indices)
+
+    def convert_goal_to_binary_map(self, shape: str) -> np.ndarray:
+        assert (
+            self.env.goal is not None
+        ), "Environment does not contain obstacles. Reset environment first."
+        assert shape.lower() in [
+            "box",
+            "point",
+        ], "Shape must be either 'box' or 'point'"
+
+        binary_map = np.zeros(self.resolution, dtype=bool)
+        indices = self.convert_goal_to_indices(shape)
+        binary_map[indices[:, 0], indices[:, 1]] = 1
+        return binary_map
+
+    def convert_goal_to_indices(self, shape: str) -> np.ndarray:
+        assert (
+            self.env.goal is not None
+        ), "Environment does not contain obstacles. Reset environment first."
+        assert shape.lower() in [
+            "box",
+            "point",
+        ], "Shape must be either 'box' or 'point'"
+
+        if shape.lower() == "box":
+            pixel_min = np.floor(
+                self.env.goal.min / (self.steps * self.env.pixel)
+            ).astype(int)
+            pixel_max = np.ceil(
+                self.env.goal.max / (self.steps * self.env.pixel)
+            ).astype(int)
+            return np.array(
+                [
+                    (i, j)
+                    for i in range(pixel_min[0], pixel_max[0])
+                    for j in range(pixel_min[1], pixel_max[1])
+                ]
+            )
+        elif shape.lower() == "point":
+            pixel = np.floor(
+                self.env.goal.center / (self.steps * self.env.pixel)
+            ).astype(int)
+            return np.array([pixel])
+        else:
+            raise ValueError("Shape must be either 'box' or 'point'")
+
+    def convert_free_positions_to_point_cloud(self) -> np.ndarray:
+        return np.array(self.env.free_positions) + 0.5
+
+    def get_agent_position(self, repeats: int = 1) -> np.ndarray:
+        center = np.array(self.env.agent.position.center) / self.env.pixel
+        return np.repeat(center[None], axis=0, repeats=repeats)
+
+    def get_goal_position(self) -> np.ndarray:
+        return np.array(self.env.goal.center) / self.env.pixel
+
+
+class Env3DConverter(EnvConverter):
+    # def __init__(
+    #     self, env: GridWorld3D, resolution: Optional[Union[int, Tuple[int]]] = None
+    # ):
+    #     assert isinstance(
+    #         env, GridWorld3D
+    #     ), f"Environmnent must be of type GridWorld3D, not {type(env)}"
+    #     self.env = env
+    #     self.dim = 3
+    #     # Set the resolution of the converter
+    #     if resolution is None:
+    #         resolution = (env.height, env.width, env.depth)
+    #     self.resolution = resolution
+
+    ## Public methods
+    def convert_obstacles_to_binary_map(self) -> np.ndarray:
+        assert (
+            self.env.obstacles is not None
+        ), "Environment does not contain obstacles. Reset environment first."
+
+        binary_map = np.zeros(self.resolution, dtype=bool)
+        if self.env.nb_obstacles == 0:
+            return binary_map
+        indices = self.convert_obstacles_to_indices()
+        binary_map[indices[:, 0], indices[:, 1], indices[:, 2]] = 1
+        return binary_map
+        # X, Y, Z = self.meshgrid
+
+        # for obstacle in self.env.obstacles:
+        #     binary_map[
+        #         (X >= obstacle.x)
+        #         & (X < obstacle.max[0])
+        #         & (Y >= obstacle.y)
+        #         & (Y < obstacle.max[1])
+        #         & (Z >= obstacle.z)
+        #         & (Z < obstacle.max[2])
+        #     ] = 1
+        # return binary_map
 
     def convert_obstacles_to_indices(self) -> np.ndarray:
         indices = []
@@ -227,28 +334,31 @@ class Env3DConverter(EnvConverter):
         ], "Shape must be either 'box' or 'point'"
 
         binary_map = np.zeros(self.resolution, dtype=bool)
-        if shape == "box":
-            X, Y, Z = self.meshgrid
-            binary_map[
-                (X >= self.env.goal.x)
-                & (X < self.env.goal.max[0])
-                & (Y >= self.env.goal.y)
-                & (Y < self.env.goal.max[1])
-                & (Z >= self.env.goal.z)
-                & (Z < self.env.goal.max[2])
-            ] = 1
-        elif shape == "point":
-            x, y, z = self.linspace
-            ind_x, ind_y, ind_z = (
-                np.argmin(np.abs(x - self.env.goal.x)),
-                np.argmin(np.abs(y - self.env.goal.y)),
-                np.argmin(np.abs(z - self.env.goal.z)),
-            )
-            binary_map[ind_x, ind_y, ind_z] = 1
-        else:
-            raise ValueError("Shape must be either 'box' or 'point'")
-
+        indices = self.convert_goal_to_indices(shape)
+        binary_map[indices[:, 0], indices[:, 1], indices[:, 2]] = 1
         return binary_map
+        # if shape == "box":
+        #     X, Y, Z = self.meshgrid
+        #     binary_map[
+        #         (X >= self.env.goal.x)
+        #         & (X < self.env.goal.max[0])
+        #         & (Y >= self.env.goal.y)
+        #         & (Y < self.env.goal.max[1])
+        #         & (Z >= self.env.goal.z)
+        #         & (Z < self.env.goal.max[2])
+        #     ] = 1
+        # elif shape == "point":
+        #     x, y, z = self.linspace
+        #     ind_x, ind_y, ind_z = (
+        #         np.argmin(np.abs(x - self.env.goal.x)),
+        #         np.argmin(np.abs(y - self.env.goal.y)),
+        #         np.argmin(np.abs(z - self.env.goal.z)),
+        #     )
+        #     binary_map[ind_x, ind_y, ind_z] = 1
+        # else:
+        #     raise ValueError("Shape must be either 'box' or 'point'")
+
+        # return binary_map
 
     def convert_goal_to_indices(self, shape: str = "box") -> np.ndarray:
         assert (
@@ -286,66 +396,12 @@ class Env3DConverter(EnvConverter):
         return self.env.goal.center
 
     ## Properties
-    @property
-    def linspace(self) -> List[np.ndarray]:
-        """Linspace of the environment as returned by np.linspace"""
-        x = np.linspace(
-            self.env.bounds.min[0],
-            self.env.bounds.max[0],
-            self.resolution[0],
-            endpoint=False,
-        )
-        y = np.linspace(
-            self.env.bounds.min[1],
-            self.env.bounds.max[1],
-            self.resolution[1],
-            endpoint=False,
-        )
-        z = np.linspace(
-            self.env.bounds.min[2],
-            self.env.bounds.max[2],
-            self.resolution[2],
-            endpoint=False,
-        )
-        return x, y, z
-
-    @property
-    def meshgrid(self) -> List[np.ndarray]:
-        """Meshgrid of the environment as returned by np.meshgrid"""
-        x, y, z = self.linspace
-        return np.meshgrid(x, y, z, indexing="ij")
-
-    @property
-    def resolution(self) -> Tuple[int]:
-        return self._resolution
-
-    @resolution.setter
-    def resolution(self, resolution: Union[int, Tuple[int]]):
-        if isinstance(resolution, int):
-            if resolution <= 0:
-                raise ValueError("Resolution must be a positive integer")
-            self._resolution = (resolution, resolution, resolution)
-        elif isinstance(resolution, tuple):
-            if len(resolution) != 3:
-                raise ValueError("Resolution must be a tuple of length 3")
-            if not all(isinstance(res, int) and res > 0 for res in resolution):
-                raise ValueError(
-                    f"Resolution must be a tuple of positive integers. Get {resolution}"
-                )
-            self._resolution = resolution
-        else:
-            raise TypeError(
-                "Resolution must be either an integer or a tuple of integers"
-            )
-
-    @property
-    def steps(self) -> np.ndarray:
-        return (self.env.bounds.max - self.env.bounds.min) / np.array(self.resolution)
 
 
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
     from snake_ai.envs.random_obstacles_3d import RandomObstacles3D
+    from snake_ai.envs.random_obstacles_env import RandomObstaclesEnv
 
     # bounds = (10, 10)
     # obstacles = [Rectangle(0, 0, 1, 1), Rectangle(9, 0, 1, 1), Rectangle(0, 9, 1, 1)]
@@ -357,8 +413,15 @@ if __name__ == "__main__":
     N = 2
 
     env = RandomObstacles3D(10, 10, 10, nb_obs=1, max_size=1)
+    env_2d = RandomObstaclesEnv(10, 10, nb_obs=10, max_size=1)
     env.reset()
-    converter = Env3DConverter(env, 30)
+    env_2d.reset()
+    converter = Env3DConverter(env, 40)
+    converter_2d = Env2DConverter(env_2d, 40)
+
+    bmap = converter_2d.convert_obstacles_to_binary_map()
+    plt.imshow(bmap, extent=[0, 10, 10, 0])
+    plt.show()
 
     env._obstacles = [
         Cube(0, 0, 0, 1, 1, 1),
@@ -368,8 +431,9 @@ if __name__ == "__main__":
     ]
     # binary_map = converter.convert_obstacles_to_binary_map()
     binary_map = converter.convert_goal_to_binary_map("point")
-    ind = converter.convert_obstacles_to_indices()
-    binary_map[ind[:, 0], ind[:, 1], ind[:, 2]] = 1
+    # ind = converter.convert_obstacles_to_indices()
+    # binary_map[ind[:, 0], ind[:, 1], ind[:, 2]] = 1
+    binary_map = converter.convert_obstacles_to_binary_map()
 
     ax = plt.figure().add_subplot(projection="3d")
     ax.voxels(binary_map)

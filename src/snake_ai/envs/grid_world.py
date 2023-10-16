@@ -265,6 +265,10 @@ class GridWorld(gym.Env):
         return self._obstacles
 
     @property
+    def nb_obstacles(self) -> int:
+        return len(self.obstacles)
+
+    @property
     def observations(self) -> np.ndarray:
         """Observation associated with the current state of the environment
 

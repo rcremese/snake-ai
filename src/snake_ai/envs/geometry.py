@@ -55,6 +55,18 @@ class Rectangle(pygame.Rect, Geometry):
         height = dictionary["bottom"] - dictionary["top"]
         return cls(dictionary["left"], dictionary["top"], width, height)
 
+    @property
+    def center(self):
+        return np.array([self.centerx, self.centery], dtype=float)
+
+    @property
+    def min(self):
+        return np.array([self.left, self.top], dtype=float)
+
+    @property
+    def max(self):
+        return np.array([self.right, self.bottom], dtype=float)
+
 
 class Circle(Geometry):
     def __init__(self, x_init: Numerical, y_init: Numerical, radius: Numerical) -> None:

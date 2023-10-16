@@ -3,7 +3,13 @@ import numpy as np
 
 from snake_ai.envs import Env3DConverter, RandomObstacles3D
 from snake_ai.taichi import DiffusionSolver, ScalarField
-from snake_ai.utils.io import EnvLoader
+from snake_ai.utils.io import (
+    EnvLoader2D,
+    FieldLoader,
+    FieldWriter,
+    EnvWriter2D,
+    EnvWriter3D,
+)
 import snake_ai.utils.visualization as vis
 from snake_ai.taichi.field import log
 from snake_ai.taichi.boxes import Box2D
@@ -18,8 +24,44 @@ from snake_ai.envs.converter import (
 )
 
 from pathlib import Path
-import argparse
+import argparse, tempfile, shutil
 import logging
+import sys
+
+__author__ = "Robin CREMESE"
+__copyright__ = "Robin CREMESE"
+__license__ = "MIT"
+
+_logger = logging.getLogger(__name__)
+
+
+def setup_logging(loglevel):
+    """Setup basic logging
+
+    Args:
+      loglevel (int): minimum loglevel for emitting messages
+    """
+    logformat = "[%(asctime)s] %(levelname)s:%(name)s:%(message)s"
+    logging.basicConfig(
+        level=loglevel, stream=sys.stdout, format=logformat, datefmt="%Y-%m-%d %H:%M:%S"
+    )
+
+
+# def main(args):
+#     """Wrapper allowing :func:`fib` to be called with string arguments in a CLI fashion
+
+#     Instead of returning the value from :func:`fib`, it prints the result to the
+#     ``stdout`` in a nicely formatted message.
+
+#     Args:
+#       args (List[str]): command line parameters as list of strings
+#           (for example  ``["--verbose", "42"]``).
+#     """
+#     args = parse_args(args)
+#     setup_logging(args.loglevel)
+#     _logger.debug("Starting crazy calculations...")
+#     print(f"The {args.n}-th Fibonacci number is {fib(args.n)}")
+#     _logger.info("Script ends here")
 
 
 def main():
@@ -28,33 +70,59 @@ def main():
     nb_obs, max_size = 10, 3
     resolution = 10
 
-    logging.basicConfig(level=logging.INFO)
+    setup_logging(logging.INFO)
+    simulation_path = (
+        Path(__file__).parents[3].joinpath("simulations").resolve(strict=True)
+    )
 
     ti.init(arch=ti.gpu)
     env = RandomObstacles3D(
         width, height, depth, seed=seed, nb_obs=nb_obs, max_size=max_size
     )
-    logging.info("Initialize the environment")
+    _logger.info("Initialize the environment")
     env.reset()
     converter = Env3DConverter(env, resolution)
-    logging.info("Solve the diffusion equation at stationarity")
-    solver = DiffusionSolver(env, resolution)
-    concentration = solver.solve(shape="point")
+
+    dirpath = simulation_path.joinpath(env.name, f"seed_{seed}")
+    if dirpath.exists():
+        _logger.info("Loading the environment and the concentration field")
+        loader = FieldLoader(dirpath.joinpath(f"field{converter.resolution}.npz"))
+        concentration = loader.load()
+    else:
+        _logger.info("Solve the diffusion equation at stationarity")
+        solver = DiffusionSolver(env, resolution)
+        concentration = solver.solve(shape="point")
+        # write the concentration field & the environment
+        _logger.info("Writing the concentration field and the environment")
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmpdir = Path(tmpdir)
+            field_writer = FieldWriter(
+                tmpdir.joinpath(f"field{converter.resolution}.npz")
+            )
+            field_writer.write(concentration)
+            env_writer = EnvWriter3D(tmpdir.joinpath("environment.json"))
+            env_writer.write(env)
+            shutil.move(str(tmpdir), str(dirpath))
+    # writer = EnvWritter3D("environment.json")
+    # writer.write(env)
+    # _logger.info("Solve the diffusion equation at stationarity")
+    # solver = DiffusionSolver(env, resolution)
+    # concentration = solver.solve(shape="point")
     log_concentration = log(concentration, eps=1e-6)
     # init_pos = converter.convert_free_positions_to_point_cloud()
     init_pos = converter.get_agent_position(5)
-    logging.info("Running the simulation")
+    _logger.info("Running the simulation")
     simulation = WalkerSimulationStoch3D(
         init_pos,
         potential_field=log_concentration,
         obstacles=env.obstacles,
-        t_max=100,
+        t_max=1000,
         dt=0.1,
         diffusivity=0.1,
     )
-    # simulation.reset()
-    # simulation.run()
-    simulation.optimize(converter.get_goal_position(), max_iter=200, lr=1)
+    simulation.reset()
+    simulation.run()
+    # simulation.optimize(converter.get_goal_position(), max_iter=200, lr=1)
     logging.info("Plotting the simulation result")
     print("Goal position:", converter.get_goal_position())
     vis.plot_3D_trajectory(
@@ -99,7 +167,7 @@ def walk(args: argparse.Namespace):
         raise FileNotFoundError(
             "The given path does not contain an environment.json file"
         )
-    loader = EnvLoader(path.joinpath("environment.json"))
+    loader = EnvLoader2D(path.joinpath("environment.json"))
     env = loader.load()
     env.reset()
 
