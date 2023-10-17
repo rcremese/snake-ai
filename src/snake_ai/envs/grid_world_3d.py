@@ -2,10 +2,11 @@ from snake_ai.envs.geometry import Cube
 from snake_ai.utils import errors
 
 import gymnasium as gym
+import taichi as ti
 import numpy as np
 
 from typing import Any, List, Tuple
-import taichi as ti
+import argparse
 
 
 class GridWorld3D(gym.Env):
@@ -13,9 +14,9 @@ class GridWorld3D(gym.Env):
         assert (
             width > 0 and height > 0 and depth > 0
         ), "Width, height and depth must be positive integers"
-        self.width = width
-        self.height = height
-        self.depth = depth
+        self.width = int(width)
+        self.height = int(height)
+        self.depth = int(depth)
         self.bounds = Cube(0, 0, 0, width, height, depth)
 
         self.seed = seed
@@ -80,7 +81,7 @@ class GridWorld3D(gym.Env):
     ## Properties
     @property
     def name(self) -> str:
-        return f"GridWorld3D({self.width},{self.height},{self.depth})"
+        return f"GridWorld3D_{self.width}x{self.height}x{self.depth}"
 
     @property
     def agent(self) -> Cube:
@@ -137,6 +138,22 @@ class GridWorld3D(gym.Env):
     def nb_obstacles(self):
         """Number of obstacles in the environment"""
         return len(self._obstacles)
+
+    ## Static methods
+    @staticmethod
+    def add_arguments(parser: argparse.ArgumentParser):
+        parser.add_argument(
+            "--width", type=int, default=20, help="Width of the environment"
+        )
+        parser.add_argument(
+            "--height", type=int, default=20, help="Height of the environment"
+        )
+        parser.add_argument(
+            "--depth", type=int, default=20, help="Height of the environment"
+        )
+        parser.add_argument(
+            "--seed", type=int, default=0, help="Seed for the simulation PRNG"
+        )
 
 
 def convert_cube_to_wireframe(cube: Cube):

@@ -1,7 +1,9 @@
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
+import plotly.graph_objects as go
 import numpy as np
 
+from snake_ai.envs.geometry import Cube
 from typing import List, Tuple, Optional
 
 
@@ -178,22 +180,22 @@ def animate_walk_history(
     plt.close(fig)
 
 
-def plot_3D_trajectory(
-    positions: np.ndarray,
-    goal: np.ndarray,
-    obstacle_mask: np.ndarray,
-    title: str = "3D trajectory",
-):
-    colormap = plt.get_cmap("viridis")
-    cloud_colors = colormap(np.linspace(0, 1, positions.shape[0]))
+# def plot_3D_trajectory(
+#     positions: np.ndarray,
+#     goal: np.ndarray,
+#     obstacle_mask: np.ndarray,
+#     title: str = "3D trajectory",
+# ):
+#     colormap = plt.get_cmap("viridis")
+#     cloud_colors = colormap(np.linspace(0, 1, positions.shape[0]))
 
-    ax = plt.figure(dpi=300).add_subplot(projection="3d")
-    ax.set(title=title, xlabel="x", ylabel="y", zlabel="z", xlim=(0, 10), ylim=(0, 10))
-    for color, pos in zip(cloud_colors, positions):
-        ax.scatter(pos[:, 0], pos[:, 1], pos[:, 2], color=color, s=5)
-    ax.voxels(obstacle_mask, facecolor="red", edgecolor="k")
-    ax.scatter(*goal, s=10, c="green")
-    plt.show()
+#     ax = plt.figure(dpi=300).add_subplot(projection="3d")
+#     ax.set(title=title, xlabel="x", ylabel="y", zlabel="z", xlim=(0, 10), ylim=(0, 10))
+#     for color, pos in zip(cloud_colors, positions):
+#         ax.scatter(pos[:, 0], pos[:, 1], pos[:, 2], color=color, s=5)
+#     ax.voxels(obstacle_mask, facecolor="red", edgecolor="k")
+#     ax.scatter(*goal, s=10, c="green")
+#     plt.show()
 
 
 def animate_volume(
@@ -239,6 +241,53 @@ def animate_volume(
 
     anim = animation.FuncAnimation(fig, update, frames=range(2 * z_max), interval=200)
     return anim
+
+
+def plot_3D_trajectory(
+    trajectories: np.ndarray,
+    goal: np.ndarray,
+    obstacles: List[Cube],
+    title: str = "3D trajectory",
+):
+    fig = go.Figure()
+    for i in range(trajectories.shape[0]):
+        fig.add_trace(
+            go.Scatter3d(
+                x=trajectories[i, :, 0],
+                y=trajectories[i, :, 1],
+                z=trajectories[i, :, 2],
+                mode="lines",
+                name=f"walker {i}",
+                # colorscale="Viridis",
+                # color=color,
+            )
+        )
+    goal = goal[None]
+    fig.add_trace(
+        go.Scatter3d(
+            x=goal[:, 0],
+            y=goal[:, 1],
+            z=goal[:, 2],
+            mode="markers",
+            marker=dict(size=10, color="green"),
+            name="goal",
+        )
+    )
+    for obs in obstacles:
+        fig.add_trace(
+            go.Mesh3d(
+                x=obs.vertices[:, 0],
+                y=obs.vertices[:, 1],
+                z=obs.vertices[:, 2],
+                i=obs.indices[:, 0],
+                j=obs.indices[:, 1],
+                k=obs.indices[:, 2],
+                opacity=0.5,
+                color="red",
+                name="obstacle",
+            )
+        )
+    fig.show()
 
 
 def plot_loss(loss: List[float], output: Optional[str] = None):

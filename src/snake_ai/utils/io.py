@@ -41,7 +41,7 @@ class Writer(metaclass=ABCMeta):
         raise NotImplementedError()
 
 
-class EnvWritter(Writer):
+class EnvWriter(Writer):
     def write(self, env: GridWorld):
         dictionary = self.convert_to_dict(env)
         with open(self.path, "w") as f:
@@ -109,7 +109,7 @@ class FieldWriter(Writer):
         elif isinstance(field, VectorField):
             dictionary["type"] = "vector"
         else:
-            raise ValueError(f"Unknown field type {type(field)}")
+            raise NotImplementedError(f"Unknown field type {type(field)}")
 
         return dictionary
 
@@ -136,7 +136,7 @@ class SimulationWriter(Writer):
         dictionary = {
             "name": simulation.__class__.__name__,
             "parameters": simulation.hparams,
-            "env": EnvWritter.convert_to_dict(simulation.env),
+            "env": EnvWriter.convert_to_dict(simulation.env),
         }
         return dictionary
 

@@ -5,6 +5,7 @@
 # @copyright MIT License
 #
 from abc import ABCMeta, abstractmethod
+import argparse
 from snake_ai.envs import Rectangle
 from snake_ai.envs.agent import Agent
 from snake_ai.envs.walker import Walker2D
@@ -327,6 +328,22 @@ class GridWorld(gym.Env):
                 "The free position mask is not initialised. Reset the environment first !"
             )
         return np.argwhere(self._free_position_mask).tolist()
+
+    ## Static methods
+    @staticmethod
+    def add_arguments(parser: argparse.ArgumentParser):
+        parser.add_argument(
+            "--width", type=int, default=20, help="Width of the environment"
+        )
+        parser.add_argument(
+            "--height", type=int, default=20, help="Height of the environment"
+        )
+        parser.add_argument(
+            "--pixel", type=int, default=10, help="Size of a game pixel in pixel unit"
+        )
+        parser.add_argument(
+            "--seed", type=int, default=0, help="Seed for the simulation PRNG"
+        )
 
     ## Private methods
     def _sanity_check(self, rect: Rectangle):

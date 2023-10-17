@@ -5,7 +5,7 @@
 # @copyright MIT License
 #
 from abc import ABCMeta, abstractmethod
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Tuple
 import pygame
 from snake_ai.utils.types import Numerical
 from snake_ai.utils import Colors
@@ -54,6 +54,10 @@ class Rectangle(pygame.Rect, Geometry):
         width = dictionary["right"] - dictionary["left"]
         height = dictionary["bottom"] - dictionary["top"]
         return cls(dictionary["left"], dictionary["top"], width, height)
+
+    @property
+    def dimension(self) -> Tuple[int]:
+        return (self.width, self.height)
 
     @property
     def center(self):
@@ -180,9 +184,9 @@ class Cube(Geometry):
         assert (
             width >= 0 and height >= 0 and depth >= 0
         ), "Width, height and depth must be positive integers"
-        self.width = width
-        self.height = height
-        self.depth = depth
+        self.width = int(width)
+        self.height = int(height)
+        self.depth = int(depth)
 
     def to_dict(self) -> Dict:
         return {
@@ -211,6 +215,10 @@ class Cube(Geometry):
     def contains(self, other: Geometry) -> bool:
         assert isinstance(other, Cube), f"Can not compare cube with {type(other)}."
         return other.is_inside(self)
+
+    @property
+    def dimension(self) -> Tuple[int]:
+        return (self.width, self.height, self.depth)
 
     @property
     def volume(self) -> int:
@@ -286,6 +294,26 @@ class Cube(Geometry):
                 [4, 7],
                 [5, 7],
                 [6, 7],
+            ]
+        )
+
+    @property
+    def indices(self) -> np.ndarray:
+        """Returns the indices of the cube for mesh rendering."""
+        return np.array(
+            [
+                [0, 1, 2],
+                [4, 1, 2],
+                [0, 2, 3],
+                [6, 2, 3],
+                [0, 3, 1],
+                [5, 3, 1],
+                [4, 7, 1],
+                [5, 7, 1],
+                [3, 5, 6],
+                [7, 5, 6],
+                # [3, 5, 6],
+                # [5, 6, 7],
             ]
         )
 

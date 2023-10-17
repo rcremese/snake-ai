@@ -103,11 +103,18 @@ class EnvConverter(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def convert_free_positions_to_point_cloud(self) -> np.ndarray:
+    def convert_free_positions_to_point_cloud(self, step: int = 1) -> np.ndarray:
+        """Transform free space of the environment into a point cloud.
+
+        Args:
+            step (int): Step between 2 positions.
+        Returns:
+            np.ndarray: free positions as a point cloud [N, 2 or 3]
+        """
         raise NotImplementedError
 
     @abstractmethod
-    def get_agent_position(self) -> np.ndarray:
+    def get_agent_position(self, repeats: int = 1) -> np.ndarray:
         raise NotImplementedError
 
     @abstractmethod
@@ -124,7 +131,9 @@ class EnvConverter(ABC):
         if isinstance(resolution, int):
             if resolution <= 0:
                 raise ValueError("Resolution must be a positive integer")
-            self._resolution = self.dim * (resolution,)
+            self._resolution = tuple(
+                [resolution * dim for dim in self.env.bounds.dimension]
+            )
         elif isinstance(resolution, tuple):
             if len(resolution) != self.dim:
                 raise ValueError(f"Resolution must be a tuple of length {self.dim}")
@@ -152,25 +161,6 @@ class EnvConverter(ABC):
                 )
             )
         return linspaces
-        # x = np.linspace(
-        #     self.env.bounds.min[0],
-        #     self.env.bounds.max[0],
-        #     self.resolution[0],
-        #     endpoint=True,
-        # )
-        # y = np.linspace(
-        #     self.env.bounds.min[1],
-        #     self.env.bounds.max[1],
-        #     self.resolution[1],
-        #     endpoint=True,
-        # )
-        # z = np.linspace(
-        #     self.env.bounds.min[2],
-        #     self.env.bounds.max[2],
-        #     self.resolution[2],
-        #     endpoint=True,
-        # )
-        # return x, y, z
 
     @property
     def meshgrid(self) -> List[np.ndarray]:
@@ -259,8 +249,20 @@ class Env2DConverter(EnvConverter):
         else:
             raise ValueError("Shape must be either 'box' or 'point'")
 
-    def convert_free_positions_to_point_cloud(self) -> np.ndarray:
-        return np.array(self.env.free_positions) + 0.5
+    def convert_free_positions_to_point_cloud(self, step: int = 1) -> np.ndarray:
+        """Transform free space of the environment into a point cloud.
+
+        Args:
+            step (int): Step between 2 positions.
+        Returns:
+            np.ndarray: free positions as a point cloud [N, 2]
+        """
+        assert isinstance(step, int) and step > 0, "Step must be an integer > 0"
+        positions = []
+        for x, y in self.env.free_positions:
+            if x % step == 0 and y % step == 0:
+                positions.append((x + 0.5, y + 0.5))
+        return np.array(positions)
 
     def get_agent_position(self, repeats: int = 1) -> np.ndarray:
         center = np.array(self.env.agent.position.center) / self.env.pixel
@@ -386,8 +388,13 @@ class Env3DConverter(EnvConverter):
         else:
             raise ValueError("Shape must be either 'box' or 'point'")
 
-    def convert_free_positions_to_point_cloud(self) -> np.ndarray:
-        return np.array(self.env.free_positions) + 0.5
+    def convert_free_positions_to_point_cloud(self, step: int = 1) -> np.ndarray:
+        assert isinstance(step, int) and step > 0, "Step must be an integer > 0"
+        positions = []
+        for x, y, z in self.env.free_positions:
+            if x % step == 0 and y % step == 0 and z % step == 0:
+                positions.append((x + 0.5, y + 0.5, z + 0.5))
+        return np.array(positions)
 
     def get_agent_position(self, repeats: int = 1) -> np.ndarray:
         return np.repeat(self.env.agent.center[None], axis=0, repeats=repeats)
@@ -416,8 +423,8 @@ if __name__ == "__main__":
     env_2d = RandomObstaclesEnv(10, 10, nb_obs=10, max_size=1)
     env.reset()
     env_2d.reset()
-    converter = Env3DConverter(env, 40)
-    converter_2d = Env2DConverter(env_2d, 40)
+    converter = Env3DConverter(env, 5)
+    converter_2d = Env2DConverter(env_2d, 10)
 
     bmap = converter_2d.convert_obstacles_to_binary_map()
     plt.imshow(bmap, extent=[0, 10, 10, 0])

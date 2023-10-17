@@ -1,3 +1,4 @@
+import argparse
 from snake_ai.envs.grid_world_3d import GridWorld3D
 from snake_ai.envs.geometry import Cube
 from snake_ai.utils import errors
@@ -42,6 +43,28 @@ class RandomObstacles3D(GridWorld3D):
             self._obstacles = self._populate_grid_with_obstacles()
         else:
             self._obstacles = []
+
+    ## Properties
+    @GridWorld3D.name.getter
+    def name(self) -> str:
+        return f"RandomObstacles3D_{self.width}x{self.height}x{self.depth}"
+
+    ## Static methods
+    @staticmethod
+    def add_arguments(parser: argparse.ArgumentParser):
+        GridWorld3D.add_arguments(parser)
+        parser.add_argument(
+            "--max_size",
+            type=int,
+            default=1,
+            help="Maximum size of the obstacles in terms of the pixel size",
+        )
+        parser.add_argument(
+            "--nb_obs",
+            type=int,
+            default=0,
+            help="Number of obstacles in the environment",
+        )
 
     ## Private methods
     def _populate_grid_with_obstacles(self) -> List[Cube]:

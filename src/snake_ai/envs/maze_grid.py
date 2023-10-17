@@ -4,6 +4,7 @@
 # @desc Created on 2023-04-07 10:22:34 am
 # @copyright MIT License
 #
+import argparse
 from snake_ai.envs.grid_world import GridWorld
 from snake_ai.envs.walker import Walker2D
 from snake_ai.envs.geometry import Rectangle
@@ -106,6 +107,17 @@ class MazeGrid(GridWorld):
     @GridWorld.name.getter
     def name(self) -> str:
         return f"Maze({self.width},{self.height})"
+
+    ## Static methods
+    @staticmethod
+    def add_arguments(parser: argparse.ArgumentParser):
+        GridWorld.add_arguments(parser)
+        parser.add_argument(
+            "--maze_generator",
+            type=str,
+            default="prims",
+            help=f"Maze generator to use. One of {MazeGrid.maze_generator}",
+        )
 
     ## Dunder methods
     def __repr__(self):

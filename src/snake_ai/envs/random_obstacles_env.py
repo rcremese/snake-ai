@@ -1,3 +1,4 @@
+import argparse
 from snake_ai.envs.grid_world import GridWorld
 from snake_ai.envs.walker import Walker2D
 from snake_ai.envs.geometry import Rectangle
@@ -111,6 +112,23 @@ class RandomObstaclesEnv(GridWorld):
         # TODO : Implement a warning if obstacles overlaps with goal or agent !
         self._obstacles = rectangles
 
+    ## Static methods
+    @staticmethod
+    def add_arguments(parser: argparse.ArgumentParser):
+        GridWorld.add_arguments(parser)
+        parser.add_argument(
+            "--nb_obs",
+            type=int,
+            default=10,
+            help="Number of obstacles in the environment",
+        )
+        parser.add_argument(
+            "--max_size",
+            type=int,
+            default=3,
+            help="Maximum size of the obstacles in terms of the pixel size",
+        )
+
     ## Private methods
     def _populate_grid_with_obstacles(self):
         self._obstacles = []
@@ -141,29 +159,6 @@ class RandomObstaclesEnv(GridWorld):
         raise errors.ConfigurationError(
             f"Unable to place obstacle of size {size} in the environment. Reduce nb_obs or max_obs_size."
         )
-
-    # TODO : cleaner le code
-    # def _place_obstacle(self, size: int) -> Rectangle:
-    #     """Place an obstacle of a given size in the environment while repecting the free position condition
-
-    #     Args:
-    #         size (int): size of the obstacle
-
-    #     Returns:
-    #         Rectangle: Obstacle to place in the environment, represented as a square of size 1.
-    #     """
-    #     assert size > 0, f"Obstacle size need to be at least 1. Get {size}"
-    #     # available_positions = [(x, y) for x in range(self.width-(size-1)) for y in range(self.height-(size-1)) if self._free_positions[x, y]]
-    #     # assert len(available_positions) > 0, f"There is no available position for an obstacle of size {size}"
-    #     x, y = self._rng.choice(self.free_positions)
-    #     obstacle = Rectangle(x * self.pixel, y * self.pixel, size * self.pixel, size * self.pixel)
-    #     # Remove all possible
-    #     self._free_position_mask[x:x+size, y:y+size] = False
-    #     # if size > 1:
-    #     #     self._free_position_mask[x:x+size, y:y+size] = False
-    #     # else:
-    #     #     self._free_position_mask[x, y] = False
-    #     return obstacle
 
     ## Dunder methods
     def __repr__(self) -> str:
