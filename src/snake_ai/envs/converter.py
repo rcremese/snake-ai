@@ -75,7 +75,7 @@ def convert_goal_position(env: GridWorld) -> np.ndarray:
     return np.array(env.goal.center) / np.array([env.pixel, env.pixel])
 
 
-class EnvConverter(ABC):
+class EnvConverter:
     def __init__(
         self,
         env: Union[GridWorld, GridWorld3D],
@@ -94,32 +94,162 @@ class EnvConverter(ABC):
                 resolution = (env.height, env.width, env.depth)
         self.resolution = resolution
 
-    @abstractmethod
+    ## Public methods
     def convert_obstacles_to_binary_map(self) -> np.ndarray:
-        raise NotImplementedError
+        assert (
+            self.env.obstacles is not None
+        ), "Environment does not contain obstacles. Reset environment first."
 
-    @abstractmethod
-    def convert_goal_to_binary_map(self) -> np.ndarray:
-        raise NotImplementedError
+        binary_map = np.zeros(self.resolution, dtype=bool)
+        if self.env.nb_obstacles == 0:
+            return binary_map
+        indices = self.convert_obstacles_to_indices()
+        if self.dim == 2:
+            binary_map[indices[:, 0], indices[:, 1]] = 1
+        elif self.dim == 3:
+            binary_map[indices[:, 0], indices[:, 1], indices[:, 2]] = 1
+        else:
+            raise ValueError("Dimension must be either 2 or 3")
+        return binary_map
 
-    @abstractmethod
+    def convert_obstacles_to_indices(self) -> np.ndarray:
+        indices = []
+        pixel = self.env.pixel if self.dim == 2 else 1
+        for obstacle in self.env.obstacles:
+            pixel_min = np.floor(obstacle.min / (self.steps * pixel)).astype(int)
+            pixel_max = np.ceil(obstacle.max / (self.steps * pixel)).astype(int)
+            if self.dim == 2:
+                new_indices = [
+                    (i, j)
+                    for i in range(pixel_min[0], pixel_max[0])
+                    for j in range(pixel_min[1], pixel_max[1])
+                ]
+            elif self.dim == 3:
+                new_indices = [
+                    (i, j, k)
+                    for i in range(pixel_min[0], pixel_max[0])
+                    for j in range(pixel_min[1], pixel_max[1])
+                    for k in range(pixel_min[2], pixel_max[2])
+                ]
+            else:
+                raise ValueError("Dimension must be either 2 or 3")
+            indices.extend(new_indices)
+        return np.array(indices)
+
+    def convert_goal_to_binary_map(self, shape: str) -> np.ndarray:
+        assert (
+            self.env.goal is not None
+        ), "Environment does not contain obstacles. Reset environment first."
+        assert shape.lower() in [
+            "box",
+            "point",
+        ], "Shape must be either 'box' or 'point'"
+
+        binary_map = np.zeros(self.resolution, dtype=bool)
+        indices = self.convert_goal_to_indices(shape)
+        if self.dim == 2:
+            binary_map[indices[:, 0], indices[:, 1]] = 1
+        elif self.dim == 3:
+            binary_map[indices[:, 0], indices[:, 1], indices[:, 2]] = 1
+        else:
+            raise ValueError("Dimension must be either 2 or 3")
+        return binary_map
+
+    def convert_goal_to_indices(self, shape: str) -> np.ndarray:
+        assert (
+            self.env.goal is not None
+        ), "Environment does not contain obstacles. Reset environment first."
+        assert shape.lower() in [
+            "box",
+            "point",
+        ], "Shape must be either 'box' or 'point'"
+        pixel = self.env.pixel if self.dim == 2 else 1
+        ## Case in which all the pixel of the goal is represented
+        if shape.lower() == "box":
+            pixel_min = np.floor(self.env.goal.min / (self.steps * pixel)).astype(int)
+            pixel_max = np.ceil(self.env.goal.max / (self.steps * pixel)).astype(int)
+            if self.dim == 2:
+                indices = [
+                    (i, j)
+                    for i in range(pixel_min[0], pixel_max[0])
+                    for j in range(pixel_min[1], pixel_max[1])
+                ]
+            elif self.dim == 3:
+                indices = [
+                    (i, j, k)
+                    for i in range(pixel_min[0], pixel_max[0])
+                    for j in range(pixel_min[1], pixel_max[1])
+                    for k in range(pixel_min[2], pixel_max[2])
+                ]
+            else:
+                raise ValueError("Dimension must be either 2 or 3")
+            return np.array(indices)
+        ## Case in which only the center of the goal pixel is considered
+        elif shape.lower() == "point":
+            pixel = np.floor(self.env.goal.center / (self.steps * pixel)).astype(int)
+            return np.array([pixel])
+        else:
+            raise ValueError("Shape must be either 'box' or 'point'")
+
     def convert_free_positions_to_point_cloud(self, step: int = 1) -> np.ndarray:
         """Transform free space of the environment into a point cloud.
 
         Args:
             step (int): Step between 2 positions.
         Returns:
-            np.ndarray: free positions as a point cloud [N, 2 or 3]
+            np.ndarray: free positions as a point cloud [N, 2]
         """
-        raise NotImplementedError
+        assert isinstance(step, int) and step > 0, "Step must be an integer > 0"
+        positions = []
+        # if self.dim == 2:
+        #     for x, y in self.env.free_positions:
+        #         if x % step == 0 and y % step == 0:
+        #             positions.append((x + 0.5, y + 0.5))
+        # elif self.dim == 3:
+        #     for x, y, z in self.env.free_positions:
+        #         if x % step == 0 and y % step == 0 and z % step == 0:
+        #             positions.append((x + 0.5, y + 0.5, z + 0.5))
+        # else:
+        #     raise ValueError("Dimension must be either 2 or 3")
+        # return np.array(positions)
+        for indices in self.env.free_positions:
+            if all(ind % step == 0 for ind in indices):
+                positions.append(indices)
+        return np.array(positions) + 0.5
 
-    @abstractmethod
     def get_agent_position(self, repeats: int = 1) -> np.ndarray:
-        raise NotImplementedError
+        center = np.array(self.env.agent.position.center) / self.env.pixel
+        return np.repeat(center[None], axis=0, repeats=repeats)
 
-    @abstractmethod
     def get_goal_position(self) -> np.ndarray:
-        raise NotImplementedError
+        return np.array(self.env.goal.center) / self.env.pixel
+
+    # @abstractmethod
+    # def convert_obstacles_to_binary_map(self) -> np.ndarray:
+    #     raise NotImplementedError
+
+    # @abstractmethod
+    # def convert_goal_to_binary_map(self) -> np.ndarray:
+    #     raise NotImplementedError
+
+    # @abstractmethod
+    # def convert_free_positions_to_point_cloud(self, step: int = 1) -> np.ndarray:
+    #     """Transform free space of the environment into a point cloud.
+
+    #     Args:
+    #         step (int): Step between 2 positions.
+    #     Returns:
+    #         np.ndarray: free positions as a point cloud [N, 2 or 3]
+    #     """
+    #     raise NotImplementedError
+
+    # @abstractmethod
+    # def get_agent_position(self, repeats: int = 1) -> np.ndarray:
+    #     raise NotImplementedError
+
+    # @abstractmethod
+    # def get_goal_position(self) -> np.ndarray:
+    #     raise NotImplementedError
 
     ## Properties
     @property
@@ -265,11 +395,13 @@ class Env2DConverter(EnvConverter):
         return np.array(positions)
 
     def get_agent_position(self, repeats: int = 1) -> np.ndarray:
-        center = np.array(self.env.agent.position.center) / self.env.pixel
+        pixel = self.env.pixel if self.dim == 2 else 1
+        center = np.array(self.env.agent.position.center) / pixel
         return np.repeat(center[None], axis=0, repeats=repeats)
 
     def get_goal_position(self) -> np.ndarray:
-        return np.array(self.env.goal.center) / self.env.pixel
+        pixel = self.env.pixel if self.dim == 2 else 1
+        return np.array(self.env.goal.center) / pixel
 
 
 class Env3DConverter(EnvConverter):
@@ -419,31 +551,39 @@ if __name__ == "__main__":
 
     N = 2
 
-    env = RandomObstacles3D(10, 10, 10, nb_obs=1, max_size=1)
+    env = RandomObstacles3D(10, 10, 10, nb_obs=10, max_size=1)
     env_2d = RandomObstaclesEnv(10, 10, nb_obs=10, max_size=1)
     env.reset()
     env_2d.reset()
-    converter = Env3DConverter(env, 5)
+    # env.obstacles = [
+    #     Cube(0, 0, 0, 1, 1, 1),
+    #     Cube(9, 0, 0, 1, 1, 1),
+    #     Cube(0, 9, 0, 1, 1, 1),
+    #     Cube(0, 0, 9, 1, 1, 1),
+    # ]
+    converter = Env3DConverter(env, 1)
     converter_2d = Env2DConverter(env_2d, 10)
 
     bmap = converter_2d.convert_obstacles_to_binary_map()
+    print(bmap.shape)
     plt.imshow(bmap, extent=[0, 10, 10, 0])
+    point_cloud = converter_2d.convert_free_positions_to_point_cloud()
+    plt.scatter(point_cloud[:, 1], point_cloud[:, 0], c="r")
     plt.show()
 
-    env._obstacles = [
-        Cube(0, 0, 0, 1, 1, 1),
-        Cube(9, 0, 0, 1, 1, 1),
-        Cube(0, 9, 0, 1, 1, 1),
-        Cube(0, 0, 9, 1, 1, 1),
-    ]
     # binary_map = converter.convert_obstacles_to_binary_map()
     binary_map = converter.convert_goal_to_binary_map("point")
     # ind = converter.convert_obstacles_to_indices()
     # binary_map[ind[:, 0], ind[:, 1], ind[:, 2]] = 1
     binary_map = converter.convert_obstacles_to_binary_map()
+    print(binary_map.shape)
 
     ax = plt.figure().add_subplot(projection="3d")
     ax.voxels(binary_map)
+    point_cloud = converter.convert_free_positions_to_point_cloud()
+    ax.scatter(point_cloud[:, 0], point_cloud[:, 1], point_cloud[:, 2], c="r")
+    print(env.obstacles)
+    print(np.argwhere(binary_map))
 
     # fig, ax = plt.subplots(N, N)
     # for i in range(N):
@@ -451,6 +591,4 @@ if __name__ == "__main__":
     #         z = i + N * j
     #         ax[i, j].imshow(binary_map[:, :, z])
     #         ax[i, j].set(title=f"z= {z}", xlabel="y", ylabel="x")
-    print(np.argwhere(binary_map))
-    print(env.goal.center)
     plt.show()

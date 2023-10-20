@@ -57,7 +57,7 @@ class WalkerSimulationStoch2D(WalkerSimulation):
         positions: np.ndarray,
         potential_field: ScalarField,
         obstacles: List[Rectangle] = None,
-        t_max: int = 100,
+        t_max: float = 100.0,
         dt: float = 0.1,
         diffusivity: float = 1.0,
     ):
@@ -80,7 +80,7 @@ class WalkerSimulationStoch2D(WalkerSimulation):
         self.force_field = spatial_gradient(potential_field, needs_grad=True)
 
         ## Initialisation of the obstacles
-        if obstacles is None:
+        if obstacles is None or len(obstacles) == 0:
             obstacles = [Rectangle(0, 0, 0, 0)]  # Dummy obstacle
         assert isinstance(obstacles, (list, tuple)) and all(
             isinstance(obs, Rectangle) for obs in obstacles
@@ -89,16 +89,21 @@ class WalkerSimulationStoch2D(WalkerSimulation):
         self.obstacles = convert_rectangles(obstacles)
 
         ## Simulation specific parameters
-        self.states = State2D.field(shape=(self.nb_walkers, t_max), needs_grad=True)
-        self._noise = ti.Vector.field(
-            2, dtype=float, shape=(self.nb_walkers, t_max), needs_grad=False
-        )
         assert (
-            dt > 0.0 and diffusivity >= 0.0
+            t_max > 0.0,
+            dt > 0.0 and diffusivity >= 0.0,
         ), f"Expected dt and diffusivity to be positive. Get {dt} and {diffusivity}"
         self.dt = dt
-        self.nb_steps = t_max
+        self.t_max = t_max
+        self.nb_steps = np.ceil(t_max / dt).astype(int)
         self.diffusivity = diffusivity
+        ## Taichi field definition
+        self.states = State2D.field(
+            shape=(self.nb_walkers, self.nb_steps), needs_grad=True
+        )
+        self._noise = ti.Vector.field(
+            2, dtype=float, shape=(self.nb_walkers, self.nb_steps), needs_grad=False
+        )
         # Definition of the loss
         self.loss = ti.field(ti.f32, shape=(), needs_grad=True)
 
@@ -262,7 +267,7 @@ class WalkerSimulationStoch3D(WalkerSimulation):
         positions: np.ndarray,
         potential_field: ScalarField,
         obstacles: List[Cube] = None,
-        t_max: int = 100,
+        t_max: float = 100.0,
         dt: float = 0.1,
         diffusivity: float = 1.0,
     ):
@@ -293,17 +298,19 @@ class WalkerSimulationStoch3D(WalkerSimulation):
         self.nb_obstacles = len(obstacles)
         self.obstacles = convert_cubes(obstacles)
 
+        assert (
+            t_max > 0.0 and dt > 0.0 and diffusivity >= 0.0
+        ), f"Expected dt and diffusivity to be positive. Get {dt} and {diffusivity}"
+        self.dt = dt
+        self.t_max = t_max
+        self.nb_steps = np.ceil(t_max / dt).astype(int)
+
+        self.diffusivity = diffusivity
         ## Simulation specific parameters
         self.states = State3D.field(shape=(self.nb_walkers, t_max), needs_grad=True)
         self._noise = ti.Vector.field(
             3, dtype=float, shape=(self.nb_walkers, t_max), needs_grad=False
         )
-        assert (
-            dt > 0.0 and diffusivity >= 0.0
-        ), f"Expected dt and diffusivity to be positive. Get {dt} and {diffusivity}"
-        self.dt = dt
-        self.nb_steps = t_max
-        self.diffusivity = diffusivity
         # Definition of the loss
         self.loss = ti.field(ti.f32, shape=(), needs_grad=True)
 

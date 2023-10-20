@@ -3,7 +3,8 @@ import matplotlib.animation as animation
 import plotly.graph_objects as go
 import numpy as np
 
-from snake_ai.envs.geometry import Cube
+from snake_ai.envs.geometry import Cube, Rectangle
+from snake_ai.taichi.field import SampledField
 from typing import List, Tuple, Optional
 
 
@@ -243,12 +244,44 @@ def animate_volume(
     return anim
 
 
+def plot_2D_trajectory(
+    positions: np.ndarray,
+    goal: np.ndarray,
+    obstacles: List[Rectangle],
+    concentration: Optional[SampledField] = None,
+    title: str = "2D trajectory",
+) -> plt.Figure:
+    """Plot the trajectory of a walker in 2D with a color corresponding to its concentration."""
+    colors = plt.get_cmap("afmhot")(np.linspace(0, 1, positions.shape[0]))
+    if concentration is not None:
+        assert isinstance(concentration, SampledField)
+        fig, ax, _ = plot_concentration_map(
+            concentration.values.to_numpy(), concentration.bounds.max
+        )
+    else:
+        fig, ax = plt.subplots(1, 1, dpi=300)
+    for i in range(positions.shape[0]):
+        ax.scatter(
+            positions[i, :, 0],
+            positions[i, :, 1],
+            s=5,
+            color=colors[i],
+        )
+    ax.add_patch(plt.Circle(goal, 0.5, color="green"))
+    for obs in obstacles:
+        ax.add_patch(plt.Rectangle((obs.x, obs.y), obs.width, obs.height, color="red"))
+    ax.set(title=title, xlabel="x", ylabel="y")
+    # fig.show()
+
+    return fig
+
+
 def plot_3D_trajectory(
     trajectories: np.ndarray,
     goal: np.ndarray,
     obstacles: List[Cube],
     title: str = "3D trajectory",
-):
+) -> go.Figure:
     fig = go.Figure()
     for i in range(trajectories.shape[0]):
         fig.add_trace(
@@ -287,7 +320,9 @@ def plot_3D_trajectory(
                 name="obstacle",
             )
         )
-    fig.show()
+    # fig.show()
+
+    return fig
 
 
 def plot_loss(loss: List[float], output: Optional[str] = None):
