@@ -62,7 +62,7 @@ class SnakeEnv(RandomObstaclesEnv):
     ## Properties
     @GridWorld.name.getter
     def name(self) -> str:
-        return f"SnakeEnv({self.width},{self.height})"
+        return f"SnakeEnv_{self.width}x{self.height}"
 
     @property
     def snake(self) -> Snake:

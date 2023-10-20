@@ -61,7 +61,9 @@ class Rectangle(pygame.Rect, Geometry):
 
     @property
     def center(self):
-        return np.array([self.centerx, self.centery], dtype=float)
+        return np.array(
+            [self.x + 0.5 * self.width, self.y + 0.5 * self.height], dtype=float
+        )
 
     @property
     def min(self):

@@ -88,7 +88,7 @@ class RandomObstaclesEnv(GridWorld):
     ## Properties
     @GridWorld.name.getter
     def name(self) -> str:
-        return f"RandomObstacles({self.width},{self.height})"
+        return f"RandomObstacles_{self.width}x{self.height}"
 
     @GridWorld.obstacles.setter
     def obstacles(self, rectangles: List[Rectangle]):

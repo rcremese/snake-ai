@@ -106,7 +106,7 @@ class MazeGrid(GridWorld):
     ## Properties
     @GridWorld.name.getter
     def name(self) -> str:
-        return f"Maze({self.width},{self.height})"
+        return f"Maze_{self.width}x{self.height}"
 
     ## Static methods
     @staticmethod

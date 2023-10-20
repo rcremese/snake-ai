@@ -34,7 +34,7 @@ class GridWorld(gym.Env):
         self,
         width: int = 20,
         height: int = 20,
-        pixel: int = 10,
+        pixel: int = 1,
         seed: int = 0,
         render_mode: Optional[str] = None,
         **kwargs,
@@ -216,7 +216,7 @@ class GridWorld(gym.Env):
     ## Properties
     @property
     def name(self) -> str:
-        return f"GridWorld({self.width},{self.height})"
+        return f"GridWorld_{self.width}x{self.height}"
 
     @property
     def goal(self) -> Rectangle:
@@ -339,7 +339,7 @@ class GridWorld(gym.Env):
             "--height", type=int, default=20, help="Height of the environment"
         )
         parser.add_argument(
-            "--pixel", type=int, default=10, help="Size of a game pixel in pixel unit"
+            "--pixel", type=int, default=1, help="Size of a game pixel in pixel unit"
         )
         parser.add_argument(
             "--seed", type=int, default=0, help="Seed for the simulation PRNG"

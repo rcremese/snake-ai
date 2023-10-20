@@ -5,7 +5,6 @@ import numpy as np
 from snake_ai.envs import (
     GridWorld,
     GridWorld3D,
-    Env3DConverter,
     EnvConverter,
     RandomObstaclesEnv,
     RandomObstacles3D,
@@ -27,13 +26,6 @@ from snake_ai.taichi.boxes import Box2D
 from snake_ai.taichi.walk_simulation import (
     WalkerSimulationStoch2D,
     WalkerSimulationStoch3D,
-)
-from snake_ai.envs.converter import (
-    Env2DConverter,
-    Env3DConverter,
-    convert_free_space_to_point_cloud,
-    convert_obstacles_to_physical_space,
-    convert_goal_position,
 )
 
 from pathlib import Path
@@ -144,8 +136,14 @@ def get_simulation_parser():
     simulation_parser.add_argument(
         "--nb_walkers",
         type=int,
-        default=100,
+        default=10,
         help="Number of walkers in the simulation",
+    )
+    simulation_parser.add_argument(
+        "--step",
+        type=int,
+        default=2,
+        help="Step between 2 walkers in the simulation",
     )
     simulation_parser.add_argument(
         "--eps",
@@ -200,7 +198,7 @@ def get_environment(args: argparse.Namespace) -> GridWorld:
             height=args.height,
             depth=args.depth,
             seed=args.seed,
-            max_obs_size=args.max_size,
+            max_size=args.max_size,
             nb_obs=args.nb_obs,
         )
     raise ValueError(
@@ -254,9 +252,8 @@ def run(args: List[str]):
         Path(__file__).parents[3].joinpath("simulations").resolve(strict=True)
     )
     dirpath = simulation_path.joinpath(env.name, f"seed_{args.seed}")
-    field_name = (
-        "concentration_" + "x".join([str(res) for res in converter.resolution]) + ".npz"
-    )
+    res_as_str = "x".join([str(res) for res in converter.resolution])
+    field_name = f"concentration_{res_as_str}.npz"
 
     if dirpath.joinpath(field_name).exists():
         _logger.info("Loading the environment and the concentration field")
@@ -281,8 +278,8 @@ def run(args: List[str]):
             shutil.rmtree(str(tmpdir))
 
     log_concentration = log(concentration, eps=args.eps)
-    # init_pos = converter.convert_free_positions_to_point_cloud(step=3)
-    init_pos = converter.get_agent_position(repeats=args.nb_walkers)
+    init_pos = converter.convert_free_positions_to_point_cloud(step=args.step)
+    # init_pos = converter.get_agent_position(repeats=args.nb_walkers)
     _logger.info("Running the simulation")
     if isinstance(env, GridWorld):
         simulation = WalkerSimulationStoch2D(
@@ -306,7 +303,7 @@ def run(args: List[str]):
     simulation.run()
     # simulation.optimize(converter.get_goal_position(), max_iter=200, lr=1)
     logging.info("Plotting the simulation result")
-    print("Goal position:", converter.get_goal_position())
+    logging.debug("Goal position:", converter.get_goal_position())
     if isinstance(env, GridWorld):
         fig = vis.plot_2D_trajectory(
             simulation.positions,
@@ -315,6 +312,13 @@ def run(args: List[str]):
             concentration=log_concentration,
             title=f"Simulation of {env.name} with {args.nb_walkers} walkers",
         )
+        fig.savefig(dirpath.joinpath(f"initial_walkers_grid_{res_as_str}.png"), dpi=300)
+        ## TODO : relancer les simus avec de nouveaux walkers
+        # fig.savefig(
+        #     dirpath.joinpath(f"initial_walkers_{res_as_str}.png"),
+        #     dpi=300,
+        # )
+
     else:
         fig = vis.plot_3D_trajectory(
             simulation.positions,
@@ -322,163 +326,11 @@ def run(args: List[str]):
             env.obstacles,
             title=f"Simulation of {env.name} with {args.nb_walkers} walkers",
         )
-    fig.savefig(dirpath.joinpath("simulation.png"), dpi=300)
+        fig.show()
 
 
 def optimize():
     pass
-
-
-# def main():
-#     seed = 10
-#     width, height, depth = 10, 10, 10
-#     nb_obs, max_size = 10, 3
-#     resolution = 3
-
-#     setup_logging(logging.INFO)
-#     simulation_path = (
-#         Path(__file__).parents[3].joinpath("simulations").resolve(strict=True)
-#     )
-
-#     ti.init(arch=ti.gpu)
-#     env = RandomObstacles3D(
-#         width, height, depth, seed=seed, nb_obs=nb_obs, max_size=max_size
-#     )
-#     _logger.info("Initialize the environment")
-#     env.reset()
-#     converter = Env3DConverter(env, resolution)
-
-#     dirpath = simulation_path.joinpath(env.name, f"seed_{seed}")
-#     field_name = (
-#         "concentration_" + "x".join([str(res) for res in converter.resolution]) + ".npz"
-#     )
-
-#     if dirpath.exists():
-#         _logger.info("Loading the environment and the concentration field")
-#         loader = FieldLoader(dirpath.joinpath(field_name))
-#         concentration = loader.load()
-#     else:
-#         _logger.info("Solve the diffusion equation at stationarity")
-#         solver = DiffusionSolver(env, resolution)
-#         concentration = solver.solve(shape="point")
-#         # write the concentration field & the environment
-#         _logger.info("Writing the concentration field and the environment")
-#         with tempfile.TemporaryDirectory() as tmpdir:
-#             tmpdir = Path(tmpdir)
-#             field_writer = FieldWriter(tmpdir.joinpath(field_name))
-#             field_writer.write(concentration)
-#             env_writer = EnvWriter3D(tmpdir.joinpath("environment.json"))
-#             env_writer.write(env)
-#             shutil.move(str(tmpdir), str(dirpath))
-
-#     log_concentration = log(concentration, eps=1e-6)
-#     init_pos = converter.convert_free_positions_to_point_cloud(step=3)
-#     # init_pos = converter.get_agent_position(repeats=10)
-#     _logger.info("Running the simulation")
-#     simulation = WalkerSimulationStoch3D(
-#         init_pos,
-#         potential_field=log_concentration,
-#         obstacles=env.obstacles,
-#         t_max=200,
-#         dt=0.1,
-#         diffusivity=0.01,
-#     )
-#     simulation.reset()
-#     simulation.run()
-#     # simulation.optimize(converter.get_goal_position(), max_iter=200, lr=1)
-#     logging.info("Plotting the simulation result")
-#     print("Goal position:", converter.get_goal_position())
-#     vis.plot_3D_trajectory(
-#         simulation.positions,
-#         converter.get_goal_position(),
-#         env.obstacles,
-#     )
-
-
-def walker_parser() -> argparse.ArgumentParser:
-    walk_parser = argparse.ArgumentParser(
-        add_help=False, formatter_class=argparse.ArgumentDefaultsHelpFormatter
-    )
-
-    walk_parser.add_argument(
-        "-p", "--path", type=str, required=True, help="Path to the simulation directory"
-    )
-    walk_parser.add_argument(
-        "-t", "--t_max", type=int, default=100, help="Maximum time for the simulation"
-    )
-    walk_parser.add_argument(
-        "--dt", type=float, default=1, help="Time step for the simulation"
-    )
-    walk_parser.add_argument(
-        "--eps",
-        type=float,
-        default=1e-6,
-        help="Epsilon value for the log concentration computation",
-    )
-    walk_parser.add_argument(
-        "--diffusivity",
-        type=float,
-        default=0,
-        help="Diffusion coefficient of the walkers. If set to zeor, the walkers are deterministic",
-    )
-    return walk_parser
-
-
-def walk(args: argparse.Namespace):
-    path = Path(args.path).resolve(strict=True)
-    if not path.joinpath("environment.json").exists():
-        raise FileNotFoundError(
-            "The given path does not contain an environment.json file"
-        )
-    loader = EnvLoader(path.joinpath("environment.json"))
-    env = loader.load()
-    env.reset()
-
-    if not path.joinpath("field.npz").exists():
-        raise FileNotFoundError("The given path does not contain a field.npz file")
-    object = np.load(path.joinpath("field.npz"))
-
-    ti.init(arch=ti.gpu)
-    bounds = Box2D(object["lower"], object["upper"])
-    concentration = ScalarField(object["data"], bounds)
-    log_concentration = log(concentration, args.eps)
-
-    starting_pos = convert_free_space_to_point_cloud(env)
-    simulation = WalkerSimulationStoch2D(
-        starting_pos,
-        log_concentration,
-        obstacles=convert_obstacles_to_physical_space(env),
-        t_max=args.t_max,
-        diffusivity=args.diffusivity,
-    )
-    simulation.reset()
-    print("Running simulation...")
-    simulation.run()
-
-    print("Saving initial walkers...")
-    vis.animate_walk_history(
-        simulation.positions,
-        log_concentration.values.to_numpy(),
-        bound_limits=object["upper"],
-        output_path=path.joinpath("initial_walkers.gif"),
-    )
-
-    print("Optimizing walkers...")
-    simulation.optimize(convert_goal_position(env), max_iter=200, lr=1)
-
-    print("Saving final walkers...")
-    vis.animate_walk_history(
-        simulation.positions,
-        log_concentration.values.to_numpy(),
-        bound_limits=object["upper"],
-        output_path=path.joinpath("optimized_walkers.gif"),
-    )
-
-
-def walk_simulation():
-    walk_parser = walker_parser()
-    args = walk_parser.parse_args()
-    walk(args)
 
 
 def main():
@@ -490,8 +342,4 @@ def main():
 
 
 if __name__ == "__main__":
-    # parser = argument_parser(["grid_world_3d", "--help"])
-    run(["--res", "3", "rand_obs"])
-    # run(["--t_max", "80", "grid_world", "--width", "50"])
-    # run(["grid_world_3d", "--help"])
-    # run(["--help"])
+    run(["-v", "--diffusivity", "0.01", "--res", "2", "slot"])

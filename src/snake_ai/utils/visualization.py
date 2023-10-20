@@ -252,21 +252,29 @@ def plot_2D_trajectory(
     title: str = "2D trajectory",
 ) -> plt.Figure:
     """Plot the trajectory of a walker in 2D with a color corresponding to its concentration."""
-    colors = plt.get_cmap("afmhot")(np.linspace(0, 1, positions.shape[0]))
+    colors = plt.get_cmap("viridis")(np.linspace(0, 1, positions.shape[0]))
+
+    fig, ax = plt.subplots(1, 1, dpi=300)
     if concentration is not None:
         assert isinstance(concentration, SampledField)
-        fig, ax, _ = plot_concentration_map(
-            concentration.values.to_numpy(), concentration.bounds.max
+
+        max_bounds = concentration.bounds.max
+        im = ax.imshow(
+            concentration.values.to_numpy().T,
+            cmap="inferno",
+            extent=[0, max_bounds[0], max_bounds[1], 0],
         )
-    else:
-        fig, ax = plt.subplots(1, 1, dpi=300)
+        plt.colorbar(im, ax=ax, label="Concentration (log)")
+
     for i in range(positions.shape[0]):
-        ax.scatter(
-            positions[i, :, 0],
-            positions[i, :, 1],
-            s=5,
-            color=colors[i],
-        )
+        ax.plot(positions[i, :, 0], positions[i, :, 1], color=colors[i], marker=".")
+
+        # ax.scatter(
+        #     positions[i, :, 0],
+        #     positions[i, :, 1],
+        #     s=5,
+        #     color=colors[i],
+        # )
     ax.add_patch(plt.Circle(goal, 0.5, color="green"))
     for obs in obstacles:
         ax.add_patch(plt.Rectangle((obs.x, obs.y), obs.width, obs.height, color="red"))

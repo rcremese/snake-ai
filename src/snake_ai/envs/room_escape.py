@@ -41,13 +41,13 @@ class RoomEscape(GridWorld):
         self.goal = Rectangle(
             x_goal * self.pixel, y_goal * self.pixel, self.pixel, self.pixel
         )
-        
+
         return self.observations, self.info
 
     ## Properties
     @GridWorld.name.getter
     def name(self) -> str:
-        return f"RoomEscape({self.width},{self.height})"
+        return f"RoomEscape_{self.width}x{self.height}"
 
     ## Private methods
     def _populate_grid_with_obstacles(self):
@@ -104,6 +104,7 @@ class RoomEscape(GridWorld):
             self._obstacles.append(
                 Rectangle(x_0 * self.pixel, y * self.pixel, self.pixel, self.pixel)
             )
+
 
 if __name__ == "__main__":
     room_escape = RoomEscape(20, 20, pixel=20, render_mode="human")

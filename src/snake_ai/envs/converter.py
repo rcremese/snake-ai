@@ -218,11 +218,15 @@ class EnvConverter:
         return np.array(positions) + 0.5
 
     def get_agent_position(self, repeats: int = 1) -> np.ndarray:
-        center = np.array(self.env.agent.position.center) / self.env.pixel
+        if self.dim == 2:
+            center = np.array(self.env.agent.position.center) / self.env.pixel
+        else:
+            center = self.env.agent.center
         return np.repeat(center[None], axis=0, repeats=repeats)
 
     def get_goal_position(self) -> np.ndarray:
-        return np.array(self.env.goal.center) / self.env.pixel
+        pixel = self.env.pixel if self.dim == 2 else 1
+        return self.env.goal.center / pixel
 
     # @abstractmethod
     # def convert_obstacles_to_binary_map(self) -> np.ndarray:

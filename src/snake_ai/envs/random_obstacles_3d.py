@@ -56,13 +56,13 @@ class RandomObstacles3D(GridWorld3D):
         parser.add_argument(
             "--max_size",
             type=int,
-            default=1,
+            default=3,
             help="Maximum size of the obstacles in terms of the pixel size",
         )
         parser.add_argument(
             "--nb_obs",
             type=int,
-            default=0,
+            default=10,
             help="Number of obstacles in the environment",
         )
 

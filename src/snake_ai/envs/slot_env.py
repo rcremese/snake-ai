@@ -85,7 +85,7 @@ class SlotEnv(GridWorld):
     ## Properties
     @GridWorld.name.getter
     def name(self) -> str:
-        return f"Slot({self.width},{self.height})"
+        return f"Slot_{self.width}x{self.height}"
 
 
 if __name__ == "__main__":

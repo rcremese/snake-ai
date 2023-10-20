@@ -67,6 +67,7 @@ class WalkerSimulationStoch2D(WalkerSimulation):
         ), "Expected position to be a (n, 2)-array of position vectors. Get {}".format(
             positions.shape
         )
+        # TODO : allow the user to change positions of the walkers during the simulation
         self.nb_walkers = positions.shape[0]
         self._init_pos = ti.Vector.field(2, dtype=ti.f32, shape=(self.nb_walkers,))
         self._init_pos.from_numpy(positions)
@@ -90,8 +91,7 @@ class WalkerSimulationStoch2D(WalkerSimulation):
 
         ## Simulation specific parameters
         assert (
-            t_max > 0.0,
-            dt > 0.0 and diffusivity >= 0.0,
+            t_max > 0.0 and dt > 0.0 and diffusivity >= 0.0,
         ), f"Expected dt and diffusivity to be positive. Get {dt} and {diffusivity}"
         self.dt = dt
         self.t_max = t_max
@@ -290,7 +290,7 @@ class WalkerSimulationStoch3D(WalkerSimulation):
         self.force_field = spatial_gradient(potential_field, needs_grad=True)
 
         ## Initialisation of the obstacles
-        if obstacles is None:
+        if obstacles is None or len(obstacles) == 0:
             obstacles = [Cube(0, 0, 0, 0, 0, 0)]  # Dummy obstacle
         assert isinstance(obstacles, (list, tuple)) and all(
             isinstance(obs, Cube) for obs in obstacles
@@ -307,9 +307,11 @@ class WalkerSimulationStoch3D(WalkerSimulation):
 
         self.diffusivity = diffusivity
         ## Simulation specific parameters
-        self.states = State3D.field(shape=(self.nb_walkers, t_max), needs_grad=True)
+        self.states = State3D.field(
+            shape=(self.nb_walkers, self.nb_steps), needs_grad=True
+        )
         self._noise = ti.Vector.field(
-            3, dtype=float, shape=(self.nb_walkers, t_max), needs_grad=False
+            3, dtype=float, shape=(self.nb_walkers, self.nb_steps), needs_grad=False
         )
         # Definition of the loss
         self.loss = ti.field(ti.f32, shape=(), needs_grad=True)
