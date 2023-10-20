@@ -10,6 +10,7 @@ import numpy as np
 from typing import Tuple, List
 import time
 
+
 class PlayableSnake(gym.Wrapper):
     def __init__(self, env: SnakeClassicEnv):
         assert isinstance(env, SnakeClassicEnv)
@@ -23,7 +24,7 @@ class PlayableSnake(gym.Wrapper):
         self.env.snake = SnakeHuman(*snake_head.topleft, self.env._pixel_size)
 
         info = self.env.info
-        obs =  np.linalg.norm(Line(info['snake_head'], info['food']).to_vector())
+        obs = np.linalg.norm(Line(info["snake_head"], info["food"]).to_vector())
         return obs
 
     def step(self, action: int) -> Tuple[np.array, float, bool, bool, dict]:
@@ -31,11 +32,11 @@ class PlayableSnake(gym.Wrapper):
         _, reward, terminated, info = super().step(action)
 
         info = self.env.info
-        obs =  np.linalg.norm(Line(info['snake_head'], info['food']).to_vector())
+        obs = np.linalg.norm(Line(info["snake_head"], info["food"]).to_vector())
         return obs, reward, terminated, info
 
     @staticmethod
-    def action_from_direction(direction : Direction) -> int:
+    def action_from_direction(direction: Direction) -> int:
         if direction == Direction.WEST:
             return 0
         if direction == Direction.EAST:
@@ -44,10 +45,12 @@ class PlayableSnake(gym.Wrapper):
             return 2
         if direction == Direction.SOUTH:
             return 3
-        raise ValueError(f"Unknown direction {direction}. Expected LEFT, RIGHT, UP or LEFT")
+        raise ValueError(
+            f"Unknown direction {direction}. Expected LEFT, RIGHT, UP or LEFT"
+        )
 
     @staticmethod
-    def direction_from_action(action : int) -> Direction:
+    def direction_from_action(action: int) -> Direction:
         if action == 0:
             return Direction.WEST
         if action == 1:
@@ -58,15 +61,18 @@ class PlayableSnake(gym.Wrapper):
             return Direction.SOUTH
         raise ValueError(f"Unknown action {action}. Expected 0, 1, 2 or 3")
 
+
 def play(width, height, speed, obstacles):
-    env = SnakeClassicEnv(render_mode='human', width=width, height=height, nb_obstacles=obstacles)
+    env = SnakeClassicEnv(
+        render_mode="human", width=width, height=height, nb_obstacles=obstacles
+    )
     wrapped_env = PlayableSnake(env)
 
     pygame.init()
     wrapped_env.reset()
     info = wrapped_env.info
     while True:
-        time.sleep(1/speed)
+        time.sleep(1 / speed)
         action = PlayableSnake.action_from_direction(wrapped_env.env.snake.direction)
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -83,22 +89,36 @@ def play(width, height, speed, obstacles):
                 action = 3
         _, _, terminated, info = wrapped_env.step(action)
 
-        if terminated :
+        if terminated:
             # TODO : make possibility for user to replay
             print("You loose ! \nHit enter to retry or escape to quit.\n")
             # pygame.quit()
             # quit()
             wrapped_env.reset()
-        wrapped_env.render('human')
+        wrapped_env.render("human")
+
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('-w', '--width', default=20, type=int, help='Width of the canvas in pixels')
-    parser.add_argument('-d', '--height', default=20, type=int, help='Height of the canvas in pixels')
-    parser.add_argument('-s', '--speed', default=10, type=int, help='Speed in FPS (the higher, the faster)')
-    parser.add_argument('-o', '--obstacles', default=20, type=int, help='Number of obstacles')
+    parser.add_argument(
+        "-w", "--width", default=20, type=int, help="Width of the canvas in pixels"
+    )
+    parser.add_argument(
+        "-d", "--height", default=20, type=int, help="Height of the canvas in pixels"
+    )
+    parser.add_argument(
+        "-s",
+        "--speed",
+        default=10,
+        type=int,
+        help="Speed in FPS (the higher, the faster)",
+    )
+    parser.add_argument(
+        "-o", "--obstacles", default=20, type=int, help="Number of obstacles"
+    )
     args = parser.parse_args()
     play(**vars(args))
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()

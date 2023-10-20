@@ -1,19 +1,21 @@
-from snake_ai.utils.io import SimulationWritter, SimulationLoader, EnvWritter, EnvLoader
+from snake_ai.utils.io import SimulationWritter, SimulationLoader, EnvWriter, EnvLoader
 from snake_ai.physim import DiffusionSimulation
 from snake_ai.envs import GridWorld
 from pathlib import Path
 import json
 
+
 class TestEnvIO:
     env = GridWorld(10, 10, 10)
     env.reset()
+
     # TODO : Test for all envs
     def test_write(self, tmp_path: Path):
         filepath = tmp_path.joinpath("env.json")
-        writter = EnvWritter(filepath)
+        writter = EnvWriter(filepath)
         writter.write(self.env)
         assert filepath.exists()
-        with open(filepath, 'r') as f:
+        with open(filepath, "r") as f:
             env_dict = json.load(f)
         assert env_dict["name"] == "GridWorld"
         assert env_dict["width"] == 10
@@ -24,12 +26,13 @@ class TestEnvIO:
 
     def test_load(self, tmp_path: Path):
         filepath = tmp_path.joinpath("env.json")
-        writter = EnvWritter(filepath)
+        writter = EnvWriter(filepath)
         writter.write(self.env)
         loader = EnvLoader(filepath)
         env = loader.load()
         env.reset()
         assert env == self.env
+
 
 class TestSimulationIO:
     env = GridWorld(10, 10, 10)

@@ -1,10 +1,11 @@
 ##
 # @author  <robin.cremese@gmail.com>
- # @file Base class for all 2D path planning environments with discret action space
- # @desc Created on 2023-03-13 1:08:45 pm
- # @copyright MIT License
- #
+# @file Base class for all 2D path planning environments with discret action space
+# @desc Created on 2023-03-13 1:08:45 pm
+# @copyright MIT License
+#
 from abc import ABCMeta, abstractmethod
+import argparse
 from snake_ai.envs import Rectangle
 from snake_ai.envs.agent import Agent
 from snake_ai.envs.walker import Walker2D
@@ -13,16 +14,31 @@ import pygame
 import numpy as np
 import gymnasium as gym
 
-from snake_ai.utils.errors import InitialisationError, ResolutionError, OutOfBoundsError, ShapeError, ConfigurationError
+from snake_ai.utils.errors import (
+    InitialisationError,
+    ResolutionError,
+    OutOfBoundsError,
+    ShapeError,
+    ConfigurationError,
+)
 from snake_ai.utils import Colors, Direction, Reward
 from typing import List, Optional, Tuple, Dict, Any
 
+
 class GridWorld(gym.Env):
-    """Base class for all 2D path planning environments with discret action space.
-    """
+    """Base class for all 2D path planning environments with discret action space."""
+
     metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 10}
 
-    def __init__(self, width : int = 20, height : int = 20, pixel : int = 10, seed: int = 0, render_mode : Optional[str]=None, **kwargs) -> None:
+    def __init__(
+        self,
+        width: int = 20,
+        height: int = 20,
+        pixel: int = 10,
+        seed: int = 0,
+        render_mode: Optional[str] = None,
+        **kwargs,
+    ) -> None:
         """
         Args:
             width (int, optional): Environment width in terms of `metapixel`. Defaults to 20.
@@ -36,16 +52,23 @@ class GridWorld(gym.Env):
             ValueError: Raised if the render mode is not one of the following : None, "human", "rgb_array"
         """
         # Initialise all numerical parameters
-        if any(param <=0 for param in [width, height, pixel]):
-            raise ValueError("Only positive integers are allowed for (width, height, pixel). " +
-                f"Get ({width},{height}, {pixel})")
-        self.width, self.height, self.pixel  = int(width), int(height), int(pixel)
+        if any(param <= 0 for param in [width, height, pixel]):
+            raise ValueError(
+                "Only positive integers are allowed for (width, height, pixel). "
+                + f"Get ({width},{height}, {pixel})"
+            )
+        self.width, self.height, self.pixel = int(width), int(height), int(pixel)
         self.window_size = (self.width * self.pixel, self.height * self.pixel)
+        self.bounds = Rectangle(0, 0, self.width, self.height)
         self._free_position_mask = np.ones((self.width, self.height))
 
         # Initialise the render mode
-        if (render_mode is not None) and (render_mode not in self.metadata["render_modes"]):
-            raise ValueError(f"render_mode should be eather None or in {self.metadata['render_modes']}. Get {render_mode}")
+        if (render_mode is not None) and (
+            render_mode not in self.metadata["render_modes"]
+        ):
+            raise ValueError(
+                f"render_mode should be eather None or in {self.metadata['render_modes']}. Get {render_mode}"
+            )
         self.render_mode = render_mode
 
         # Gym env attributes
@@ -65,7 +88,7 @@ class GridWorld(gym.Env):
         self.seed(seed)
 
     ## Public methods
-    def reset(self, seed : Optional[int]=None) -> Tuple[np.ndarray, Dict[str, Any]]:
+    def reset(self, seed: Optional[int] = None) -> Tuple[np.ndarray, Dict[str, Any]]:
         """Method to reset the environment
 
         Args:
@@ -83,12 +106,14 @@ class GridWorld(gym.Env):
         self._obstacles = []
         # Initialise goal & position
         x_goal, y_goal = self._rng.choice(self.free_positions)
-        self.goal = Rectangle(x_goal * self.pixel, y_goal * self.pixel, self.pixel, self.pixel)
+        self.goal = Rectangle(
+            x_goal * self.pixel, y_goal * self.pixel, self.pixel, self.pixel
+        )
         x_agent, y_agent = self._rng.choice(self.free_positions)
         self.agent = Walker2D(x_agent, y_agent, self.pixel)
         return self.observations, self.info
 
-    def step(self, action : int) -> Tuple[np.ndarray, Reward, bool, Dict]:
+    def step(self, action: int) -> Tuple[np.ndarray, Reward, bool, Dict]:
         """Method to take a step forward in the environment given the input action
 
         Args:
@@ -110,14 +135,16 @@ class GridWorld(gym.Env):
             reward = Reward.FOOD.value
             self.score += 1
             x_goal, y_goal = self._rng.choice(self.free_positions)
-            self.goal = Rectangle(x_goal * self.pixel, y_goal * self.pixel, self.pixel, self.pixel)
+            self.goal = Rectangle(
+                x_goal * self.pixel, y_goal * self.pixel, self.pixel, self.pixel
+            )
         elif terminated:
             reward = Reward.COLLISION.value
         else:
             reward = Reward.COLLISION_FREE.value
         return self.observations, reward, terminated, self.info
 
-    def render(self, canvas : pygame.Surface=None) -> Optional[np.ndarray]:
+    def render(self, canvas: pygame.Surface = None) -> Optional[np.ndarray]:
         """Render the environment with respect to the "render_mode" argument
 
         Args:
@@ -146,15 +173,19 @@ class GridWorld(gym.Env):
             # The following line will automatically add a delay to keep the framerate stable.
             self._clock.tick(self.metadata["render_fps"])
         elif self.render_mode == "rgb_array":
-            return np.transpose(np.array(pygame.surfarray.pixels3d(canvas)), axes=(1, 0, 2))
+            return np.transpose(
+                np.array(pygame.surfarray.pixels3d(canvas)), axes=(1, 0, 2)
+            )
 
-    def draw(self, canvas : pygame.Surface):
+    def draw(self, canvas: pygame.Surface):
         """Draw obstacles, agent and goal on canvas.
 
         Args:
             canvas (pygame.Surface): Surface on which to draw.
         """
-        assert isinstance(canvas, pygame.Surface), f"Canvas must be an instance of pygame.Surface, not {type(canvas)}."
+        assert isinstance(
+            canvas, pygame.Surface
+        ), f"Canvas must be an instance of pygame.Surface, not {type(canvas)}."
         # Draw agent position, obstacles and goal
         # pygame.draw.rect(canvas, Colors.BLUE1.value, self.position)
         self.agent.draw(canvas)
@@ -165,14 +196,13 @@ class GridWorld(gym.Env):
         pygame.draw.rect(canvas, Colors.GREEN.value, self.goal)
 
     def close(self):
-        """Close the pygame display opened if render_mode is "human"
-        """
+        """Close the pygame display opened if render_mode is "human" """
         if self._screen is not None:
             pygame.display.quit()
             self._screen = None
             pygame.quit()
 
-    def seed(self, seed : Optional[int] = None):
+    def seed(self, seed: Optional[int] = None):
         """Method used to seed the environment
 
         Args:
@@ -186,18 +216,22 @@ class GridWorld(gym.Env):
     ## Properties
     @property
     def name(self) -> str:
-        return f"GridWorld({self.width}, {self.height})"
+        return f"GridWorld({self.width},{self.height})"
 
     @property
     def goal(self) -> Rectangle:
         """Goal to reach, represented by a rectangle"""
         if self._goal is None:
-            raise InitialisationError("The goal variable is not initialized. Reset the environment !")
+            raise InitialisationError(
+                "The goal variable is not initialized. Reset the environment !"
+            )
         return self._goal
 
     @goal.setter
-    def goal(self, rect : Rectangle):
-        assert rect.width == rect.height == self.pixel, f"Only squares of size {self.pixel} are allowed to represent the goal."
+    def goal(self, rect: Rectangle):
+        assert (
+            rect.width == rect.height == self.pixel
+        ), f"Only squares of size {self.pixel} are allowed to represent the goal."
         self._sanity_check(rect)
         # Remove the old position to the free position mask
         if self._goal is not None:
@@ -212,11 +246,13 @@ class GridWorld(gym.Env):
     def agent(self) -> Agent:
         """Current position of the agent, represented by a rectangle"""
         if self._agent is None:
-            raise InitialisationError("The position variable is not initialized. Reset the environment !")
+            raise InitialisationError(
+                "The position variable is not initialized. Reset the environment !"
+            )
         return self._agent
 
     @agent.setter
-    def agent(self, agent : Agent):
+    def agent(self, agent: Agent):
         self._sanity_check(agent.position)
         self._agent = agent
 
@@ -224,8 +260,14 @@ class GridWorld(gym.Env):
     def obstacles(self) -> List[Rectangle]:
         """Obstacles in the environment, represented by a list of rectangle"""
         if self._obstacles is None:
-            raise InitialisationError("The obstacles are not initialized. Reset the environment !")
+            raise InitialisationError(
+                "The obstacles are not initialized. Reset the environment !"
+            )
         return self._obstacles
+
+    @property
+    def nb_obstacles(self) -> int:
+        return len(self.obstacles)
 
     @property
     def observations(self) -> np.ndarray:
@@ -236,25 +278,28 @@ class GridWorld(gym.Env):
         - the current direction of the agent
         - the goal position relative to the agent.
         """
-        north, east, south, west= self.agent.neighbours
+        north, east, south, west = self.agent.neighbours
 
-        return np.array([
-            ## Neighbours collision
-            self._is_collision(north), # TOP
-            self._is_collision(east), # RIGHT
-            self._is_collision(south), # BOTTOM
-            self._is_collision(west), # LEFT
-            ## Snake direction
-            self.agent.direction == Direction.NORTH, # UP
-            self.agent.direction == Direction.EAST, # RIGHT
-            self.agent.direction == Direction.SOUTH, # DOWN
-            self.agent.direction == Direction.WEST, # LEFT
-            ## Food position
-            self.goal.y < self.agent.position.y, # UP
-            self.goal.x > self.agent.position.x, # RIGHT
-            self.goal.y > self.agent.position.y, # DOWN
-            self.goal.x < self.agent.position.x, # LEFT
-        ], dtype=int)
+        return np.array(
+            [
+                ## Neighbours collision
+                self._is_collision(north),  # TOP
+                self._is_collision(east),  # RIGHT
+                self._is_collision(south),  # BOTTOM
+                self._is_collision(west),  # LEFT
+                ## Snake direction
+                self.agent.direction == Direction.NORTH,  # UP
+                self.agent.direction == Direction.EAST,  # RIGHT
+                self.agent.direction == Direction.SOUTH,  # DOWN
+                self.agent.direction == Direction.WEST,  # LEFT
+                ## Food position
+                self.goal.y < self.agent.position.y,  # UP
+                self.goal.x > self.agent.position.x,  # RIGHT
+                self.goal.y > self.agent.position.y,  # DOWN
+                self.goal.x < self.agent.position.x,  # LEFT
+            ],
+            dtype=int,
+        )
 
     @property
     def info(self) -> Dict[str, Any]:
@@ -275,16 +320,33 @@ class GridWorld(gym.Env):
             "truncated": self._truncated,
         }
 
-
     @property
     def free_positions(self) -> List[Tuple[int, int]]:
         """Available free positions represented as a list of position tuple (x, y) taken from the free position mask"""
         if self._free_position_mask is None:
-            raise InitialisationError("The free position mask is not initialised. Reset the environment first !")
+            raise InitialisationError(
+                "The free position mask is not initialised. Reset the environment first !"
+            )
         return np.argwhere(self._free_position_mask).tolist()
 
+    ## Static methods
+    @staticmethod
+    def add_arguments(parser: argparse.ArgumentParser):
+        parser.add_argument(
+            "--width", type=int, default=20, help="Width of the environment"
+        )
+        parser.add_argument(
+            "--height", type=int, default=20, help="Height of the environment"
+        )
+        parser.add_argument(
+            "--pixel", type=int, default=10, help="Size of a game pixel in pixel unit"
+        )
+        parser.add_argument(
+            "--seed", type=int, default=0, help="Seed for the simulation PRNG"
+        )
+
     ## Private methods
-    def _sanity_check(self, rect : Rectangle):
+    def _sanity_check(self, rect: Rectangle):
         """Check the validity of a rectangle position in the GridWorld environment.
 
         Args:
@@ -301,23 +363,38 @@ class GridWorld(gym.Env):
             raise TypeError("Only rectangles are allowed in GridWorld.")
         # TODO : Add the possibility to add rectangles as obstacles
         if rect.height != rect.width:
-            raise ShapeError(f"Only squares are accepted in the environment. Get (width, height) = ({rect.width}, {rect.height}).")
-        if (rect.x < 0) or (rect.x + rect.width > self.window_size[0]) or (rect.y < 0) or (rect.y + rect.height > self.window_size[1]):
-            raise OutOfBoundsError(f"The rectangle position ({rect.x}, {rect.y}) is out of bounds {self.window_size}")
-        if any([corner % self.pixel != 0 for corner in [rect.right, rect.top, rect.left, rect.bottom]]):
-            raise ResolutionError(f"The rectangle positions and lengths need to be a factor of pixel size : {self.pixel}.")
+            raise ShapeError(
+                f"Only squares are accepted in the environment. Get (width, height) = ({rect.width}, {rect.height})."
+            )
+        if (
+            (rect.x < 0)
+            or (rect.x + rect.width > self.window_size[0])
+            or (rect.y < 0)
+            or (rect.y + rect.height > self.window_size[1])
+        ):
+            raise OutOfBoundsError(
+                f"The rectangle position ({rect.x}, {rect.y}) is out of bounds {self.window_size}"
+            )
+        if any(
+            [
+                corner % self.pixel != 0
+                for corner in [rect.right, rect.top, rect.left, rect.bottom]
+            ]
+        ):
+            raise ResolutionError(
+                f"The rectangle positions and lengths need to be a factor of pixel size : {self.pixel}."
+            )
 
     # Initialisation methods
     def _init_human_renderer(self):
-        """Initialisation method of the human rendered based on pygame.
-        """
+        """Initialisation method of the human rendered based on pygame."""
         pygame.init()
         # instanciation of arguments that will be used by pygame when drawing
         self._screen = pygame.display.set_mode(self.window_size)
         self._font = pygame.font.SysFont("freesansbold.ttf", 30)
         self._clock = pygame.time.Clock()
 
-    def _get_grid_position(self, rect : Rectangle) -> Tuple[int, int]:
+    def _get_grid_position(self, rect: Rectangle) -> Tuple[int, int]:
         """Return the grid position of a rectangle
 
         Args:
@@ -340,9 +417,14 @@ class GridWorld(gym.Env):
         """
         if rect is None:
             rect = self.agent.position
-        return rect.x < 0 or rect.x + rect.width > self.window_size[0] or rect.y < 0 or rect.y + rect.height > self.window_size[1]
+        return (
+            rect.x < 0
+            or rect.x + rect.width > self.window_size[0]
+            or rect.y < 0
+            or rect.y + rect.height > self.window_size[1]
+        )
 
-    def _collide_with_obstacles(self, rect: Optional[pygame.Rect]  = None) -> bool:
+    def _collide_with_obstacles(self, rect: Optional[pygame.Rect] = None) -> bool:
         """Check wether the input rectangle or the agent collides with obstacles in the environment.
 
         Args:
@@ -360,8 +442,14 @@ class GridWorld(gym.Env):
 
     ## Dunder methods
     def __eq__(self, other: object) -> bool:
-        assert isinstance(other, GridWorld), f"Can not compare equality with an instance of {type(other)}. Expected type is GridWorld"
-        size_check = (self.height == other.height) and (self.width == other.width) and (self.pixel == other.pixel)
+        assert isinstance(
+            other, GridWorld
+        ), f"Can not compare equality with an instance of {type(other)}. Expected type is GridWorld"
+        size_check = (
+            (self.height == other.height)
+            and (self.width == other.width)
+            and (self.pixel == other.pixel)
+        )
         position_check = self.agent == other.agent
         goal_check = self.goal == other.goal
         obstacles_check = self.obstacles == other.obstacles
@@ -369,6 +457,7 @@ class GridWorld(gym.Env):
 
     def __repr__(self) -> str:
         return f"{__class__.__name__}(width={self.width}, height={self.height}, pixel={self.pixel}, render_mode={self.render_mode}, seed={self._seed})"
+
 
 if __name__ == "__main__":
     snake_env = GridWorld(20, 20, render_mode="human")
@@ -396,5 +485,5 @@ if __name__ == "__main__":
         if terminated:
             seed += 1
             snake_env.reset(seed)
-            print('You suck ! Try again !')
+            print("You suck ! Try again !")
         snake_env.render()

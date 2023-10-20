@@ -18,12 +18,6 @@ classifiers = [
 ]
 #TODO : ajouter des contraintes sur les versions
 dependencies = [
-  "gymnasium>=0.28",
-  "jax>=0.4",
-  "jaxlib==0.4.11+cuda12.cudnn88",
-  "phiflow>=2.4",
-  "pygame>=2.4",
-  "mazelib>=0.9",
 ]
 
 [project.urls]
@@ -31,4 +25,6 @@ dependencies = [
 
 [project.scripts]
 play_snake = "snake_ai.wrappers.playable_snake:main"
-simulate = "snake_ai.physim.main:simulate"
+simulate_diffusion = "snake_ai.physim.main:simulate_diffusion"
+simulate_walkers = "snake_ai.physim.main:simulate_walkers"
+autodiff = "snake_ai.physim.main:autodiff_simulation"

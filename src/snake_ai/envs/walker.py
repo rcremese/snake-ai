@@ -4,16 +4,19 @@ from snake_ai.utils import Direction, Colors, errors
 from typing import List
 import pygame
 
+
 class Walker2D(Agent):
-    def __init__(self, x: int, y : int, pixel : int) -> None:
+    def __init__(self, x: int, y: int, pixel: int) -> None:
         if pixel < 1:
             raise ValueError(f"Pixel argument can not be lower that 1. Get {pixel}")
         self.pixel = int(pixel)
-        self._position = Rectangle(x * self.pixel, y * self.pixel, self.pixel, self.pixel)
+        self._position = Rectangle(
+            x * self.pixel, y * self.pixel, self.pixel, self.pixel
+        )
         self._direction = Direction.NORTH
 
     ## Public methods
-    def move(self, direction : Direction):
+    def move(self, direction: Direction):
         self.direction = direction
         if direction == Direction.NORTH:
             self._position.move_ip(0, -self.pixel)
@@ -24,11 +27,15 @@ class Walker2D(Agent):
         elif direction == Direction.WEST:
             self._position.move_ip(-self.pixel, 0)
         else:
-            raise errors.UnknownDirection(f"Unknown direction {direction}. Expected directions : 'NORTH', 'EAST', 'SOUTH', 'WEST'.")
+            raise errors.UnknownDirection(
+                f"Unknown direction {direction}. Expected directions : 'NORTH', 'EAST', 'SOUTH', 'WEST'."
+            )
 
-    def move_from_action(self, action : int):
+    def move_from_action(self, action: int):
         if action not in range(4):
-            raise errors.InvalidAction(f"Unable to map direction with the input value {action}. Action need to be an integer in range [0,3]")
+            raise errors.InvalidAction(
+                f"Unable to map direction with the input value {action}. Action need to be an integer in range [0,3]"
+            )
         if action == 0:
             self.move(Direction.NORTH)
         elif action == 1:

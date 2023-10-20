@@ -1,14 +1,15 @@
 ##
 # @author Robin CREMESE <robin.cremese@gmail.com>
- # @file Description
- # @desc Created on 2022-05-16 2:12:02 pm
- # @copyright https://mit-license.org/
- #
+# @file Description
+# @desc Created on 2022-05-16 2:12:02 pm
+# @copyright https://mit-license.org/
+#
 import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 import os
+
 
 class Linear_QNet(nn.Module):
     def __init__(self, input_size, hidden_size, output_size):
@@ -21,11 +22,11 @@ class Linear_QNet(nn.Module):
         x = self.linear2(x)
         return x
 
-    def load(self, filepath='./model/model_0.pth'):
+    def load(self, filepath="./model/model_0.pth"):
         self.load_state_dict(torch.load(filepath))
 
-    def save(self, file_name='model.pth'):
-        model_folder_path = './model'
+    def save(self, file_name="model.pth"):
+        model_folder_path = "./model"
         if not os.path.exists(model_folder_path):
             os.makedirs(model_folder_path)
 
@@ -54,7 +55,7 @@ class QTrainer:
             next_state = torch.unsqueeze(next_state, 0)
             action = torch.unsqueeze(action, 0)
             reward = torch.unsqueeze(reward, 0)
-            done = (done, )
+            done = (done,)
 
         # 1: predicted Q values with current state
         pred = self.model(state)
@@ -63,7 +64,9 @@ class QTrainer:
         for idx in range(len(done)):
             Q_new = reward[idx]
             if not done[idx]:
-                Q_new = reward[idx] + self.gamma * torch.max(self.model(next_state[idx]))
+                Q_new = reward[idx] + self.gamma * torch.max(
+                    self.model(next_state[idx])
+                )
 
             target[idx][torch.argmax(action[idx]).item()] = Q_new
 
@@ -75,5 +78,6 @@ class QTrainer:
         loss.backward()
 
         self.optimizer.step()
+
 
 pass

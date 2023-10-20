@@ -1,9 +1,9 @@
 ##
 # @author Robin CREMESE <robin.cremese@gmail.com>
- # @file Description
- # @desc Created on 2022-11-02 2:10:20 pm
- # @copyright https://mit-license.org/
- #
+# @file Description
+# @desc Created on 2022-11-02 2:10:20 pm
+# @copyright https://mit-license.org/
+#
 
 from snake_ai.envs.snake_classic_env import SnakeClassicEnv
 from snake_ai.wrappers import StochasticDiffusionWrapper
@@ -18,11 +18,14 @@ NB_PART = 1e5
 T_MAX = 100
 SEED = 0
 
+
 def main():
-    env = SnakeClassicEnv(render_mode='human', width=W, height=H, nb_obstacles=OBS)
+    env = SnakeClassicEnv(render_mode="human", width=W, height=H, nb_obstacles=OBS)
     # env = DeterministicDiffusionWrapper(env, diffusion_coef=COEF, seed=SEED)
-    env = StochasticDiffusionWrapper(env, diffusion_coef=COEF, nb_part=NB_PART, t_max=T_MAX, seed=SEED)
-    env.metadata['render_fps'] = 20
+    env = StochasticDiffusionWrapper(
+        env, diffusion_coef=COEF, nb_part=NB_PART, t_max=T_MAX, seed=SEED
+    )
+    env.metadata["render_fps"] = 20
     obs = env.reset()
     i = 0
     while True:
@@ -30,11 +33,11 @@ def main():
         action = np.argmax(obs)
         obs, _, done, info = env.step(action)
         if done or i > MAX_STEP:
-            i=0
+            i = 0
             obs = env.reset()
         # once food atteigned, reset i
-        if info['truncated']:
-            i=0
+        if info["truncated"]:
+            i = 0
         env.render()
         # check for safe quit
         for event in pygame.event.get():
@@ -42,5 +45,6 @@ def main():
                 pygame.quit()
                 quit()
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()
