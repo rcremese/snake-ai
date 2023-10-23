@@ -140,6 +140,8 @@ class WalkerSimulationStoch2D(WalkerSimulation):
             self.states[n, 0].vel = tm.vec2(0.0, 0.0)
             for t in ti.ndrange(self.nb_steps):
                 self._noise[n, t] = tm.vec2(ti.randn(), ti.randn())
+        for i, j in self.force_field.values:
+            self.force_field.values.grad[i, j] = tm.vec2(0.0, 0.0)
 
     @ti.kernel
     def step(self, t: int):

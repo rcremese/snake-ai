@@ -3,9 +3,62 @@ import matplotlib.animation as animation
 import plotly.graph_objects as go
 import numpy as np
 
+from snake_ai.envs import GridWorld
 from snake_ai.envs.geometry import Cube, Rectangle
-from snake_ai.taichi.field import SampledField
+from snake_ai.taichi.field import SampledField, ScalarField, VectorField
 from typing import List, Tuple, Optional
+
+
+def plot_2D_field(
+    concentration: ScalarField,
+    force_field: VectorField = None,
+    title: str = "Concentration map",
+):
+    fig, ax = plt.subplots(1, 1, dpi=300)
+    max_values = concentration.bounds.max
+    im = ax.imshow(
+        concentration.values.to_numpy().T,
+        extent=[0, max_values[0], max_values[1], 0],
+        cmap="inferno",
+    )
+    if force_field:
+        X, Y = np.meshgrid(
+            np.linspace(0, max_values[0], concentration.values.shape[0]),
+            np.linspace(0, max_values[1], concentration.values.shape[1]),
+            indexing="ij",
+        )
+        values = force_field.values.to_numpy()
+        ax.quiver(
+            X,
+            Y,
+            values[:, :, 0],
+            values[:, :, 1],
+            units="xy",
+            angles="xy",
+            scale=1,
+        )
+    ax.set(title=title, xlabel="x", ylabel="y")
+    fig.colorbar(im, ax=ax)
+    return fig
+
+
+def plot_environment(env: GridWorld):
+    fig, ax = plt.subplots(1, 1, dpi=300)
+    for obstacle in env.obstacles:
+        ax.add_patch(
+            plt.Rectangle(
+                (obstacle.x, obstacle.y),
+                obstacle.width,
+                obstacle.height,
+                color="red",
+            )
+        )
+    ax.add_patch(plt.Circle(env.goal.center, 0.5, color="green"))
+    ax.add_patch(plt.Circle(env.agent.position.center, 0.5, color="blue"))
+    ax.set(title=f"Environment {env.name}", xlabel="x", ylabel="y")
+    plt.xlim(0, env.width)
+    plt.ylim(env.height, 0)
+    return fig
 
 
 def plot_concentration_map(

@@ -1,5 +1,5 @@
 from snake_ai.envs import GridWorld3D, GridWorld
-from snake_ai.envs.converter import Env2DConverter, Env3DConverter
+from snake_ai.envs.converter import EnvConverter
 from snake_ai.taichi.field import ScalarField
 
 import scipy.sparse as sp
@@ -94,10 +94,11 @@ class DiffusionSolver:
         assert isinstance(
             env, (GridWorld, GridWorld3D)
         ), "The environment must be a GridWorld or GridWorld3D instance"
-        if isinstance(env, GridWorld):
-            self.converter = Env2DConverter(env, resolution)
-        elif isinstance(env, GridWorld3D):
-            self.converter = Env3DConverter(env, resolution)
+        self.converter = EnvConverter(env, resolution)
+        # if isinstance(env, GridWorld):
+        #     self.converter = Env2DConverter(env, resolution)
+        # elif isinstance(env, GridWorld3D):
+        #     self.converter = Env3DConverter(env, resolution)
         self._obstacles = copy.deepcopy(env.obstacles)
         self._update_solver()
 
@@ -212,7 +213,7 @@ def main():
     row, col, depth = 10, 10, 10
     env = RandomObstacles3D(row, col, depth, nb_obs=10, max_size=2)
     env.reset()
-    converter = Env3DConverter(env, resolution=40)
+    converter = EnvConverter(env, resolution=40)
 
     plt.show()
 

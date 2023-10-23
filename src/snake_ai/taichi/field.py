@@ -223,6 +223,12 @@ class VectorField(SampledField):
         assert isinstance(extrapolation, Extrapolation)
         self._extrapolation = extrapolation
 
+    @ti.kernel
+    def clip(self, value: float):
+        for I in ti.grouped(self.values):
+            if tm.length(self.values[I]) > value:
+                self.values[I] = self.values[I] / tm.length(self.values[I]) * value
+
     @property
     @ti.kernel
     def max(self) -> float:
