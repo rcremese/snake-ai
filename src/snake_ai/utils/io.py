@@ -99,10 +99,10 @@ class FieldWriter(Writer):
             field, (ScalarField, VectorField)
         ), f"Unknown field type {type(field)}"
         dictionary = {
-            "values": field.values.to_numpy(),
-            "upper": field.bounds.min,
-            "lower": field.bounds.max,
-            "dim": len(field.values.shape),
+            "values": field._values.to_numpy(),
+            "upper": field._bounds.min,
+            "lower": field._bounds.max,
+            "dim": len(field._values.shape),
         }
         if isinstance(field, ScalarField):
             dictionary["type"] = "scalar"

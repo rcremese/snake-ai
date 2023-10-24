@@ -140,8 +140,8 @@ class WalkerSimulationStoch2D(WalkerSimulation):
             self.states[n, 0].vel = tm.vec2(0.0, 0.0)
             for t in ti.ndrange(self.nb_steps):
                 self._noise[n, t] = tm.vec2(ti.randn(), ti.randn())
-        for i, j in self.force_field.values:
-            self.force_field.values.grad[i, j] = tm.vec2(0.0, 0.0)
+        for i, j in self.force_field._values:
+            self.force_field._values.grad[i, j] = tm.vec2(0.0, 0.0)
 
     @ti.kernel
     def step(self, t: int):
@@ -186,11 +186,11 @@ class WalkerSimulationStoch2D(WalkerSimulation):
             t (int): index of the time step
         """
         for i in ti.static(range(2)):
-            if self.states[n, t].pos[i] < self.force_field.bounds.min[i]:
-                self.states[n, t].pos[i] = self.force_field.bounds.min[i]
+            if self.states[n, t].pos[i] < self.force_field._bounds.min[i]:
+                self.states[n, t].pos[i] = self.force_field._bounds.min[i]
                 self.states[n, t].vel[i] *= -1.0
-            elif self.states[n, t].pos[i] > self.force_field.bounds.max[i]:
-                self.states[n, t].pos[i] = self.force_field.bounds.max[i]
+            elif self.states[n, t].pos[i] > self.force_field._bounds.max[i]:
+                self.states[n, t].pos[i] = self.force_field._bounds.max[i]
                 self.states[n, t].vel[i] *= -1.0
 
     @ti.func
@@ -230,12 +230,12 @@ class WalkerSimulationStoch2D(WalkerSimulation):
 
     @ti.kernel
     def _update_force_field(self, lr: float):
-        for i, j in self.force_field.values:
-            self.force_field.values[i, j] -= lr * self.force_field.values.grad[i, j]
-            if tm.length(self.force_field.values[i, j]) > 1.0:
-                self.force_field.values[i, j] = self.force_field.values[
+        for i, j in self.force_field._values:
+            self.force_field._values[i, j] -= lr * self.force_field._values.grad[i, j]
+            if tm.length(self.force_field._values[i, j]) > 1.0:
+                self.force_field._values[i, j] = self.force_field._values[
                     i, j
-                ] / tm.length(self.force_field.values[i, j])
+                ] / tm.length(self.force_field._values[i, j])
 
     ## Properties
     @property
@@ -395,11 +395,11 @@ class WalkerSimulationStoch3D(WalkerSimulation):
             t (int): index of the time step
         """
         for i in ti.static(range(3)):
-            if self.states[n, t].pos[i] < self.force_field.bounds.min[i]:
-                self.states[n, t].pos[i] = self.force_field.bounds.min[i]
+            if self.states[n, t].pos[i] < self.force_field._bounds.min[i]:
+                self.states[n, t].pos[i] = self.force_field._bounds.min[i]
                 self.states[n, t].vel[i] *= -1.0
-            elif self.states[n, t].pos[i] > self.force_field.bounds.max[i]:
-                self.states[n, t].pos[i] = self.force_field.bounds.max[i]
+            elif self.states[n, t].pos[i] > self.force_field._bounds.max[i]:
+                self.states[n, t].pos[i] = self.force_field._bounds.max[i]
                 self.states[n, t].vel[i] *= -1.0
 
     @ti.func
@@ -439,9 +439,9 @@ class WalkerSimulationStoch3D(WalkerSimulation):
 
     @ti.kernel
     def _update_force_field(self, lr: float):
-        for i, j, k in self.force_field.values:
-            self.force_field.values[i, j, k] -= (
-                lr * self.force_field.values.grad[i, j, k]
+        for i, j, k in self.force_field._values:
+            self.force_field._values[i, j, k] -= (
+                lr * self.force_field._values.grad[i, j, k]
             )
             # if tm.length(self.force_field.values[i, j, k]) > 1.0:
             #     self.force_field.values[i, j, k] = self.force_field.values[
@@ -474,7 +474,9 @@ def render(
     output_path: Optional[Path] = None,
 ):
     gui = ti.GUI("Dif0ferentiable Simulation", window_size)
-    scale_vector = np.array(concentration.bounds.width(), concentration.bounds.height())
+    scale_vector = np.array(
+        concentration._bounds.width(), concentration._bounds.height()
+    )
     trajectories = simulation.trajectories
     obstacles = simulation.obstacles.to_numpy()
     # Write images in a directory
@@ -484,7 +486,7 @@ def render(
             output_path.mkdir(parents=True)
 
     for t in range(simulation.nb_steps):
-        gui.contour(concentration.values, normalize=True)
+        gui.contour(concentration._values, normalize=True)
         pos = trajectories["pos"][:, t] / scale_vector
         gui.circles(pos, radius=5, color=int(ti.rgb_to_hex([255, 0, 0])))
         for obs_min, obs_max in zip(obstacles["min"], obstacles["max"]):

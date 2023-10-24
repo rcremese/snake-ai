@@ -5,60 +5,69 @@ import numpy as np
 
 from snake_ai.envs import GridWorld
 from snake_ai.envs.geometry import Cube, Rectangle
-from snake_ai.taichi.field import SampledField, ScalarField, VectorField
+from snake_ai.taichi.field import SampledField, ScalarField, spatial_gradient
 from typing import List, Tuple, Optional
 
 
-def plot_2D_field(
-    concentration: ScalarField,
-    force_field: VectorField = None,
-    title: str = "Concentration map",
-):
-    fig, ax = plt.subplots(1, 1, dpi=300)
-    max_values = concentration.bounds.max
-    im = ax.imshow(
-        concentration.values.to_numpy().T,
-        extent=[0, max_values[0], max_values[1], 0],
-        cmap="inferno",
-    )
-    if force_field:
-        X, Y = np.meshgrid(
-            np.linspace(0, max_values[0], concentration.values.shape[0]),
-            np.linspace(0, max_values[1], concentration.values.shape[1]),
-            indexing="ij",
-        )
-        values = force_field.values.to_numpy()
-        ax.quiver(
-            X,
-            Y,
-            values[:, :, 0],
-            values[:, :, 1],
-            units="xy",
-            angles="xy",
-            scale=1,
-        )
-    ax.set(title=title, xlabel="x", ylabel="y")
-    fig.colorbar(im, ax=ax)
-    return fig
+class Visualizer:
+    def __init__(self) -> None:
+        pass
 
+    @staticmethod
+    def plot_2D_field(
+        concentration: ScalarField,
+        title: str = "Concentration map",
+        add_quiver: bool = False,
+    ):
+        assert isinstance(concentration, ScalarField), "Expected a scalar field"
+        fig, ax = plt.subplots(1, 1, dpi=300)
 
-def plot_environment(env: GridWorld):
-    fig, ax = plt.subplots(1, 1, dpi=300)
-    for obstacle in env.obstacles:
-        ax.add_patch(
-            plt.Rectangle(
-                (obstacle.x, obstacle.y),
-                obstacle.width,
-                obstacle.height,
-                color="red",
+        im = ax.imshow(
+            concentration.values.T,
+            extent=[
+                concentration._bounds.min[0],
+                concentration._bounds.max[0],
+                concentration._bounds.max[1],
+                concentration._bounds.min[1],
+            ],
+            cmap="inferno",
+        )
+        if add_quiver:
+            force_field = spatial_gradient(concentration)
+
+            X, Y = force_field.meshgrid
+            ax.quiver(
+                X,
+                Y,
+                force_field.values[:, :, 0],
+                force_field.values[:, :, 1],
+                units="xy",
+                angles="xy",
+                scale=1,
             )
-        )
-    ax.add_patch(plt.Circle(env.goal.center, 0.5, color="green"))
-    ax.add_patch(plt.Circle(env.agent.position.center, 0.5, color="blue"))
-    ax.set(title=f"Environment {env.name}", xlabel="x", ylabel="y")
-    plt.xlim(0, env.width)
-    plt.ylim(env.height, 0)
-    return fig
+        ax.set(title=title, xlabel="x", ylabel="y")
+        fig.colorbar(im, ax=ax)
+        return fig, ax
+
+    @staticmethod
+    def plot_2D_environment(env: GridWorld):
+        assert isinstance(env, GridWorld), "Expected a GridWorld environment"
+        fig, ax = plt.subplots(1, 1, dpi=300)
+        for obstacle in env.obstacles:
+            ax.add_patch(
+                plt.Rectangle(
+                    (obstacle.x, obstacle.y),
+                    obstacle.width,
+                    obstacle.height,
+                    color="red",
+                )
+            )
+        ax.add_patch(plt.Circle(env.goal.center, 0.5, color="green"))
+        ax.add_patch(plt.Circle(env.agent.position.center, 0.5, color="blue"))
+        ax.set(title=f"Environment {env.name}", xlabel="x", ylabel="y")
+        plt.xlim(0, env.width)
+        plt.ylim(0, env.height)
+        return fig, ax
 
 
 def plot_concentration_map(
@@ -311,9 +320,9 @@ def plot_2D_trajectory(
     if concentration is not None:
         assert isinstance(concentration, SampledField)
 
-        max_bounds = concentration.bounds.max
+        max_bounds = concentration._bounds.max
         im = ax.imshow(
-            concentration.values.to_numpy().T,
+            concentration._values.to_numpy().T,
             cmap="inferno",
             extent=[0, max_bounds[0], max_bounds[1], 0],
         )
