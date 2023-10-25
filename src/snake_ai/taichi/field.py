@@ -270,14 +270,11 @@ class VectorField(SampledField):
     def __repr__(self) -> str:
         return f"VectorField(values={self._values.shape}, bounds={self._bounds}, extrapolation={self._extrapolation})"
 
-
-@ti.kernel
-def clip(vector_field: VectorField, value: float):
-    for I in ti.grouped(vector_field._values):
-        if tm.length(vector_field._values[I]) > value:
-            vector_field._values[I] = (
-                vector_field._values[I] / tm.length(vector_field._values[I]) * value
-            )
+    @ti.kernel
+    def clip(self, value: float):
+        for I in ti.grouped(self._values):
+            if tm.length(self._values[I]) > value:
+                self._values[I] = self._values[I] / tm.length(self._values[I]) * value
 
 
 def spatial_gradient(

@@ -29,10 +29,8 @@ def convert_rectangles(rectangles: List[Rectangle]) -> ti.Field:
         [type(rect) for rect in rectangles]
     )
     boxes = Box2D.field(shape=len(rectangles))
-    min_values = np.array([[rect.x, rect.y] for rect in rectangles])
-    max_values = np.array(
-        [[rect.x + rect.width, rect.y + rect.height] for rect in rectangles]
-    )
+    min_values = np.array([rect.min for rect in rectangles])
+    max_values = np.array([rect.max for rect in rectangles])
     boxes.min.from_numpy(min_values)
     boxes.max.from_numpy(max_values)
     return boxes
