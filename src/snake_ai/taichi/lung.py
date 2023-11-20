@@ -4,6 +4,7 @@ from monai.transforms import (
     CropForeground,
     Resize,
     LabelToContour,
+    distance_transform_edt,
     Compose,
     KeepLargestConnectedComponent,
 )
@@ -35,16 +36,19 @@ def solve_diffusion_equation(volume, source_position) -> np.ndarray:
 
 # Idée : diviser la plis grand longueur par 2 permet d'obtenir une segmentation potable
 def animate_volume(data: MetaTensor, dim=-1):
-    fig, ax = plt.subplots(1, 2)
+    fig, ax = plt.subplots(1, 3)
     frames = data.shape[dim]
     data.swapaxes_(dim, 0)
     contours = LabelToContour()(data)
+    distances = distance_transform_edt(data)
     im1 = ax[0].imshow(data[0], cmap="gray", vmin=0, vmax=1)
     im2 = ax[1].imshow(contours[0], cmap="gray", vmin=0, vmax=1)
+    im3 = ax[2].imshow(distances[0], cmap="gray", vmin=distances.min(), vmax=distances.max())
 
     def update(frame):
         im1.set_data(data[frame])
         im2.set_data(contours[frame])
+        im3.set_data(distances[frame])
         ax[0].set_title(f"Frame {frame}")
         return ax
 
@@ -55,9 +59,24 @@ def animate_volume(data: MetaTensor, dim=-1):
 import plotly.graph_objects as go
 import numpy as np
 
-X, Y, Z = np.mgrid[-1:1:30j, -1:1:30j, -1:1:30j]
-values = np.sin(np.pi * X) * np.cos(np.pi * Z) * np.sin(np.pi * Y)
+def create_repulsive_field(binary_seg : MetaTensor, max_dist : float):
+    # contours = LabelToContour()(binary_seg)
+    distances = distance_transform_edt(binary_seg)
+    repulsive_field = np.zeros_like(distances)
+    indices = np.argwhere((0 < distances) & (distances < max_dist))
+    # indices = np.argwhere((distances < max_dist))
+    for x,y,z in indices :
+        repulsive_field[x,y,z] = 0.5 * ((max_dist - distances[x,y,z]) / (max_dist * distances[x,y,z]))**2
+    return repulsive_field
 
+def create_attractive_field(binary_seg : MetaTensor, position : np.ndarray):
+    assert len(binary_seg.shape) == 3
+    assert position.shape == (3,)
+    shape = binary_seg.shape
+    meshgrid = np.mgrid[0:shape[0], 0:shape[1], 0:shape[2]]
+    attractive_field = np.linalg.norm(meshgrid - position.reshape(-1,1,1,1), axis=0)
+    return np.where(binary_seg > 0, 0.5 * attractive_field**2, 0)
+    
 
 def plot_3d_volume(values: np.ndarray):
     x = np.arange(0, values.shape[0])
@@ -112,7 +131,7 @@ def generate_interactive_3D_surface(data: MetaTensor):
     return fig
 
 
-def plot_3d_surface(data: MetaTensor):
+def plot_3d_surface(data: MetaTensor, alpha=1.0):
     vertices, triangles, _, _ = ski.measure.marching_cubes(data.numpy(), 0.5)
     fig = ff.create_trisurf(
         x=vertices[:, 0],
@@ -126,6 +145,7 @@ def plot_3d_surface(data: MetaTensor):
 
 def main():
     div_factor = 2
+    k_rep, k_atr = 1e2, 1e-3
     logging.basicConfig(level=logging.INFO)
     logging.getLogger("matplotlib").setLevel(logging.WARNING)
 
@@ -144,37 +164,71 @@ def main():
         ]
     )
     resized_data = composer(croped_data)
-
-    # resized_data = Resize((100, 100, 100), size_mode="all", mode="nearest")(croped_data)
-    logging.debug(f"New shape : {resized_data.shape}")
-    logging.info("Plotting volumes")
-    anim1 = animate_volume(resized_data.squeeze())
-    # plot the last information
+    ## Figure to find the center of the lung
     # fig, ax = plt.subplots()
     # resized_data = resized_data.squeeze()
     # ax.imshow(resized_data[:, :, -1].T, cmap="gray")
     # ax.axvline(x=resized_data.shape[0] // 2, color="red")
     # ax.axhline(y=resized_data.shape[1] // 2, color="red")
-    # ax.set(xlabel="x", ylabel="y")
+    # ax.set(xlabel="x", ylabel="y", title=f"z={resized_data.shape[2]}")
     # plt.show()
+    # resized_data = Resize((100, 100, 100), size_mode="all", mode="nearest")(croped_data)
+    logging.debug(f"New shape : {resized_data.shape}")
+    logging.info("Plotting volumes")
+    anim1 = animate_volume(resized_data.squeeze())
+    repulsive_field = create_repulsive_field(resized_data.squeeze(), max_dist=5.)
+    attractive_field = create_attractive_field(resized_data.squeeze(), np.array([65, 27, 230]))
 
-    fig = plot_3d_surface(resized_data.squeeze())
+    anim2 = vis.animate_volume(k_rep * repulsive_field + k_atr * attractive_field, axis=2)
+    plt.show()
+
+    ## Create a potential field and a simulation 
+    from snake_ai.taichi.field import ScalarField
+    from snake_ai.taichi.walk_simulation import WalkerSimulationStoch3D
+    from snake_ai.envs.geometry import Cube
+    import taichi as ti
+    ti.init(arch=ti.gpu)
+    logging.info("Creating potential field")
+    potential_field = ScalarField(-(k_rep * repulsive_field + k_atr * attractive_field), bounds = Cube(0,0,0, *repulsive_field.shape))
+    init_pos = np.array([[40, 40, 85], [80, 45, 85]])
+    simu = WalkerSimulationStoch3D(init_pos, potential_field,t_max=100, dt=1e-1, diffusivity=0)
+    simu.optimize(target_pos = np.array([65, 27, 230]), lr=1.e-1, max_iter=200)
+
+    ## Plot the result of the simulation
+    logging.info("Plotting simulation")
+    fig = plot_3d_surface(resized_data.squeeze(), alpha=0.5)
+    trajectories = simu.positions
+    for i in range(trajectories.shape[0]):
+        fig.add_trace(
+            go.Scatter3d(
+                x=trajectories[i, :, 0],
+                y=trajectories[i, :, 1],
+                z=trajectories[i, :, 2],
+                mode="lines",
+                name=f"walker {i}",
+                # colorscale="Viridis",
+                # color=color,
+            )
+        )
     fig.show()
 
+    # fig = plot_3d_surface(resized_data.squeeze())
+
     # Z max, x and y midle
-    obstacle_map = LabelToContour()(resized_data).squeeze().numpy()
-    anim2 = vis.animate_volume(obstacle_map)
-    plt.show()
-    source_position = np.zeros_like(obstacle_map)
-    source_position[65, 27, -1] = 100
-    logging.info("Solving diffusion equation")
-    # solution = solve_diffusion_equation(obstacle_map, source_position)
-    solution = np.load("solution.npy")
-    log_sol = np.log(np.where(solution > 1e-10, solution, 1e-10))
-    logging.info("Plotting solution")
-    anim = vis.animate_volume(log_sol)
-    # plot_3d_volume(log_sol)
-    plt.show()
+    ## Shity code
+    # obstacle_map = LabelToContour()(resized_data).squeeze().numpy()
+    # anim2 = vis.animate_volume(obstacle_map)
+    # plt.show()
+    # source_position = np.zeros_like(obstacle_map)
+    # source_position[65, 27, -1] = 100
+    # logging.info("Solving diffusion equation")
+    # # solution = solve_diffusion_equation(obstacle_map, source_position)
+    # solution = np.load("solution.npy")
+    # log_sol = np.log(np.where(solution > 1e-10, solution, 1e-10))
+    # logging.info("Plotting solution")
+    # anim = vis.animate_volume(log_sol)
+    # # plot_3d_volume(log_sol)
+    # plt.show()
     # anim = animate_volume(resized_data.squeeze())
     # plt.show()
 

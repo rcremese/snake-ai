@@ -27,6 +27,7 @@ def map_value_to_idx(value: float, x_min: float, x_max: float, step_size: float)
         If the value is greater than the upper bound of the field, return -1.
     """
     assert step_size > 0, "Expected step_size to be positive. Get {}".format(step_size)
+    idx=0
     if value < x_min:
         idx = -1
     elif value > x_max:
@@ -294,13 +295,12 @@ def spatial_gradient(
     values = scalar_field._values.to_numpy()
 
     grad_values = np.stack(
-        np.gradient(values, *scalar_field.step_size, edge_order=2),
+        np.gradient(values, *scalar_field.step_sizes, edge_order=2),
         dtype=np.float32,
     )
     return VectorField(
         grad_values,
         scalar_field._bounds,
-        scalar_field._extrapolation,
         needs_grad,
     )
 

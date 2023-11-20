@@ -278,11 +278,12 @@ def animate_volume(
     else:
         concentration = concentration.transpose((2, 0, 1))
         labels = ["z", "x", "y"]
-    force = np.gradient(concentration)
+    # force = np.gradient(concentration)
     # Create colormap
     fig, ax = plt.subplots(1, 1, figsize=(8, 8))
     z_max = concentration.shape[0]
     vmin, vmax = np.min(concentration), np.max(concentration)
+    im = ax.imshow(concentration[0], cmap="inferno", vmax=concentration.max(), vmin=concentration.min())
 
     def update(frame):
         # read new points
@@ -291,20 +292,20 @@ def animate_volume(
         else:
             z = frame
         # z = frame % z_max
-        ax.clear()
+        # ax.clear()
         ax.set(xlabel=labels[1], ylabel=labels[2], title=f"{title} - {labels[0]}={z}")
-        ax.imshow(concentration[z], cmap="inferno", vmax=vmax, vmin=vmin)
-        ax.quiver(
-            force[2][z],
-            force[1][z],
-            units="xy",
-            angles="xy",
-            scale=1,
-        )
+        im.set_data(concentration[z])
+        
+        # ax.imshow(concentration[z], cmap="inferno", vmax=vmax, vmin=vmin)
+        # ax.quiver(
+        #     force[2][z],
+        #     force[1][z],
+        #     units="xy",
+        #     angles="xy",
+        #     scale=1,
+        # )
 
-    anim = animation.FuncAnimation(fig, update, frames=range(2 * z_max), interval=200)
-    return anim
-
+    return animation.FuncAnimation(fig, update, frames=range(2 * z_max), interval=200)
 
 def plot_2D_trajectory(
     positions: np.ndarray,
