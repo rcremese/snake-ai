@@ -15,8 +15,8 @@ from snake_ai.envs import (
     SlotEnv,
 )
 from snake_ai.phiflow.simulation import Simulation, DiffusionSimulation
-from snake_ai.taichi.field import ScalarField, VectorField, SampledField
-from snake_ai.taichi.boxes import Box2D, Box3D
+from snake_ai.diffsim.field import ScalarField, VectorField, SampledField
+from snake_ai.diffsim.boxes import Box2D, Box3D
 import snake_ai.phiflow.visualization as vis
 
 from abc import ABCMeta, abstractmethod

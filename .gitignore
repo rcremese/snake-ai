@@ -15,5 +15,6 @@ logs/*
 *.zip
 # remove the file draft.py from the git archive
 **/draft.py
+**/solution.npy
 # except gitkeep to keep the architecture
 !.gitkeep

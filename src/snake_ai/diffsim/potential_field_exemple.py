@@ -1,5 +1,5 @@
 from snake_ai.envs import GridWorld, RandomObstaclesEnv, EnvConverter
-from snake_ai.taichi.boxes import convert_rectangles, Box2D
+from snake_ai.diffsim.boxes import convert_rectangles, Box2D
 
 import taichi as ti
 import taichi.math as tm

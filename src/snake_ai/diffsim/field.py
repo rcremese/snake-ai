@@ -3,8 +3,8 @@ import taichi.math as tm
 import numpy as np
 
 from snake_ai.envs.geometry import Rectangle, Cube
-from snake_ai.taichi.boxes import Box2D, Box3D, convert_cube, convert_rectangle
-from snake_ai.taichi.maths import lerp
+from snake_ai.diffsim.boxes import Box2D, Box3D, convert_cube, convert_rectangle
+from snake_ai.diffsim.maths import lerp
 
 from typing import Union
 from enum import Enum

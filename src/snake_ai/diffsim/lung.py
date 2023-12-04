@@ -14,7 +14,7 @@ import plotly.graph_objects as go
 import scipy.spatial as sp
 import skimage as ski  # Library for marching cubes
 
-from snake_ai.taichi.diffusion import get_laplacian_matrix_from_obstacle_binary_map
+from snake_ai.diffsim.diffusion import get_laplacian_matrix_from_obstacle_binary_map
 import snake_ai.utils.visualization as vis
 import scipy.sparse.linalg as spl
 from monai.data.meta_tensor import MetaTensor
@@ -27,9 +27,9 @@ def solve_diffusion_equation(volume, source_position) -> np.ndarray:
     init_shape = source_position.shape
 
     laplace = get_laplacian_matrix_from_obstacle_binary_map(volume)
-    solution = spl.spsolve(-laplace, source_position.flatten())
+    solution, callback = spl.cg(-laplace, source_position.flatten())
+    print(callback)
     solution = solution.reshape(init_shape)
-    np.save("solution.npy", solution)
     return solution
 
 
@@ -125,7 +125,7 @@ def plot_3d_surface(data: MetaTensor):
 
 
 def main():
-    div_factor = 2
+    div_factor = 4
     logging.basicConfig(level=logging.INFO)
     logging.getLogger("matplotlib").setLevel(logging.WARNING)
 
@@ -162,18 +162,21 @@ def main():
     fig.show()
 
     # Z max, x and y midle
-    obstacle_map = LabelToContour()(resized_data).squeeze().numpy()
-    anim2 = vis.animate_volume(obstacle_map)
-    plt.show()
+    # obstacle_map = LabelToContour()(resized_data).squeeze().numpy()
+    obstacle_map = ~resized_data.squeeze().numpy().astype(int)
+    # anim2 = vis.animate_volume(obstacle_map)
+    # plt.show()
     source_position = np.zeros_like(obstacle_map)
-    source_position[65, 27, -1] = 100
+    source_position[130 // div_factor, 54 // div_factor, -1] = 100
     logging.info("Solving diffusion equation")
-    # solution = solve_diffusion_equation(obstacle_map, source_position)
-    solution = np.load("solution.npy")
+    solution = solve_diffusion_equation(obstacle_map, source_position)
+    np.save("solution.npy", solution)
+
+    # solution = np.load("solution.npy")
     log_sol = np.log(np.where(solution > 1e-10, solution, 1e-10))
     logging.info("Plotting solution")
     anim = vis.animate_volume(log_sol)
-    # plot_3d_volume(log_sol)
+    plot_3d_volume(log_sol)
     plt.show()
     # anim = animate_volume(resized_data.squeeze())
     # plt.show()

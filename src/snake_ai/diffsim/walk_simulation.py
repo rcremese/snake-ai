@@ -3,9 +3,9 @@ import taichi.math as tm
 import numpy as np
 
 from snake_ai.envs.geometry import Rectangle, Cube
-from snake_ai.taichi.field import ScalarField, VectorField, spatial_gradient
-from snake_ai.taichi.boxes import Box2D, convert_rectangles, convert_cubes
-from snake_ai.taichi.maths import lerp
+from snake_ai.diffsim.field import ScalarField, VectorField, spatial_gradient
+from snake_ai.diffsim.boxes import Box2D, convert_rectangles, convert_cubes
+from snake_ai.diffsim.maths import lerp
 
 from abc import ABC, abstractmethod
 from typing import Dict, List, Tuple, Union, Optional
@@ -510,8 +510,8 @@ if __name__ == "__main__":
         convert_obstacles_to_physical_space,
         convert_goal_position,
     )
-    from snake_ai.taichi.field import ScalarField, spatial_gradient, log
-    from snake_ai.taichi.boxes import Box2D
+    from snake_ai.diffsim.field import ScalarField, spatial_gradient, log
+    from snake_ai.diffsim.boxes import Box2D
     import snake_ai.utils.visualization as vis
 
     ti.init(arch=ti.gpu)

@@ -1,6 +1,6 @@
 from snake_ai.envs import GridWorld3D, GridWorld
 from snake_ai.envs.converter import EnvConverter
-from snake_ai.taichi.field import ScalarField
+from snake_ai.diffsim.field import ScalarField
 
 import scipy.sparse as sp
 import scipy.sparse.linalg as spl
@@ -13,6 +13,99 @@ import matplotlib.pyplot as plt
 from matplotlib import animation
 
 
+def draft():
+    def create_gradient_matrix_2d(nx, ny, dx, dy):
+        # Compute total number of grid points
+        N = nx * ny
+
+        # Create 1D finite difference matrices for x and y directions (centered differences)
+        Dx = sp.diags([-1, 0, 1], [-1, 0, 1], shape=(nx, nx), format="csr") / (2 * dx)
+        Dy = sp.diags([-1, 0, 1], [-1, 0, 1], shape=(ny, ny), format="csr") / (2 * dy)
+        # Apply the boundary conditions
+        Dx[0, 0] = -1 / dx
+        Dx[0, 1] = 1 / dx
+        Dx[-1, -1] = 1 / dx
+        Dx[-1, -2] = -1 / dx
+
+        Dy[0, 0] = -1 / dy
+        Dy[0, 1] = 1 / dy
+        Dy[-1, -1] = 1 / dy
+        Dy[-1, -2] = -1 / dy
+
+        # Kronecker product to obtain 2D gradient matrices
+        Gx = sp.kron(sp.eye(ny), Dx)
+        Gy = sp.kron(Dy, sp.eye(nx))
+
+        # Combine Gx and Gy into a single 2D gradient matrix
+        # gradient_matrix = coo_matrix(np.vstack((Gx, Gy)))
+
+        return Gx, Gy
+
+    def get_free_laplacian(resolution: tuple):
+        """Generate the laplacian matrix from an obstacle map
+
+        Args:
+            obstacle_map (np.ndarray): binary map where obstacles are 1 and free space is 0
+        """
+        assert len(resolution) == 2 or len(resolution) == 3
+        Dxx = sp.diags([1, -2, 1], [-1, 0, 1], shape=(resolution[0], resolution[0]))
+        Dyy = sp.diags([1, -2, 1], [-1, 0, 1], shape=(resolution[1], resolution[1]))
+        laplace_2d = sp.kronsum(Dyy, Dxx, format="lil")
+        if len(resolution) == 2:
+            return laplace_2d
+
+        Dzz = sp.diags([1, -2, 1], [-1, 0, 1], shape=(resolution[2], resolution[2]))
+        return sp.kronsum(Dzz, laplace_2d, format="lil")
+
+    def get_laplacian(obstacle_map: np.ndarray) -> Tuple[sp.spmatrix, np.ndarray]:
+        """Generate the laplacian matrix from an obstacle map
+
+        Args:
+            obstacle_map (np.ndarray): binary map where obstacles are 1 and free space is 0
+        """
+        laplace = get_free_laplacian(obstacle_map.shape)
+        # Keep only the free space in the laplacian
+        ind = obstacle_map.flatten() == 0
+        return laplace[:, ind][ind, :], ind
+
+    # obstacle_map = np.random.choice([0, 1], size=(20, 20), p=[0.7, 0.3])
+    obstacle_map = np.zeros((20, 20))
+    init_shape = obstacle_map.shape
+    laplacian, ind = get_laplacian(obstacle_map)
+    grad_x, grad_y = create_gradient_matrix_2d(*obstacle_map.shape, 1.0, 1.0)
+    grad_y *= -1
+    source = np.zeros(laplacian.shape[0])
+    source[123] = 1e16
+    splu = spl.splu(-laplacian)
+    temp_sol = splu.solve(source)
+
+    solution = np.zeros_like(obstacle_map.flatten())
+    solution[ind] = temp_sol
+    solution = solution.reshape(init_shape)
+
+    fig, ax = plt.subplots(1, 3)
+    ax[0].imshow(obstacle_map)
+    ax[1].imshow(laplacian.toarray())
+    ax[2].imshow(np.log(solution))
+
+    fig2, ax2 = plt.subplots(2, 2)
+    test_x = grad_x @ np.log(solution).flatten()
+    test_y = grad_y @ np.log(solution).flatten()
+    ax2[0, 0].imshow(grad_x.toarray())
+    ax2[0, 1].imshow(grad_y.toarray())
+    im1 = ax2[1, 0].imshow(test_x.reshape(init_shape))
+    im2 = ax2[1, 1].imshow(test_y.reshape(init_shape))
+    fig2.colorbar(im1, ax=ax2[1, 0])
+    fig2.colorbar(im2, ax=ax2[1, 1])
+    ax[2].quiver(
+        # np.zeros(init_shape),
+        test_x.reshape(init_shape),
+        # np.zeros(init_shape),
+        test_y.reshape(init_shape),
+    )
+    plt.show()
+
+
 def get_obstacle_free_laplacian_matrix(*resolution: Tuple[int]) -> sp.lil_matrix:
     assert len(resolution) in [2, 3], "The resolution must be a tuple of length 2 or 3"
     assert all(
@@ -20,6 +113,7 @@ def get_obstacle_free_laplacian_matrix(*resolution: Tuple[int]) -> sp.lil_matrix
     ), "The resolution must be a tuple of positive integers"
     ex = np.ones(resolution[0])
     ey = np.ones(resolution[1])
+    sp.eye(resolution[0])
     Dxx = sp.diags([ex, -2 * ex, ex], [-1, 0, 1], shape=(resolution[0], resolution[0]))
     Dyy = sp.diags([ey, -2 * ey, ey], [-1, 0, 1], shape=(resolution[1], resolution[1]))
     laplace_2d = sp.kronsum(Dyy, Dxx, format="lil")

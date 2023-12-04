@@ -5,7 +5,7 @@ import numpy as np
 
 from snake_ai.envs import GridWorld
 from snake_ai.envs.geometry import Cube, Rectangle
-from snake_ai.taichi.field import SampledField, ScalarField, spatial_gradient
+from snake_ai.diffsim.field import SampledField, ScalarField, spatial_gradient
 from typing import List, Tuple, Optional
 
 

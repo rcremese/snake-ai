@@ -12,7 +12,7 @@ from snake_ai.envs import (
     SlotEnv,
     RoomEscape,
 )
-from snake_ai.taichi import DiffusionSolver, ScalarField
+from snake_ai.diffsim import DiffusionSolver, ScalarField
 from snake_ai.utils.io import (
     EnvLoader,
     FieldLoader,
@@ -21,9 +21,9 @@ from snake_ai.utils.io import (
     EnvWriter3D,
 )
 import snake_ai.utils.visualization as vis
-from snake_ai.taichi.field import log
-from snake_ai.taichi.boxes import Box2D
-from snake_ai.taichi.walk_simulation import (
+from snake_ai.diffsim.field import log
+from snake_ai.diffsim.boxes import Box2D
+from snake_ai.diffsim.walk_simulation import (
     WalkerSimulationStoch2D,
     WalkerSimulationStoch3D,
 )
