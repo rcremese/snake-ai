@@ -1,0 +1,19 @@
+name: snake-env
+channels:
+  - conda-forge
+dependencies:
+  - python=3.10
+  - monai
+  - ca-certificates
+  - openssl
+  - plotly
+  - scikit-image
+  - matplotlib
+  - gymnasium
+  - certifi
+  - pygame
+  - nibabel
+  - pip:
+    - taichi
+
+prefix: /home/rcremese/miniforge3/envs/snake-env
