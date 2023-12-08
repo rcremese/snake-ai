@@ -13,7 +13,7 @@ from snake_ai.phiflow.converter import (
     PointCloudConverter,
     ObstacleConverter,
 )
-from snake_ai.envs import GridWorld, MazeGrid
+from snake_ai.envs import GridWorld
 from snake_ai.utils import errors
 from typing import Union, Optional, List, Any, Dict
 from phi.jax import flow
