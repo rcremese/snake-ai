@@ -138,7 +138,7 @@ def generate_interactive_3D_surface(data: MetaTensor):
     return fig
 
 
-def plot_3d_surface(data: MetaTensor, alpha=1.0):
+def plot_3d_surface(data: MetaTensor, alpha=1.0, remove_edges=True):
     vertices, triangles, _, _ = ski.measure.marching_cubes(data.numpy(), 0.5)
     fig = ff.create_trisurf(
         x=vertices[:, 0],
@@ -147,6 +147,151 @@ def plot_3d_surface(data: MetaTensor, alpha=1.0):
         simplices=triangles,
         title="Lung representation",
     )
+    # Update the alpha (transparency) value in the facecolors of the mesh3d trace
+    if remove_edges:
+        fig.data[1].visible = False
+        fig.data[2].visible = False
+    fig.data[0].update(opacity=alpha)
+    return fig
+
+
+def visualize_trajectories2(
+    trajectories: np.ndarray,
+    data: MetaTensor,
+    alpha=1.0,
+    remove_edges=True,
+    step_size=1,
+):
+    fig = plot_3d_surface(data, alpha=alpha, remove_edges=remove_edges)
+    nb_walkers = trajectories.shape[0]
+    nb_steps = trajectories.shape[1]
+
+    for i in range(nb_walkers):
+        fig.add_trace(
+            go.Scatter3d(
+                x=trajectories[i, :, 0],
+                y=trajectories[i, :, 1],
+                z=trajectories[i, :, 2],
+                mode="lines",
+                line=dict(width=6, colorscale="Plasma"),
+                # marker=dict(size=1, color=agent_colors[i]),
+                # line=dict(width=6),
+                name=f"walker {i}",
+                # colorscale="Viridis",
+                # color=color,
+            )
+        )
+
+    time = np.arange(trajectories.shape[1])
+    slider_steps = []
+
+    for timestamp in range(0, nb_steps, step_size):
+        frame_args = []
+        for j in range(nb_walkers):
+            frame_args.append(
+                {
+                    "x": trajectories[j, :timestamp, 0],
+                    "y": trajectories[j, :timestamp, 1],
+                    "z": trajectories[j, :timestamp, 2],
+                }
+            )
+        step = dict(
+            args=[
+                frame_args,
+                {
+                    "frame": {"duration": 300, "redraw": True},
+                    "mode": "immediate",
+                    "transition": {"duration": 300},
+                },
+            ],
+            label=str(timestamp),
+            method="update",
+        )
+        slider_steps.append(step)
+
+    # Create slider
+    slider = dict(
+        active=0,
+        steps=slider_steps,
+        yanchor="top",
+        xanchor="left",
+    )
+    # Update layout
+    fig.update_layout(
+        sliders=[slider],
+        scene=dict(
+            xaxis=dict(title="X Axis"),
+            yaxis=dict(title="Y Axis"),
+            zaxis=dict(title="Z Axis"),
+        ),
+        title="3D Time Series with Slider",
+    )
+
+    # Show the figure
+    return fig
+
+
+def visualize_trajectories(
+    trajectories: np.ndarray,
+    data: MetaTensor,
+    alpha=1.0,
+    remove_edges=True,
+    step_size=1,
+):
+    fig = plot_3d_surface(data, alpha=alpha, remove_edges=remove_edges)
+
+    nb_walkers = trajectories.shape[0]
+    nb_steps = trajectories.shape[1]
+    nb_plots = nb_walkers * (nb_steps // step_size)
+    agent_color_map = plt.cm.get_cmap("viridis", nb_walkers)
+    agent_colors = agent_color_map(np.arange(nb_walkers))
+    # Make the first trace visible
+    if remove_edges:
+        mesh_visibility = [True, False, False]
+    else:
+        mesh_visibility = [True, True, True]
+    # Create and add slider
+    slider_steps = []
+
+    for t, time_step in enumerate(range(0, nb_steps, step_size)):
+        ## Add slicer that control the visibility of the walkers history
+        slider_step = dict(
+            method="update",
+            args=[
+                {"visible": mesh_visibility + [False] * nb_plots},
+                {"title": "Walker at step: " + str(time_step)},
+            ],  # layout attribute
+        )
+        # Add traces, one for each slider step
+        for i in range(nb_walkers):
+            fig.add_trace(
+                go.Scatter3d(
+                    x=trajectories[i, :time_step, 0],
+                    y=trajectories[i, :time_step, 1],
+                    z=trajectories[i, :time_step, 2],
+                    mode="lines",
+                    visible=False,
+                    line=dict(width=6, color=i, colorscale="Plasma"),
+                    # marker=dict(size=1, color=agent_colors[i]),
+                    # line=dict(width=6),
+                    name=f"walker {i}",
+                    # colorscale="Viridis",
+                    # color=color,
+                )
+            )
+            slider_step["args"][0]["visible"][t + i] = True
+            # Toggle i'th trace to "visible"
+        slider_steps.append(slider_step)
+
+    sliders = [
+        dict(
+            active=0,
+            currentvalue={"prefix": "step: "},
+            pad={"t": 50},
+            steps=slider_steps,
+        )
+    ]
+    fig.update_layout(sliders=sliders)
     return fig
 
 
@@ -182,16 +327,18 @@ def main():
     # resized_data = Resize((100, 100, 100), size_mode="all", mode="nearest")(croped_data)
     logging.debug(f"New shape : {resized_data.shape}")
     logging.info("Plotting volumes")
-    anim1 = animate_volume(resized_data.squeeze())
+    # anim1 = animate_volume(resized_data.squeeze())
     repulsive_field = create_repulsive_field(resized_data.squeeze(), max_dist=5.0)
     attractive_field = create_attractive_field(
         resized_data.squeeze(), np.array([65, 27, 230])
     )
+    # fig = plot_3d_surface(resized_data.squeeze(), alpha=0.3)
+    # fig.show()
 
-    anim2 = vis.animate_volume(
-        k_rep * repulsive_field + k_atr * attractive_field, axis=2
-    )
-    plt.show()
+    # anim2 = vis.animate_volume(
+    #     k_rep * repulsive_field + k_atr * attractive_field, axis=2
+    # )
+    # plt.show()
 
     ## Create a potential field and a simulation
     from snake_ai.diffsim.field import ScalarField
@@ -206,48 +353,57 @@ def main():
         bounds=Cube(0, 0, 0, *repulsive_field.shape),
     )
     init_pos = np.array([[40, 40, 85], [80, 45, 85]])
+    init_pos = np.concatenate((init_pos, init_pos), axis=0)
+
     simu = WalkerSimulationStoch3D(
-        init_pos, potential_field, t_max=100, dt=1e-1, diffusivity=0
+        init_pos, potential_field, t_max=100, dt=1e-1, diffusivity=0.01
     )
-    simu.optimize(target_pos=np.array([65, 27, 230]), lr=1.0e-1, max_iter=200)
+    simu.optimize(target_pos=np.array([65, 27, 230]), lr=1.0e-1, max_iter=5)
 
     ## Plot the result of the simulation
     logging.info("Plotting simulation")
-    fig = plot_3d_surface(resized_data.squeeze(), alpha=0.5)
-    trajectories = simu.positions
-    for i in range(trajectories.shape[0]):
-        fig.add_trace(
-            go.Scatter3d(
-                x=trajectories[i, :, 0],
-                y=trajectories[i, :, 1],
-                z=trajectories[i, :, 2],
-                mode="lines",
-                name=f"walker {i}",
-                # colorscale="Viridis",
-                # color=color,
-            )
-        )
+    # fig = plot_3d_surface(resized_data.squeeze(), alpha=0.3)
+    fig = visualize_trajectories2(
+        simu.positions, resized_data.squeeze(), alpha=0.3, step_size=10
+    )
+    # fig.show()
+    # trajectories = simu.positions
+    # for i in range(trajectories.shape[0]):
+    #     fig.add_trace(
+    #         go.Scatter3d(
+    #             x=trajectories[i, :, 0],
+    #             y=trajectories[i, :, 1],
+    #             z=trajectories[i, :, 2],
+    #             mode="lines",
+    #             name=f"walker {i}",
+    #             # colorscale="Viridis",
+    #             # color=color,
+    #         )
+    #     )
+    # Update the layout to set the figure size
+    # fig.update_layout(width=800, height=800)
     fig.show()
 
+    ## Garbage code !
     # fig = plot_3d_surface(resized_data.squeeze())
 
     # Z max, x and y midle
     # obstacle_map = LabelToContour()(resized_data).squeeze().numpy()
-    obstacle_map = ~resized_data.squeeze().numpy().astype(int)
+    # obstacle_map = ~resized_data.squeeze().numpy().astype(int)
     # anim2 = vis.animate_volume(obstacle_map)
     # plt.show()
-    source_position = np.zeros_like(obstacle_map)
-    source_position[130 // div_factor, 54 // div_factor, -1] = 100
-    logging.info("Solving diffusion equation")
-    solution = solve_diffusion_equation(obstacle_map, source_position)
-    np.save("solution.npy", solution)
+    # source_position = np.zeros_like(obstacle_map)
+    # source_position[130 // div_factor, 54 // div_factor, -1] = 100
+    # logging.info("Solving diffusion equation")
+    # solution = solve_diffusion_equation(obstacle_map, source_position)
+    # np.save("solution.npy", solution)
 
-    # solution = np.load("solution.npy")
-    log_sol = np.log(np.where(solution > 1e-10, solution, 1e-10))
-    logging.info("Plotting solution")
-    anim = vis.animate_volume(log_sol)
-    plot_3d_volume(log_sol)
-    plt.show()
+    # # solution = np.load("solution.npy")
+    # log_sol = np.log(np.where(solution > 1e-10, solution, 1e-10))
+    # logging.info("Plotting solution")
+    # anim = vis.animate_volume(log_sol)
+    # plot_3d_volume(log_sol)
+    # plt.show()
     # anim = animate_volume(resized_data.squeeze())
     # plt.show()
 
