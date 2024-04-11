@@ -64,7 +64,7 @@ def create_div_matrix_3d(nx, ny, nz, dx, dy, dz) -> sp.lil_matrix:
 def create_laplacian_matrix_2d(nx: int, ny: int, dx: float, dy: float) -> sp.lil_array:
     Dxx = sp.diags([1, -2, 1], [-1, 0, 1], shape=(nx, nx)) / dx**2
     Dyy = sp.diags([1, -2, 1], [-1, 0, 1], shape=(ny, ny)) / dy**2
-    return sp.lil_array(sp.kronsum(Dyy, Dxx))
+    return sp.kronsum(Dyy, Dxx, format="csr")
 
 
 def create_laplacian_matrix_3d(
@@ -74,4 +74,4 @@ def create_laplacian_matrix_3d(
     laplace_2d = create_laplacian_matrix_2d(nx, ny, dx, dy)
 
     Dzz = sp.diags([1, -2, 1], [-1, 0, 1], shape=(nz, nz)) / dz**2
-    return sp.lil_array(sp.kronsum(Dzz, laplace_2d))
+    return sp.kronsum(Dzz, laplace_2d, format="csr")

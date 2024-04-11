@@ -35,6 +35,7 @@ def implicit_diffusion(
     #     concentration, diffusivity=diffusivity, dt=dt, order=2
     # )
 
+
 @flow.math.jit_compile
 def crank_nicolson_diffusion(
     concentration: flow.field.Field,
@@ -148,7 +149,7 @@ class DiffusionSolver:
 
 if __name__ == "__main__":
     from snake_ai.envs import MazeGrid
-    from snake_ai.physim.converter import DiffusionConverter, ObstacleConverter
+    from snake_ai.phiflow.converter import DiffusionConverter, ObstacleConverter
     import matplotlib.pyplot as plt
 
     env = MazeGrid()
