@@ -174,7 +174,7 @@ class WalkerSimulationStoch2D(WalkerSimulation):
         for n in range(self.nb_walkers):
             self.loss[None] += (
                 tm.length(self.states[n, t].pos - self.target)
-            ) / self.nb_walkers
+            ) ** 2 / self.nb_walkers
 
     ## Private methods
     @ti.func

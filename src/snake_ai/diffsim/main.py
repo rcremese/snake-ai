@@ -12,7 +12,7 @@ from snake_ai.envs import (
     SlotEnv,
     RoomEscape,
 )
-from snake_ai.diffsim import DiffusionSolver, ScalarField
+from snake_ai.diffsim.diffusion import DiffusionSolver, ScalarField
 from snake_ai.utils.io import (
     EnvLoader,
     FieldLoader,

@@ -6,7 +6,7 @@ from .grid_world_3d import GridWorld3D
 from .random_obstacles_env import RandomObstaclesEnv
 from .random_obstacles_3d import RandomObstacles3D
 from .room_escape import RoomEscape
-# from .maze_grid import MazeGrid
+from .maze_grid import MazeGrid
 from .snake_env import SnakeEnv
 from .slot_env import SlotEnv
 from .converter import EnvConverter, Env3DConverter

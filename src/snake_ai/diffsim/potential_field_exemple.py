@@ -125,14 +125,15 @@ class ArtificialPotentialField:
         pixel = 20
         scale_vector = np.array((pixel * env.width, pixel * env.height))
 
-        gui = ti.GUI("Autodiff gravity", scale_vector)
+        gui = ti.GUI("Autodiff gravity", scale_vector, background_color=0xFFFFFF)
         self.reset()
         while gui.running:
             self.potential_field_evaluation()
             self.step(dt)
             # Plot the potential field
             centers = self.pos.to_numpy() / pixel
-            gui.circles(centers, radius=3)
+            gui.circle(self.goal / pixel, radius=5, color=0x00FF00)
+            gui.circles(centers, radius=3, color=0x0000FF)
             for obs in self.env.obstacles:
                 gui.rect(obs.min / pixel, obs.max / pixel, color=0xFF0000)
             # gui.circles(self.pos.to_numpy() / scale_vector, radius=3)
@@ -177,7 +178,7 @@ def example():
             x[i] = [ti.random(), ti.random()]
 
     init()
-    gui = ti.GUI("Autodiff gravity")
+    gui = ti.GUI("Autodiff gravity", background_color=0xFFFFFF)
     while gui.running:
         for i in range(50):
             substep()
@@ -189,10 +190,10 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
 
     env = RandomObstaclesEnv(20, 20, pixel=1, nb_obs=10, max_obs_size=5)
-    env.reset()
+    env.reset(5)
     converter = EnvConverter(env)
-    init_pos = converter.get_agent_position()
-    init_pos = converter.convert_free_positions_to_point_cloud(step=2)
+    init_pos = np.array([[1, 1]])
+    # init_pos = converter.convert_free_positions_to_point_cloud(step=2)
     logging.debug("Initial position: %s", init_pos)
     logging.debug("Goal position: %s", converter.get_goal_position())
 

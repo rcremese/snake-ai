@@ -345,27 +345,28 @@ def main():
     from snake_ai.diffsim.walk_simulation import WalkerSimulationStoch3D
     from snake_ai.envs.geometry import Cube
     import taichi as ti
+    from snake_ai.diffsim.finite_difference import create_laplacian_matrix_3d
 
-    ti.init(arch=ti.gpu)
-    logging.info("Creating potential field")
-    potential_field = ScalarField(
-        -(k_rep * repulsive_field + k_atr * attractive_field),
-        bounds=Cube(0, 0, 0, *repulsive_field.shape),
-    )
-    init_pos = np.array([[40, 40, 85], [80, 45, 85]])
-    init_pos = np.concatenate((init_pos, init_pos), axis=0)
+    # ti.init(arch=ti.gpu)
+    # logging.info("Creating potential field")
+    # potential_field = ScalarField(
+    #     -(k_rep * repulsive_field + k_atr * attractive_field),
+    #     bounds=Cube(0, 0, 0, *repulsive_field.shape),
+    # )
+    # init_pos = np.array([[40, 40, 85], [80, 45, 85]])
+    # init_pos = np.concatenate((init_pos, init_pos), axis=0)
 
-    simu = WalkerSimulationStoch3D(
-        init_pos, potential_field, t_max=100, dt=1e-1, diffusivity=0.01
-    )
-    simu.optimize(target_pos=np.array([65, 27, 230]), lr=1.0e-1, max_iter=5)
+    # simu = WalkerSimulationStoch3D(
+    #     init_pos, potential_field, t_max=100, dt=1e-1, diffusivity=0.01
+    # )
+    # simu.optimize(target_pos=np.array([65, 27, 230]), lr=1.0e-1, max_iter=5)
 
-    ## Plot the result of the simulation
-    logging.info("Plotting simulation")
-    # fig = plot_3d_surface(resized_data.squeeze(), alpha=0.3)
-    fig = visualize_trajectories2(
-        simu.positions, resized_data.squeeze(), alpha=0.3, step_size=10
-    )
+    # ## Plot the result of the simulation
+    # logging.info("Plotting simulation")
+    # # fig = plot_3d_surface(resized_data.squeeze(), alpha=0.3)
+    # fig = visualize_trajectories2(
+    #     simu.positions, resized_data.squeeze(), alpha=0.3, step_size=10
+    # )
     # fig.show()
     # trajectories = simu.positions
     # for i in range(trajectories.shape[0]):
@@ -385,27 +386,27 @@ def main():
     fig.show()
 
     ## Garbage code !
-    # fig = plot_3d_surface(resized_data.squeeze())
+    fig = plot_3d_surface(resized_data.squeeze())
 
-    # Z max, x and y midle
-    # obstacle_map = LabelToContour()(resized_data).squeeze().numpy()
-    # obstacle_map = ~resized_data.squeeze().numpy().astype(int)
-    # anim2 = vis.animate_volume(obstacle_map)
-    # plt.show()
-    # source_position = np.zeros_like(obstacle_map)
-    # source_position[130 // div_factor, 54 // div_factor, -1] = 100
-    # logging.info("Solving diffusion equation")
-    # solution = solve_diffusion_equation(obstacle_map, source_position)
-    # np.save("solution.npy", solution)
+    # # Z max, x and y midle
+    obstacle_map = LabelToContour()(resized_data).squeeze().numpy()
+    obstacle_map = ~resized_data.squeeze().numpy().astype(int)
+    anim2 = vis.animate_volume(obstacle_map)
+    plt.show()
+    source_position = np.zeros_like(obstacle_map)
+    source_position[130 // div_factor, 54 // div_factor, -1] = 100
+    logging.info("Solving diffusion equation")
+    solution = solve_diffusion_equation(obstacle_map, source_position)
+    np.save("solution.npy", solution)
 
-    # # solution = np.load("solution.npy")
-    # log_sol = np.log(np.where(solution > 1e-10, solution, 1e-10))
-    # logging.info("Plotting solution")
-    # anim = vis.animate_volume(log_sol)
-    # plot_3d_volume(log_sol)
-    # plt.show()
-    # anim = animate_volume(resized_data.squeeze())
-    # plt.show()
+    # solution = np.load("solution.npy")
+    log_sol = np.log(np.where(solution > 1e-10, solution, 1e-10))
+    logging.info("Plotting solution")
+    anim = vis.animate_volume(log_sol)
+    plot_3d_volume(log_sol)
+    plt.show()
+    anim = animate_volume(resized_data.squeeze())
+    plt.show()
 
 
 if __name__ == "__main__":
