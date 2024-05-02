@@ -27,7 +27,7 @@ def map_value_to_idx(value: float, x_min: float, x_max: float, step_size: float)
         If the value is greater than the upper bound of the field, return -1.
     """
     assert step_size > 0, "Expected step_size to be positive. Get {}".format(step_size)
-    idx=0
+    idx = 0
     if value < x_min:
         idx = -1
     elif value > x_max:
@@ -259,6 +259,12 @@ class VectorField(SampledField):
             (self._bounds.max[i] - self._bounds.min[i]) / (self._values.shape[i] - 1)
             for i in range(self.dim)
         ]
+
+    @ti.kernel
+    def normalize(self):
+        for I in ti.grouped(self._values):
+            if tm.length(self._values[I]) > 0:
+                self._values[I] = self._values[I] / tm.length(self._values[I])
 
     @property
     @ti.kernel

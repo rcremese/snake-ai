@@ -5,7 +5,12 @@ import numpy as np
 
 from snake_ai.envs import GridWorld
 from snake_ai.envs.geometry import Cube, Rectangle
-from snake_ai.diffsim.field import SampledField, ScalarField, spatial_gradient
+from snake_ai.diffsim.field import (
+    SampledField,
+    ScalarField,
+    VectorField,
+    spatial_gradient,
+)
 from typing import List, Tuple, Optional
 
 
@@ -318,6 +323,9 @@ def plot_2D_trajectory(
     goal: np.ndarray,
     obstacles: List[Rectangle],
     concentration: Optional[SampledField] = None,
+    vector_field: Optional[VectorField] = None,
+    downscale: int = 1,
+    scale: float = 1,
     title: str = "2D trajectory",
 ) -> plt.Figure:
     """Plot the trajectory of a walker in 2D with a color corresponding to its concentration."""
@@ -334,7 +342,20 @@ def plot_2D_trajectory(
             extent=[0, max_bounds[0], max_bounds[1], 0],
         )
         plt.colorbar(im, ax=ax, label="Concentration (log)")
-
+    if vector_field is not None:
+        assert downscale > 0, "Downscale must be a positive integer"
+        assert scale > 0, "Scale must be a positive float"
+        X, Y = vector_field.meshgrid
+        values = vector_field.values[::downscale, ::downscale]
+        ax.quiver(
+            X[::downscale, ::downscale],
+            Y[::downscale, ::downscale],
+            values[:, :, 0],
+            values[:, :, 1],
+            units="xy",
+            angles="xy",
+            scale=scale,
+        )
     for i in range(positions.shape[0]):
         ax.plot(positions[i, :, 0], positions[i, :, 1], color=colors[i], marker=".")
 

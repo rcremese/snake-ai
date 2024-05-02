@@ -51,6 +51,7 @@ class WalkerSimulation(ABC):
         raise NotImplementedError
 
 
+@ti.data_oriented
 class WalkerSimulationStoch2D(WalkerSimulation):
     def __init__(
         self,
@@ -79,7 +80,8 @@ class WalkerSimulationStoch2D(WalkerSimulation):
             type(potential_field)
         )
         self.force_field = spatial_gradient(potential_field, needs_grad=True)
-
+        # Normalization of the force field
+        self.force_field.normalize()
         ## Initialisation of the obstacles
         if obstacles is None or len(obstacles) == 0:
             obstacles = [Rectangle(0, 0, 0, 0)]  # Dummy obstacle
@@ -108,9 +110,9 @@ class WalkerSimulationStoch2D(WalkerSimulation):
         self.loss = ti.field(ti.f32, shape=(), needs_grad=True)
 
     ## Public methods
-    def run(self):
+    def run(self, diffusivity: float = 0.0):
         for t in range(1, self.nb_steps):
-            self.step(t)
+            self.step(t, diffusivity)
 
     def optimize(self, target_pos: np.ndarray, max_iter: int = 100, lr: float = 1e-3):
         assert isinstance(target_pos, np.ndarray) and target_pos.shape == (
@@ -127,7 +129,7 @@ class WalkerSimulationStoch2D(WalkerSimulation):
         for iter in range(max_iter):
             self.reset()
             with ti.ad.Tape(self.loss):
-                self.run()
+                self.run(self.diffusivity)
                 self.compute_loss(self.nb_steps - 1)
             print("Iter=", iter, "Loss=", self.loss[None])
             self._update_force_field(lr)
@@ -144,12 +146,12 @@ class WalkerSimulationStoch2D(WalkerSimulation):
             self.force_field._values.grad[i, j] = tm.vec2(0.0, 0.0)
 
     @ti.kernel
-    def step(self, t: int):
+    def step(self, t: int, diffusivity: float):
         for n in ti.ndrange(self.nb_walkers):
             self.states[n, t].pos = (
                 self.states[n, t - 1].pos
                 + self.dt * self.force_field._at_2d(self.states[n, t - 1].pos)
-                + tm.sqrt(2 * self.dt * self.diffusivity) * self._noise[n, t]
+                + tm.sqrt(2 * self.dt * diffusivity) * self._noise[n, t]
             )
             self.collision_handling(n, t)
 
@@ -163,11 +165,13 @@ class WalkerSimulationStoch2D(WalkerSimulation):
         """
         ## Domain collisions
         if not self.force_field.contains(self.states[n, t].pos):
+            # self.states[n, t].pos = self.states[n, t - 1].pos
             self._domain_collision(n, t)
         ## Obstacle collisions
         for o in ti.ndrange(self.nb_obstacles):
             if self.obstacles[o].contains(self.states[n, t].pos):
-                self._obstacle_collision(n, t, o)
+                self.states[n, t].pos = self.states[n, t - 1].pos
+                # self._obstacle_collision(n, t, o)
 
     @ti.kernel
     def compute_loss(self, t: int):
@@ -232,10 +236,10 @@ class WalkerSimulationStoch2D(WalkerSimulation):
     def _update_force_field(self, lr: float):
         for i, j in self.force_field._values:
             self.force_field._values[i, j] -= lr * self.force_field._values.grad[i, j]
-            if tm.length(self.force_field._values[i, j]) > 1.0:
-                self.force_field._values[i, j] = self.force_field._values[
-                    i, j
-                ] / tm.length(self.force_field._values[i, j])
+            # if tm.length(self.force_field._values[i, j]) > 1.0:
+            #     self.force_field._values[i, j] = self.force_field._values[
+            #         i, j
+            #     ] / tm.length(self.force_field._values[i, j])
 
     ## Properties
     @property

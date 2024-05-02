@@ -104,12 +104,22 @@ class EnvConverter:
         if self.env.nb_obstacles == 0:
             return binary_map
         indices = self.convert_obstacles_to_indices()
-        if self.dim == 2:
-            binary_map[indices[:, 0], indices[:, 1]] = 1
-        elif self.dim == 3:
-            binary_map[indices[:, 0], indices[:, 1], indices[:, 2]] = 1
-        else:
-            raise ValueError("Dimension must be either 2 or 3")
+        for ind in indices:
+            if (
+                ind[0] < 0
+                or ind[1] < 0
+                or ind[0] >= self.resolution[0]
+                or ind[1] >= self.resolution[1]
+            ):
+                continue
+            if self.dim == 2:
+                binary_map[ind[0], ind[1]] = 1
+            elif self.dim == 3:
+                if ind[2] < 0 or ind[2] >= self.resolution[2]:
+                    continue
+                binary_map[ind[0], ind[1], ind[2]] = 1
+            else:
+                raise ValueError("Dimension must be either 2 or 3")
         return binary_map
 
     def convert_obstacles_to_indices(self) -> np.ndarray:
