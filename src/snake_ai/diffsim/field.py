@@ -171,20 +171,28 @@ class SampledField(ABC):
             return Rectangle(
                 self._bounds.min[0],
                 self._bounds.min[1],
-                self._bounds.width,
-                self._bounds.height,
+                self._bounds.width(),
+                self._bounds.height(),
             )
         elif self.dim == 3:
             return Cube(
                 self._bounds.min[0],
                 self._bounds.min[1],
                 self._bounds.min[2],
-                self._bounds.width,
-                self._bounds.height,
-                self._bounds.depth,
+                self._bounds.width(),
+                self._bounds.height(),
+                self._bounds.depth(),
             )
         else:
             raise ValueError("Only 2D and 3D fields are supported")
+
+    def copy(self):
+        if isinstance(self, ScalarField):
+            return ScalarField(self._values.to_numpy(), self.bounds)
+        elif isinstance(self, VectorField):
+            return VectorField(self._values.to_numpy(), self.bounds)
+        else:
+            raise NotImplementedError
 
 
 # TODO : Take into account extrapolation

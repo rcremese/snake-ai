@@ -174,10 +174,10 @@ class WalkerSimulationStoch2D(WalkerSimulation):
                 # self._obstacle_collision(n, t, o)
 
     @ti.kernel
-    def compute_loss(self, t: int):
+    def compute_loss(self, target: ti.template(), t: int):
         for n in range(self.nb_walkers):
             self.loss[None] += (
-                tm.length(self.states[n, t].pos - self.target)
+                tm.length(self.states[n, t].pos - target)
             ) ** 2 / self.nb_walkers
 
     ## Private methods
@@ -240,6 +240,16 @@ class WalkerSimulationStoch2D(WalkerSimulation):
             #     self.force_field._values[i, j] = self.force_field._values[
             #         i, j
             #     ] / tm.length(self.force_field._values[i, j])
+
+    @ti.kernel
+    def clip_force_field(self, clip_value: float):
+        for i, j in self.force_field._values:
+            if tm.length(self.force_field._values.grad[i, j]) > clip_value:
+                self.force_field._values.grad[i, j] = (
+                    clip_value
+                    * self.force_field._values.grad[i, j]
+                    / tm.length(self.force_field._values.grad[i, j])
+                )
 
     ## Properties
     @property
