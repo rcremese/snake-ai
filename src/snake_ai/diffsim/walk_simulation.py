@@ -57,7 +57,6 @@ class WalkerSimulationStoch2D(WalkerSimulation):
         self,
         positions: np.ndarray,
         potential_field: ScalarField,
-        target: np.ndarray,
         obstacles: List[Rectangle] = None,
         t_max: float = 100.0,
         dt: float = 0.1,
@@ -83,9 +82,6 @@ class WalkerSimulationStoch2D(WalkerSimulation):
         self.force_field = spatial_gradient(potential_field, needs_grad=True)
         # Normalization of the force field
         self.force_field.normalize()
-        ## Save an occurence of the target
-        assert len(target) == 2, f"Expected target to be a 2D-array. Get {target}"
-        self.target = tm.vec2(*target)
         ## Initialisation of the obstacles
         if obstacles is None or len(obstacles) == 0:
             obstacles = [Rectangle(0, 0, 0, 0)]  # Dummy obstacle
